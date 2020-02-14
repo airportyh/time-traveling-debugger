@@ -1,9 +1,10 @@
 // Runtime functions
-const jsonr = require("@airportyh/jsonr");
+// const jsonr = require("@airportyh/jsonr");
 const $history = [];
 let $stack = [];
 let $nextHeapId = 1;
 let $heap = {};
+let $body = $nativeDomToVDom(document.body);
 
 function $pushFrame(funName, variables) {
     const newFrame = { funName, parameters: variables, variables };
@@ -170,10 +171,190 @@ function getElementById(id) {
     return document.getElementById(id);
 }
 
-function addStyle(element, styles) {
+function addStyle(element, stylesId) {
+    const styles = $heap[stylesId];
     for (let prop in styles) {
         element.style[prop] = styles[prop];
     }
+}
+
+function $nativeDomToVDom(node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "script") {
+            return "";
+        }
+        const attrs = {};
+        const attributeNames = node.getAttributeNames();
+        for (let i = 0; i < attributeNames.length; i++) {
+            const attrName = attributeNames[i];
+            attrs[attrName] = node.getAttribute(attrName);
+        }
+        const childNodes = node.childNodes;
+        const childNodeResults = [];
+        for (let i = 0; i < childNodes.length; i++) {
+            childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
+        }
+        return $heapAllocate({
+            tag: tag,
+            attrs: $heapAllocate(attrs),
+            children: $heapAllocate(childNodeResults)
+        });
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        return node.data;
+    } else {
+        throw new Error("Unsupported node type: " + node.nodeType);
+    }
+
+}
+
+function createElement(tag, attrs, children) {
+    const element = { tag };
+    if (attrs) {
+        element.attrs = attrs;
+    }
+    if (children) {
+        element.children = children;
+    }
+    return $heapAllocate(element);
+}
+
+function getDocumentBody() {
+    return $body;
+}
+
+function appendTo(parentId, childId) {
+    const parent = $heapAccess(parentId);
+    const children = $heapAccess(parent.children);
+    const newChildren = $heapAllocate([...children, childId]);
+    const newParent = {
+        ...parent,
+        children: newChildren
+    };
+    $heap = {
+        ...$heap,
+        [parentId]: newParent
+    };
+}
+
+function setText(elementId, text) {
+    const element = $heapAccess(elementId);
+    const newChildren = $heapAllocate([text]);
+    const newElement = {
+        ...element,
+        children: newChildren
+    };
+    $heap = {
+        ...$heap,
+        [elementId]: newElement
+    };
+}
+
+function setStyle(elementId, stylesId) {
+    const styles = $heapAccess(stylesId);
+    const element = $heapAccess(elementId);
+    const attrs = $heapAccess(element.attrs);
+    const oldStyles = $heapAccess(attrs.style);
+    const newAttrs = $heapAllocate({
+        ...attrs,
+        style: {
+            ...oldStyles,
+            ...styles
+        }
+    });
+    const newElement = {
+        ...element,
+        attrs: newAttrs
+    };
+    $heap = {
+        ...$heap,
+        [elementId]: newElement
+    };
+}
+
+function compare(source, destination) {
+    return compareAt([], source, destination);
+
+    function isObject(value) {
+        const type = typeof value
+        return value != null && (type === 'object' || type === 'function')
+    }
+
+    function difference(arr1, arr2) {
+        const result = [];
+        for (let i = 0; i < arr1.length; i++) {
+            if (arr2.indexOf(arr1[i]) === -1) {
+                result.push(arr1[i]);
+            }
+        }
+        return result;
+    }
+
+    function intersection(arr1, arr2) {
+        const result = [];
+        for (let i = 0; i < arr1.length; i++) {
+            if (arr2.indexOf(arr1[i]) !== -1) {
+                result.push(arr1[i]);
+            }
+        }
+        return result;
+    }
+
+    function compareAt(path, source, destination) {
+        if (isObject($heapAccess(source)) && isObject($heapAccess(destination))) {
+            return compareObjectsAt(path, source, destination);
+        } else {
+            if (source === destination) {
+                return [];
+            } else {
+                return [
+                    {
+                        type: "replacement",
+                        path: path,
+                        oldValue: source,
+                        newValue: destination
+                    }
+                ];
+            }
+        }
+    }
+
+    function compareObjectsAt(path, source, destination) {
+        source = $heapAccess(source);
+        destination = $heapAccess(destination);
+        const sourceKeys = Object.keys(source);
+        const destinationKeys = Object.keys(destination);
+        const sourceOnlyKeys = difference(sourceKeys, destinationKeys);
+        const commonKeys = intersection(sourceKeys, destinationKeys);
+        const destinationOnlyKeys = difference(destinationKeys, sourceKeys);
+        const additions = destinationOnlyKeys.map((key) => ({
+            type: "addition",
+            path: [...path, key],
+            value: destination[key]
+        }));
+        const removals = sourceOnlyKeys.map((key) => ({
+            type: "deletion",
+            path: [...path, key]
+        }));
+        const commonKeysComparisonNeeded = commonKeys
+            .filter((key) =>
+                source[key] !== destination[key]);
+
+        const childDiffs = commonKeysComparisonNeeded
+            .reduce((diffs, key) => {
+                const result = compareAt([...path, key], source[key], destination[key]);
+                return [
+                    ...result,
+                    ...diffs
+                ];
+            }, []);
+        return [
+            ...additions,
+            ...removals,
+            ...childDiffs
+        ];
+    }
+
 }
 
 
@@ -182,13 +363,23 @@ async function main() {
     $pushFrame("main", {  });
     try {
         $save(2);
-        $setVariable("button", getElementById("button"), 2);
+        $setVariable("button", createElement("button", $heapAllocate({ style: $heapAllocate({ color: "red" }) }), $heapAllocate(["Hello, world!"])), 2);
         $save(3);
-        addStyle($getVariable("button"), $heapAllocate({ color: "red" }));
-    } finally {
+        $setVariable("div", createElement("div", $heapAllocate({ class: "panel" }), $heapAllocate([$getVariable("button")])), 3);
+        $save(4);
+        $setVariable("body", getDocumentBody(), 4);
+        $save(5);
+        appendTo($getVariable("body"), $getVariable("div"));
         $save(6);
+        setText($getVariable("button"), "Hello, Jacki!");
+        $save(7);
+        setStyle($getVariable("button"), $heapAllocate({ color: "orange" }));
+        $save(8);
+        print($getVariable("diff"));
+    } finally {
+        $save(9);
         $popFrame();
     }
 }
 
-main().catch(err => console.log(err.message)).finally(() => $saveHistory("dom.history"));
+main().catch(err => console.log(err.stack))

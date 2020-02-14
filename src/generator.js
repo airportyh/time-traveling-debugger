@@ -13,7 +13,7 @@ exports.generateCode = function generateCode(ast, options) {
             return generateCodeForTopLevelStatement(node);
         })
     )
-    .concat([`main().catch(err => console.log(err.message))`
+    .concat([`main().catch(err => console.log(err.stack))`
         + (options.historyFilePath ?
             `.finally(() => $saveHistory("${options.historyFilePath}"));` :
             "")])

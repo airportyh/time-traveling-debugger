@@ -1,6 +1,9 @@
 def main() [
-    button = getElementById("button")
-    addStyle(button, {
-        color: "red"
-    })
+    button = createElement("button", { style: { color: "red" } }, ["Hello, world!"])
+    div = createElement("div", { class: "panel" }, [ button ])
+    body = getDocumentBody()
+    appendTo(body, div)
+    setText(button, "Hello, Jacki!")
+    setStyle(button, { color: "orange" })
+    print(diff)
 ]

@@ -35,14 +35,14 @@
             "type": "call_expression",
             "fun_name": {
               "type": "identifier",
-              "value": "getElementById",
+              "value": "createElement",
               "start": {
                 "line": 2,
                 "col": 13
               },
               "end": {
                 "line": 2,
-                "col": 27
+                "col": 26
               }
             },
             "arguments": [
@@ -51,11 +51,102 @@
                 "value": "button",
                 "start": {
                   "line": 2,
-                  "col": 28
+                  "col": 27
                 },
                 "end": {
                   "line": 2,
-                  "col": 36
+                  "col": 35
+                }
+              },
+              {
+                "type": "dictionary_literal",
+                "entries": [
+                  [
+                    {
+                      "type": "identifier",
+                      "value": "style",
+                      "start": {
+                        "line": 2,
+                        "col": 39
+                      },
+                      "end": {
+                        "line": 2,
+                        "col": 44
+                      }
+                    },
+                    {
+                      "type": "dictionary_literal",
+                      "entries": [
+                        [
+                          {
+                            "type": "identifier",
+                            "value": "color",
+                            "start": {
+                              "line": 2,
+                              "col": 48
+                            },
+                            "end": {
+                              "line": 2,
+                              "col": 53
+                            }
+                          },
+                          {
+                            "type": "string_literal",
+                            "value": "red",
+                            "start": {
+                              "line": 2,
+                              "col": 55
+                            },
+                            "end": {
+                              "line": 2,
+                              "col": 60
+                            }
+                          }
+                        ]
+                      ],
+                      "start": {
+                        "line": 2,
+                        "col": 46
+                      },
+                      "end": {
+                        "line": 2,
+                        "col": 62
+                      }
+                    }
+                  ]
+                ],
+                "start": {
+                  "line": 2,
+                  "col": 37
+                },
+                "end": {
+                  "line": 2,
+                  "col": 64
+                }
+              },
+              {
+                "type": "list_literal",
+                "items": [
+                  {
+                    "type": "string_literal",
+                    "value": "Hello, world!",
+                    "start": {
+                      "line": 2,
+                      "col": 67
+                    },
+                    "end": {
+                      "line": 2,
+                      "col": 82
+                    }
+                  }
+                ],
+                "start": {
+                  "line": 2,
+                  "col": 66
+                },
+                "end": {
+                  "line": 2,
+                  "col": 83
                 }
               }
             ],
@@ -65,7 +156,7 @@
             },
             "end": {
               "line": 2,
-              "col": 37
+              "col": 84
             }
           },
           "start": {
@@ -74,20 +165,333 @@
           },
           "end": {
             "line": 2,
-            "col": 37
+            "col": 84
           }
         },
         {
-          "type": "call_expression",
-          "fun_name": {
+          "type": "var_assignment",
+          "var_name": {
             "type": "identifier",
-            "value": "addStyle",
+            "value": "div",
             "start": {
               "line": 3,
               "col": 4
             },
             "end": {
               "line": 3,
+              "col": 7
+            }
+          },
+          "value": {
+            "type": "call_expression",
+            "fun_name": {
+              "type": "identifier",
+              "value": "createElement",
+              "start": {
+                "line": 3,
+                "col": 10
+              },
+              "end": {
+                "line": 3,
+                "col": 23
+              }
+            },
+            "arguments": [
+              {
+                "type": "string_literal",
+                "value": "div",
+                "start": {
+                  "line": 3,
+                  "col": 24
+                },
+                "end": {
+                  "line": 3,
+                  "col": 29
+                }
+              },
+              {
+                "type": "dictionary_literal",
+                "entries": [
+                  [
+                    {
+                      "type": "identifier",
+                      "value": "class",
+                      "start": {
+                        "line": 3,
+                        "col": 33
+                      },
+                      "end": {
+                        "line": 3,
+                        "col": 38
+                      }
+                    },
+                    {
+                      "type": "string_literal",
+                      "value": "panel",
+                      "start": {
+                        "line": 3,
+                        "col": 40
+                      },
+                      "end": {
+                        "line": 3,
+                        "col": 47
+                      }
+                    }
+                  ]
+                ],
+                "start": {
+                  "line": 3,
+                  "col": 31
+                },
+                "end": {
+                  "line": 3,
+                  "col": 49
+                }
+              },
+              {
+                "type": "list_literal",
+                "items": [
+                  {
+                    "type": "var_reference",
+                    "var_name": {
+                      "type": "identifier",
+                      "value": "button",
+                      "start": {
+                        "line": 3,
+                        "col": 53
+                      },
+                      "end": {
+                        "line": 3,
+                        "col": 59
+                      }
+                    },
+                    "start": {
+                      "line": 3,
+                      "col": 53
+                    },
+                    "end": {
+                      "line": 3,
+                      "col": 59
+                    }
+                  }
+                ],
+                "start": {
+                  "line": 3,
+                  "col": 51
+                },
+                "end": {
+                  "line": 3,
+                  "col": 61
+                }
+              }
+            ],
+            "start": {
+              "line": 3,
+              "col": 10
+            },
+            "end": {
+              "line": 3,
+              "col": 62
+            }
+          },
+          "start": {
+            "line": 3,
+            "col": 4
+          },
+          "end": {
+            "line": 3,
+            "col": 62
+          }
+        },
+        {
+          "type": "var_assignment",
+          "var_name": {
+            "type": "identifier",
+            "value": "body",
+            "start": {
+              "line": 4,
+              "col": 4
+            },
+            "end": {
+              "line": 4,
+              "col": 8
+            }
+          },
+          "value": {
+            "type": "call_expression",
+            "fun_name": {
+              "type": "identifier",
+              "value": "getDocumentBody",
+              "start": {
+                "line": 4,
+                "col": 11
+              },
+              "end": {
+                "line": 4,
+                "col": 26
+              }
+            },
+            "arguments": [],
+            "start": {
+              "line": 4,
+              "col": 11
+            },
+            "end": {
+              "line": 4,
+              "col": 28
+            }
+          },
+          "start": {
+            "line": 4,
+            "col": 4
+          },
+          "end": {
+            "line": 4,
+            "col": 28
+          }
+        },
+        {
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "appendTo",
+            "start": {
+              "line": 5,
+              "col": 4
+            },
+            "end": {
+              "line": 5,
+              "col": 12
+            }
+          },
+          "arguments": [
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "body",
+                "start": {
+                  "line": 5,
+                  "col": 13
+                },
+                "end": {
+                  "line": 5,
+                  "col": 17
+                }
+              },
+              "start": {
+                "line": 5,
+                "col": 13
+              },
+              "end": {
+                "line": 5,
+                "col": 17
+              }
+            },
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "div",
+                "start": {
+                  "line": 5,
+                  "col": 19
+                },
+                "end": {
+                  "line": 5,
+                  "col": 22
+                }
+              },
+              "start": {
+                "line": 5,
+                "col": 19
+              },
+              "end": {
+                "line": 5,
+                "col": 22
+              }
+            }
+          ],
+          "start": {
+            "line": 5,
+            "col": 4
+          },
+          "end": {
+            "line": 5,
+            "col": 23
+          }
+        },
+        {
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "setText",
+            "start": {
+              "line": 6,
+              "col": 4
+            },
+            "end": {
+              "line": 6,
+              "col": 11
+            }
+          },
+          "arguments": [
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "button",
+                "start": {
+                  "line": 6,
+                  "col": 12
+                },
+                "end": {
+                  "line": 6,
+                  "col": 18
+                }
+              },
+              "start": {
+                "line": 6,
+                "col": 12
+              },
+              "end": {
+                "line": 6,
+                "col": 18
+              }
+            },
+            {
+              "type": "string_literal",
+              "value": "Hello, Jacki!",
+              "start": {
+                "line": 6,
+                "col": 20
+              },
+              "end": {
+                "line": 6,
+                "col": 35
+              }
+            }
+          ],
+          "start": {
+            "line": 6,
+            "col": 4
+          },
+          "end": {
+            "line": 6,
+            "col": 36
+          }
+        },
+        {
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "setStyle",
+            "start": {
+              "line": 7,
+              "col": 4
+            },
+            "end": {
+              "line": 7,
               "col": 12
             }
           },
@@ -98,20 +502,20 @@
                 "type": "identifier",
                 "value": "button",
                 "start": {
-                  "line": 3,
+                  "line": 7,
                   "col": 13
                 },
                 "end": {
-                  "line": 3,
+                  "line": 7,
                   "col": 19
                 }
               },
               "start": {
-                "line": 3,
+                "line": 7,
                 "col": 13
               },
               "end": {
-                "line": 3,
+                "line": 7,
                 "col": 19
               }
             },
@@ -123,45 +527,93 @@
                     "type": "identifier",
                     "value": "color",
                     "start": {
-                      "line": 4,
-                      "col": 8
+                      "line": 7,
+                      "col": 23
                     },
                     "end": {
-                      "line": 4,
-                      "col": 13
+                      "line": 7,
+                      "col": 28
                     }
                   },
                   {
                     "type": "string_literal",
-                    "value": "red",
+                    "value": "orange",
                     "start": {
-                      "line": 4,
-                      "col": 15
+                      "line": 7,
+                      "col": 30
                     },
                     "end": {
-                      "line": 4,
-                      "col": 20
+                      "line": 7,
+                      "col": 38
                     }
                   }
                 ]
               ],
               "start": {
-                "line": 3,
+                "line": 7,
                 "col": 21
               },
               "end": {
-                "line": 5,
-                "col": 5
+                "line": 7,
+                "col": 40
               }
             }
           ],
           "start": {
-            "line": 3,
+            "line": 7,
             "col": 4
           },
           "end": {
-            "line": 5,
-            "col": 6
+            "line": 7,
+            "col": 41
+          }
+        },
+        {
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "print",
+            "start": {
+              "line": 8,
+              "col": 4
+            },
+            "end": {
+              "line": 8,
+              "col": 9
+            }
+          },
+          "arguments": [
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "diff",
+                "start": {
+                  "line": 8,
+                  "col": 10
+                },
+                "end": {
+                  "line": 8,
+                  "col": 14
+                }
+              },
+              "start": {
+                "line": 8,
+                "col": 10
+              },
+              "end": {
+                "line": 8,
+                "col": 14
+              }
+            }
+          ],
+          "start": {
+            "line": 8,
+            "col": 4
+          },
+          "end": {
+            "line": 8,
+            "col": 15
           }
         }
       ],
@@ -170,7 +622,7 @@
         "col": 11
       },
       "end": {
-        "line": 6,
+        "line": 9,
         "col": 1
       }
     },
@@ -179,7 +631,7 @@
       "col": 0
     },
     "end": {
-      "line": 6,
+      "line": 9,
       "col": 1
     }
   }
