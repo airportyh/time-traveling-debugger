@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@airportyh/jsonr": "^1.0.6",
+    "acorn": "^7.1.0",
     "colors": "^1.4.0",
     "diff": "^4.0.1",
     "js-yaml": "^3.13.1",

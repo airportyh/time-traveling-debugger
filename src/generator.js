@@ -1,7 +1,9 @@
 const indent = require("./indent");
 const path = require("path");
 const fs = require("fs");
+const getFunctions = require("./get-functions");
 const runtimeCode = fs.readFileSync(path.join(__dirname, "runtime.js")).toString();
+const builtInFunctions = getFunctions(runtimeCode);
 
 exports.generateCode = function generateCode(ast, options) {
     const jsCode =

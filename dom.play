@@ -1,0 +1,6 @@
+def main() [
+    button = getElementById("button")
+    addStyle(button, {
+        color: "red"
+    })
+]

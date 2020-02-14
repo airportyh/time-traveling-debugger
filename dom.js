@@ -175,3 +175,20 @@ function addStyle(element, styles) {
         element.style[prop] = styles[prop];
     }
 }
+
+
+async function main() {
+    var $immediateReturnValue;
+    $pushFrame("main", {  });
+    try {
+        $save(2);
+        $setVariable("button", getElementById("button"), 2);
+        $save(3);
+        addStyle($getVariable("button"), $heapAllocate({ color: "red" }));
+    } finally {
+        $save(6);
+        $popFrame();
+    }
+}
+
+main().catch(err => console.log(err.message)).finally(() => $saveHistory("dom.history"));
