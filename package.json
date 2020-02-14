@@ -1,0 +1,31 @@
+{
+  "name": "fun-lang",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "gen-parser": "nearleyc src/play-lang.ne -o src/play-lang.js; npm run check-parser-js",
+    "check-parser-js": "node src/play-lang.js # check syntax of embedded JS by running the output file",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@airportyh/jsonr": "^1.0.6",
+    "colors": "^1.4.0",
+    "diff": "^4.0.1",
+    "js-yaml": "^3.13.1",
+    "moo": "^0.5.0",
+    "mz": "^2.7.0",
+    "nearley": "^2.19.0"
+  },
+  "devDependencies": {
+    "jest": "^24.9.0"
+  },
+  "jest": {
+    "testRegex": [
+      "tests/.*tests\\.js$"
+    ]
+  }
+}

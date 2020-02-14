@@ -1,0 +1,4 @@
+#! /bin/bash
+
+"./parse" $1
+"./generate" ${1%.play}.ast
