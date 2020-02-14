@@ -165,18 +165,3 @@ function join(arrayId, separator) {
 function floor(num) {
     return Math.floor(num);
 }
-
-
-async function main() {
-    var $immediateReturnValue;
-    $pushFrame("main", {  });
-    try {
-        $save(2);
-        print("Hello, world");
-    } finally {
-        $save(3);
-        $popFrame();
-    }
-}
-
-main().catch(err => console.log(err.message)).finally(() => $saveHistory("hello.history"));

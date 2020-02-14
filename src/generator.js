@@ -1,94 +1,9 @@
-const builtInFunctions = require("./built-in-functions");
 const indent = require("./indent");
 const path = require("path");
-
-const runtimeCode = `// Runtime functions
-const jsonr = require("@airportyh/jsonr");
-const $history = [];
-let $stack = [];
-let $nextHeapId = 1;
-let $heap = {};
-
-function $pushFrame(funName, variables) {
-    const newFrame = { funName, parameters: variables, variables };
-    $stack = [...$stack, newFrame];
-}
-
-function $popFrame() {
-    $stack = $stack.slice(0, $stack.length - 1);
-}
-
-function $setVariable(varName, value, line) {
-    const frame = $stack[$stack.length - 1];
-    const newFrame = {
-        ...frame,
-        variables: { ...frame.variables, [varName]: value }
-    };
-    $stack = [...$stack.slice(0, $stack.length - 1), newFrame];
-}
-
-function $heapAllocate(value) {
-    const id = $nextHeapId;
-    $nextHeapId++;
-    $heap = {
-        ...$heap,
-        [id]: value
-    };
-    return id;
-}
-
-function $save(line) {
-    $history.push({ line, stack: $stack, heap: $heap });
-}
-
-function $getVariable(varName) {
-    return $stack[$stack.length - 1].variables[varName];
-}
-
-function $heapAccess(id) {
-    if (typeof id === "string") {
-        return id;
-    }
-    return $heap[id];
-}
-
-function $get(id, index) {
-    if (typeof id === "string") {
-        return id[index];
-    }
-    const object = $heap[id];
-    return object[index];
-}
-
-function $set(id, index, value) {
-    const object = $heap[id];
-    let newObject;
-    if (Array.isArray(object)) {
-        newObject = object.slice();
-        newObject[index] = value;
-    } else {
-        newObject = {
-            ...$heap[id],
-            [index]: value
-        };
-    }
-    $heap = {
-        ...$heap,
-        [id]: newObject
-    };
-}
-
-function $saveHistory(filePath) {
-    require("fs").writeFile(
-        filePath,
-        jsonr.stringify($history, "	"),
-        () => undefined
-    );
-}`;
+const fs = require("fs");
+const runtimeCode = fs.readFileSync(path.join(__dirname, "runtime.js")).toString();
 
 exports.generateCode = function generateCode(ast, options) {
-    const builtIns = Object.values(builtInFunctions).map(fn => fn.code);
-
     const jsCode =
     [runtimeCode]
     .concat(
@@ -100,8 +15,6 @@ exports.generateCode = function generateCode(ast, options) {
         + (options.historyFilePath ?
             `.finally(() => $saveHistory("${options.historyFilePath}"));` :
             "")])
-    .concat(["// Built-in Functions:"])
-    .concat(builtIns)
     .join("\n\n");
     return jsCode;
 }

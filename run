@@ -1,0 +1,4 @@
+#! /bin/sh
+"./compile" $1
+echo "running \"node ${1%.play}.js\""
+node ${1%.play}.js
