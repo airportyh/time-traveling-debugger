@@ -5,6 +5,7 @@ let $stack = [];
 let $nextHeapId = 1;
 let $heap = {};
 let $body = $nativeDomToVDom(document.body);
+let $heapOfLastDomSync = $heap;
 
 function $pushFrame(funName, variables) {
     const newFrame = { funName, parameters: variables, variables };
@@ -35,18 +36,21 @@ function $heapAllocate(value) {
 }
 
 function $save(line) {
-    $history.push({ line, stack: $stack, heap: $heap });
+    $history.push({ line, stack: $stack, heap: $heap, body: $body });
 }
 
 function $getVariable(varName) {
     return $stack[$stack.length - 1].variables[varName];
 }
 
-function $heapAccess(id) {
+function $heapAccess(id, heap) {
+    if (!heap) {
+        heap = $heap;
+    }
     if (typeof id === "string") {
         return id;
     }
-    return $heap[id];
+    return heap[id];
 }
 
 function $get(id, index) {
@@ -184,28 +188,31 @@ function $nativeDomToVDom(node) {
         if (tag === "script") {
             return "";
         }
-        const attrs = {};
+        const element = { tag };
+        const elementId = $heapAllocate(element);
         const attributeNames = node.getAttributeNames();
-        for (let i = 0; i < attributeNames.length; i++) {
-            const attrName = attributeNames[i];
-            attrs[attrName] = node.getAttribute(attrName);
+        if (attributeNames.length > 0) {
+            const attrs = {};
+            for (let i = 0; i < attributeNames.length; i++) {
+                const attrName = attributeNames[i];
+                attrs[attrName] = node.getAttribute(attrName);
+            }
+            element.attrs = $heapAllocate(attrs);
         }
         const childNodes = node.childNodes;
-        const childNodeResults = [];
-        for (let i = 0; i < childNodes.length; i++) {
-            childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
+        if (childNodes.length > 0) {
+            const childNodeResults = [];
+            for (let i = 0; i < childNodes.length; i++) {
+                childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
+            }
+            element.children = $heapAllocate(childNodeResults);
         }
-        return $heapAllocate({
-            tag: tag,
-            attrs: $heapAllocate(attrs),
-            children: $heapAllocate(childNodeResults)
-        });
+        return elementId;
     } else if (node.nodeType === Node.TEXT_NODE) {
         return node.data;
     } else {
         throw new Error("Unsupported node type: " + node.nodeType);
     }
-
 }
 
 function createElement(tag, attrs, children) {
@@ -225,7 +232,7 @@ function getDocumentBody() {
 
 function appendTo(parentId, childId) {
     const parent = $heapAccess(parentId);
-    const children = $heapAccess(parent.children);
+    const children = $heapAccess(parent.children) || [];
     const newChildren = $heapAllocate([...children, childId]);
     const newParent = {
         ...parent,
@@ -272,7 +279,90 @@ function setStyle(elementId, stylesId) {
     };
 }
 
-function compare(source, destination) {
+function syncVDomToDom() {
+    console.log("syncVDomToDom");
+    console.log("no change in heap?", $heapOfLastDomSync, $heap);
+    const diff = compare(1, $heapOfLastDomSync, 1, $heap);
+    console.log("diff", diff);
+    for (let i = 0; i < diff.length; i++) {
+        const update = diff[i];
+        console.log("update", update);
+        if (update.type === "addition") {
+            mutateNativeDom(document.body, update.path, update.value);
+        } else if (update.type === "replacement") {
+            mutateNativeDom(document.body, update.path, update.newValue);
+        }
+    }
+    $heapOfLastDomSync = $heap;
+
+    function mutateNativeDom(element, path, value) {
+        if (path.length === 0) {
+            throw new Error("Unexpected state, path elements should have been consumed.");
+        }
+        const [prop, ...restPath] = path;
+        if (prop === "children") {
+            const [idx, ...restRestPath] = restPath;
+            if (restRestPath.length === 0) {
+                if (Number(idx) === element.childNodes.length) {
+                    element.appendChild($vdomToNativeDom(value));
+                } else {
+                    console.log("idx", idx, "element", element, "length", element.childNodes.length);
+                    throw new Error("Not handling this case yet");
+                }
+            } else {
+                mutateNativeDom(element.childNodes[idx], restRestPath, value);
+            }
+        } else if (prop === "attrs") {
+            if (restPath.length === 1) {
+                const [prop] = restPath;
+                $domSetAttrs(element, { [prop]: value });
+            } else if (restPath.length === 0) {
+                $domSetAttrs(element, value);
+            } else {
+                throw new Error("Not handling this case yet");
+            }
+        } else { // it's a number
+            throw new Error("Not handling this case yet");
+        }
+    }
+}
+
+function $domSetAttrs(native, attrs) {
+    if (attrs) {
+        for (let key in attrs) {
+            if (key === "style") {
+                const styles = attrs.style;
+                const styleStrings = [];
+                for (let prop in styles) {
+                    styleStrings.push(prop + ": " + styles[prop]);
+                }
+                native.setAttribute("style", styleStrings.join("; "));
+            } else {
+                native.setAttribute(key, attrs[key]);
+            }
+        }
+    }
+}
+
+function $vdomToNativeDom(elementId) {
+    const element = $heapAccess(elementId);
+    if (typeof element === "string") {
+        return document.createTextNode(element);
+    } else {
+        const native = document.createElement(element.tag);
+        const attrs = $heapAccess(element.attrs);
+        $domSetAttrs(native, attrs);
+        const children = $heapAccess(element.children);
+        if (children) {
+            for (let i = 0; i < children.length; i++) {
+                native.appendChild($vdomToNativeDom(children[i]));
+            }
+        }
+        return native;
+    }
+}
+
+function compare(source, heap1, destination, heap2) {
     return compareAt([], source, destination);
 
     function isObject(value) {
@@ -301,7 +391,7 @@ function compare(source, destination) {
     }
 
     function compareAt(path, source, destination) {
-        if (isObject($heapAccess(source)) && isObject($heapAccess(destination))) {
+        if (isObject($heapAccess(source, heap1)) && isObject($heapAccess(destination, heap2))) {
             return compareObjectsAt(path, source, destination);
         } else {
             if (source === destination) {
@@ -320,8 +410,8 @@ function compare(source, destination) {
     }
 
     function compareObjectsAt(path, source, destination) {
-        source = $heapAccess(source);
-        destination = $heapAccess(destination);
+        source = $heapAccess(source, heap1);
+        destination = $heapAccess(destination, heap2);
         const sourceKeys = Object.keys(source);
         const destinationKeys = Object.keys(destination);
         const sourceOnlyKeys = difference(sourceKeys, destinationKeys);
@@ -336,11 +426,8 @@ function compare(source, destination) {
             type: "deletion",
             path: [...path, key]
         }));
-        const commonKeysComparisonNeeded = commonKeys
-            .filter((key) =>
-                source[key] !== destination[key]);
 
-        const childDiffs = commonKeysComparisonNeeded
+        const childDiffs = commonKeys
             .reduce((diffs, key) => {
                 const result = compareAt([...path, key], source[key], destination[key]);
                 return [
@@ -375,9 +462,12 @@ async function main() {
         $save(7);
         setStyle($getVariable("button"), $heapAllocate({ color: "orange" }));
         $save(8);
-        print($getVariable("diff"));
+        syncVDomToDom();
+        $save(10);
+        setStyle($getVariable("button"), $heapAllocate({ color: "cyan" }));
+        // syncVDomToDom()
     } finally {
-        $save(9);
+        $save(12);
         $popFrame();
     }
 }

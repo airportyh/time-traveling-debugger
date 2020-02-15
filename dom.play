@@ -5,5 +5,8 @@ def main() [
     appendTo(body, div)
     setText(button, "Hello, Jacki!")
     setStyle(button, { color: "orange" })
-    print(diff)
+    syncVDomToDom()
+
+    setStyle(button, { color: "cyan" })
+    # syncVDomToDom()
 ]

@@ -572,14 +572,38 @@
           "type": "call_expression",
           "fun_name": {
             "type": "identifier",
-            "value": "print",
+            "value": "syncVDomToDom",
             "start": {
               "line": 8,
               "col": 4
             },
             "end": {
               "line": 8,
-              "col": 9
+              "col": 17
+            }
+          },
+          "arguments": [],
+          "start": {
+            "line": 8,
+            "col": 4
+          },
+          "end": {
+            "line": 8,
+            "col": 19
+          }
+        },
+        {
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "setStyle",
+            "start": {
+              "line": 10,
+              "col": 4
+            },
+            "end": {
+              "line": 10,
+              "col": 12
             }
           },
           "arguments": [
@@ -587,33 +611,84 @@
               "type": "var_reference",
               "var_name": {
                 "type": "identifier",
-                "value": "diff",
+                "value": "button",
                 "start": {
-                  "line": 8,
-                  "col": 10
+                  "line": 10,
+                  "col": 13
                 },
                 "end": {
-                  "line": 8,
-                  "col": 14
+                  "line": 10,
+                  "col": 19
                 }
               },
               "start": {
-                "line": 8,
-                "col": 10
+                "line": 10,
+                "col": 13
               },
               "end": {
-                "line": 8,
-                "col": 14
+                "line": 10,
+                "col": 19
+              }
+            },
+            {
+              "type": "dictionary_literal",
+              "entries": [
+                [
+                  {
+                    "type": "identifier",
+                    "value": "color",
+                    "start": {
+                      "line": 10,
+                      "col": 23
+                    },
+                    "end": {
+                      "line": 10,
+                      "col": 28
+                    }
+                  },
+                  {
+                    "type": "string_literal",
+                    "value": "cyan",
+                    "start": {
+                      "line": 10,
+                      "col": 30
+                    },
+                    "end": {
+                      "line": 10,
+                      "col": 36
+                    }
+                  }
+                ]
+              ],
+              "start": {
+                "line": 10,
+                "col": 21
+              },
+              "end": {
+                "line": 10,
+                "col": 38
               }
             }
           ],
           "start": {
-            "line": 8,
+            "line": 10,
             "col": 4
           },
           "end": {
-            "line": 8,
-            "col": 15
+            "line": 10,
+            "col": 39
+          }
+        },
+        {
+          "type": "comment",
+          "value": " syncVDomToDom()",
+          "start": {
+            "line": 11,
+            "col": 4
+          },
+          "end": {
+            "line": 11,
+            "col": 21
           }
         }
       ],
@@ -622,7 +697,7 @@
         "col": 11
       },
       "end": {
-        "line": 9,
+        "line": 12,
         "col": 1
       }
     },
@@ -631,7 +706,7 @@
       "col": 0
     },
     "end": {
-      "line": 9,
+      "line": 12,
       "col": 1
     }
   }
