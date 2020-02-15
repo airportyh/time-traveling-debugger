@@ -124,7 +124,7 @@ function generateCodeForIfAlternate(alternate) {
     }
 }
 
-// Node is either function_definition
+// Assumes node is of type function_definition
 function generateFunction(node) {
     const funName = node.name && node.name.value || null;
     const isAsync = node.type === "function_definition" && funName === "main";
