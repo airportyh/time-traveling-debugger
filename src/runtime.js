@@ -280,13 +280,9 @@ function setStyle(elementId, stylesId) {
 }
 
 function syncVDomToDom() {
-    console.log("syncVDomToDom");
-    console.log("no change in heap?", $heapOfLastDomSync, $heap);
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
-    console.log("diff", diff);
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
-        console.log("update", update);
         if (update.type === "addition") {
             mutateNativeDom(document.body, update.path, update.value);
         } else if (update.type === "replacement") {
@@ -306,7 +302,6 @@ function syncVDomToDom() {
                 if (Number(idx) === element.childNodes.length) {
                     element.appendChild($vdomToNativeDom(value));
                 } else {
-                    console.log("idx", idx, "element", element, "length", element.childNodes.length);
                     throw new Error("Not handling this case yet");
                 }
             } else {
