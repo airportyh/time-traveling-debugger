@@ -9,3 +9,9 @@ To learn more about how Play is built:
 * See Play's predecessor: [fun-lang](https://github.com/airportyh/fun-lang).
 * Watch this [video series](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3DasoOa54Vm9Mr8CATyTbLF)
 to learn how to make a programming language.
+
+## Todo
+
+* DOM events
+* UI for time-traveling
+* Canvas API
