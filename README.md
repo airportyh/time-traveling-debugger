@@ -12,7 +12,9 @@ to learn how to make a programming language.
 
 ## Todo
 
-* UI for time-traveling (done)
-* DOM events
+* heap display goes into disarray when there is too much data
 * bug: why is styles object nested in dom.play example?
+* numbers nested inside objects are always being interpreted as heap IDs, we may need ref objects to * distinguish refs
+* DOM events
 * Canvas API
+* UI for time-traveling (done)
