@@ -45,14 +45,11 @@ function $getVariable(varName) {
     return $stack[$stack.length - 1].variables[varName];
 }
 
-function $heapAccess(id, heap) {
-    if (!heap) {
-        heap = $heap;
-    }
+function $heapAccess(id) {
     if (typeof id === "string") {
         return id;
     }
-    return heap[id];
+    return $heap[id];
 }
 
 function $get(id, index) {
@@ -245,7 +242,7 @@ function appendTo(parentId, childId) {
         ...$heap,
         [parentId]: newParent
     };
-    syncVDomToDom();
+    syncVDomToDom()
 }
 
 function setText(elementId, text) {
@@ -259,7 +256,7 @@ function setText(elementId, text) {
         ...$heap,
         [elementId]: newElement
     };
-    syncVDomToDom();
+    syncVDomToDom()
 }
 
 function setStyle(elementId, stylesId) {
@@ -282,7 +279,11 @@ function setStyle(elementId, stylesId) {
         ...$heap,
         [elementId]: newElement
     };
-    syncVDomToDom();
+    syncVDomToDom()
+}
+
+function addEventListener(elementId, eventName, listenerFunc) {
+
 }
 
 // Synchronises the current virtual DOM state contained in `$body` to `document.body`.
@@ -290,12 +291,19 @@ function setStyle(elementId, stylesId) {
 // last time it was synchronised and its current state, this is done with the `compare`
 // function. Then, for each difference, we mutate the native DOM with that difference.
 function syncVDomToDom() {
+    console.log("syncVDomToDom begin");
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
+    if (diff.length > 1) {
+        console.log("multiple diffs detected", diff);
+        const diff2 = compare(1, $heapOfLastDomSync, 1, $heap);
+        console.log("re-did diff", diff2);
+    }
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
         mutateNativeDom(document.body, update);
     }
     $heapOfLastDomSync = $heap;
+    console.log("syncVDomToDom end");
 
     function mutateNativeDom(element, update) {
         const { path, value } = update;
@@ -304,29 +312,52 @@ function syncVDomToDom() {
         }
         const [prop, ...restPath] = path;
         if (prop === "children") {
-            const [idx, ...restRestPath] = restPath;
-            if (restRestPath.length === 0) {
-                if (update.type === "deletion") {
-                    element.removeChild(element.childNodes[idx]);
-                } else if (update.type === "addition") {
-                    element.insertBefore($vdomToNativeDom(value), element.childNodes[idx]);
-                } else if (update.type === "replacement") {
-                    element.replaceChild($vdomToNativeDom(value), element.childNodes[idx]);
-                } else {
-                    throw new Error("Unknown update type: " + update.type);
+            if (restPath.length === 0) {
+                if (update.type === "addition") {
+                    const children = $heapAccess(value);
+                    if (!Array.isArray(children)) {
+                        throw new Error("Expected value to be an array");
+                    }
+                    for (let i = 0; i < children.length; i++) {
+                        console.log("element.appendChild($vdomToNativeDom(", children[i], "))");
+                        element.appendChild($vdomToNativeDom(children[i]));
+                    }
+                } else if (update.type === "deletion") {
+                    console.log(`element.innerHTML = "";`);
+                    element.innerHTML = "";
                 }
             } else {
-                mutateNativeDom(element.childNodes[idx], {
-                    type: update.type,
-                    path: restRestPath,
-                    value: value
-                });
+                const [idx, ...restRestPath] = restPath;
+                if (restRestPath.length === 0) {
+                    if (update.type === "deletion") {
+                        if (element.childNodes[idx]) {
+                            console.log(`element.removeChild(`, element.childNodes[idx], `);`);
+                            element.removeChild(element.childNodes[idx]);
+                        }
+                    } else if (update.type === "addition") {
+                        console.log(`element.insertBefore($vdomToNativeDom(`, value, `)`, element.childNodes[idx], `)`);
+                        element.insertBefore($vdomToNativeDom(value), element.childNodes[idx]);
+                    } else if (update.type === "replacement") {
+                        console.log(`element.replaceChild($vdomToNativeDom(`, value, `)`, element.childNodes[idx], `)`);
+                        element.replaceChild($vdomToNativeDom(value), element.childNodes[idx]);
+                    } else {
+                        throw new Error("Unknown update type: " + update.type);
+                    }
+                } else {
+                    mutateNativeDom(element.childNodes[idx], {
+                        type: update.type,
+                        path: restRestPath,
+                        value: value
+                    });
+                }
             }
         } else if (prop === "attrs") {
             if (restPath.length === 1) {
                 const [prop] = restPath;
+                console.log(`$domSetAttrs(`, element, { [prop]: value }, ")");
                 $domSetAttrs(element, { [prop]: value });
             } else if (restPath.length === 0) {
+                console.log(`$domSetAttrs(`, element, value, `)`)
                 $domSetAttrs(element, value);
             } else {
                 throw new Error("Attributes should not be nested deeper than 1 level as is the case with 'styles'.");
@@ -407,8 +438,15 @@ function compare(source, heap1, destination, heap2) {
         return result;
     }
 
+    function heapAccess(id, heap) {
+        if (typeof id === "string") {
+            return id;
+        }
+        return heap[id];
+    }
+
     function compareAt(path, source, destination) {
-        if (isObject($heapAccess(source, heap1)) && isObject($heapAccess(destination, heap2))) {
+        if (isObject(heapAccess(source, heap1)) && isObject(heapAccess(destination, heap2))) {
             return compareObjectsAt(path, source, destination);
         } else {
             if (source === destination) {
@@ -427,8 +465,8 @@ function compare(source, heap1, destination, heap2) {
     }
 
     function compareObjectsAt(path, source, destination) {
-        source = $heapAccess(source, heap1);
-        destination = $heapAccess(destination, heap2);
+        source = heapAccess(source, heap1);
+        destination = heapAccess(destination, heap2);
         const sourceKeys = Object.keys(source);
         const destinationKeys = Object.keys(destination);
         const sourceOnlyKeys = difference(sourceKeys, destinationKeys);
@@ -444,14 +482,23 @@ function compare(source, heap1, destination, heap2) {
             path: [...path, key]
         }));
 
-        const childDiffs = commonKeys
-            .reduce((diffs, key) => {
-                const result = compareAt([...path, key], source[key], destination[key]);
-                return [
-                    ...result,
-                    ...diffs
-                ];
-            }, []);
+        const childDiffs = [];
+        for (let i = 0; i < commonKeys.length; i++) {
+            const key = commonKeys[i];
+            const result = compareAt([...path, key], source[key], destination[key]);
+            childDiffs.push(...result);
+        }
+
+        // let iterated = [];
+        // const childDiffs = commonKeys
+        //     .reduce((diffs, key, idx) => {
+        //         iterated.push([key, idx]);
+        //         const result = compareAt([...path, key], source[key], destination[key]);
+        //         return [];
+        //     }, []);
+        // if (iterated.length !== commonKeys.length) {
+        //     throw new Error("loopCount is not equal to commonKeys.length", commonKeys, iterated);
+        // }
         return [
             ...additions,
             ...removals,
