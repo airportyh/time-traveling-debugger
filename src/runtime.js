@@ -82,6 +82,9 @@ function $set(id, index, value) {
 }
 
 function $saveHistory(filePath) {
+    if ($isBrowser) {
+        return;
+    }
     const jsonr = require("@airportyh/jsonr");
     require("fs").writeFile(
         filePath,
@@ -470,6 +473,7 @@ function createDebugUI() {
 
     // Progress label
     const progress = document.createElement("label");
+    progress.style.fontFamily = "Helvetica, sans-serif";
     syncProgress();
     function syncProgress() {
         const total = $history.length;

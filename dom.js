@@ -1,11 +1,11 @@
 // Runtime functions
-// const jsonr = require("@airportyh/jsonr");
+const $isBrowser = typeof document !== "undefined";
 const $history = [];
 let $historyCursor = -1;
 let $stack = [];
 let $nextHeapId = 1;
 let $heap = {};
-let $body = $nativeDomToVDom(document.body);
+let $body = $isBrowser && $nativeDomToVDom(document.body);
 let $heapOfLastDomSync = $heap;
 
 function $pushFrame(funName, variables) {
@@ -82,6 +82,10 @@ function $set(id, index, value) {
 }
 
 function $saveHistory(filePath) {
+    if ($isBrowser) {
+        return;
+    }
+    const jsonr = require("@airportyh/jsonr");
     require("fs").writeFile(
         filePath,
         jsonr.stringify($history, "	"),
@@ -318,7 +322,7 @@ function syncVDomToDom() {
             } else if (restPath.length === 0) {
                 $domSetAttrs(element, value);
             } else {
-                throw new Error("Not handling this case yet");
+                throw new Error("Attributes should not be nested deeper than 1 level as is the case with 'styles'.");
             }
         } else { // it's a number
             throw new Error("Not handling this case yet");
@@ -469,6 +473,7 @@ function createDebugUI() {
 
     // Progress label
     const progress = document.createElement("label");
+    progress.style.fontFamily = "Helvetica, sans-serif";
     syncProgress();
     function syncProgress() {
         const total = $history.length;
@@ -556,6 +561,6 @@ async function main() {
     }
 }
 
-main().catch(err => console.log(err.stack))
+main().catch(err => console.log(err.stack)).finally(() => $saveHistory("dom.history"));
 
-createDebugUI();
+$isBrowser && createDebugUI();
