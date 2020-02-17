@@ -454,7 +454,7 @@ function createDebugUI() {
     ui.style.bottom = "0px";
     ui.style.left = "0px";
     ui.style.right = "0px";
-    ui.style.height = "4em";
+    ui.style.height = "50%";
     ui.style.backgroundColor = "#ededed";
     ui.style.padding = "0.5em";
     ui.style.borderTop = "#888 solid 1px";
@@ -514,6 +514,108 @@ function createDebugUI() {
     }
     ui.appendChild(range);
 
+    // The 3-pane state display which includes the code pane, the
+    // stack frame pane, and the heap pane
+    const stateDisplay = document.createElement("div");
+    stateDisplay.style.marginTop = "5px";
+    stateDisplay.style.height = "250px";
+    const codePane = document.createElement("pre");
+    codePane.style.width = "33%";
+    codePane.style.height = "100%";
+    codePane.style.overflow = "auto";
+    codePane.style.padding = "1em";
+    codePane.style.backgroundColor = "#444";
+    codePane.style.margin = "0px";
+    codePane.style.color = "#ffffff";
+    codePane.style.float = "left";
+
+    function syncCodeDisplay() {
+        const state = $history[$historyCursor];
+        const lines = $code.split("\n");
+        const linesDisplay = lines.map((line, idx) => {
+            if (state.line === idx + 1) {
+                return `<span style="background-color: yellow; color: black;">${line}</span>`;
+            } else {
+                return line;
+            }
+        }).join("\n");
+        codePane.innerHTML = linesDisplay;
+    }
+    syncCodeDisplay();
+    stateDisplay.appendChild(codePane);
+
+    const stackFramePane = document.createElement("div");
+    stackFramePane.style.width = "33%";
+    stackFramePane.style.overflow = "auto";
+    stackFramePane.style.height = "100%";
+    stackFramePane.style.float = "left";
+    stackFramePane.style.padding = "1em";
+    stackFramePane.style.backgroundColor = "#dedede";
+    function syncStackFrameDisplay() {
+        const state = $history[$historyCursor];
+        const html = state.stack.map((frame) => {
+            const paramList = Object.keys(frame.parameters)
+                .map(key => `${key}=${displayValue(frame.parameters[key])}`)
+                .join(", ");
+            const title = "<label>" + frame.funName + "(" + paramList + ")" + "</label>";
+            const lines = [title, `<ul style="padding-left: 1em; margin: 0;">`];
+            for (let varName in frame.variables) {
+                lines.push(`<li style="list-style: none;">${varName} = ${displayValue(frame.variables[varName])}</li>`);
+            }
+            lines.push("</ul>");
+            return lines.join("");
+        }).join("");
+        stackFramePane.innerHTML = html;
+    }
+
+    stateDisplay.appendChild(stackFramePane);
+    const heapPane = document.createElement("div");
+    heapPane.style.height = "100%";
+    heapPane.style.width = "33%";
+    heapPane.style.padding = "1em";
+    heapPane.style.float = "left";
+    heapPane.style.overflow = "auto";
+    heapPane.style.backgroundColor = "#fdffe5";
+    stateDisplay.appendChild(heapPane);
+
+    function syncHeapDisplay() {
+        const state = $history[$historyCursor];
+        const htmlLines = [];
+        for (let id in state.heap) {
+            const object = state.heap[id];
+            if (Array.isArray(object)) {
+                htmlLines.push(renderArray(id, object));
+            } else {
+                htmlLines.push(renderDictionary(id, object));
+            }
+        }
+        const html = htmlLines.join("");
+        heapPane.innerHTML = html;
+    }
+
+    function renderArray(id, arr) {
+        const table =
+        `<table style="border-collapse: collapse; background-color: #fff;" border="1"><tr>${
+            arr.map((item) => {
+                return `<td>${displayValue(item)}</td>`
+            }).join("")
+        }</tr></table>`;
+        return `<label>${id}: <label>` + table;
+    }
+
+    function renderDictionary(id, dict) {
+        const table =
+        `<table style="border-collapse: collapse; background-color: #fff;" border="1">${
+            Object.keys(dict).map((key) => {
+                return `<tr><td>${key}</td><td>${displayValue(dict[key])}</td></tr>`;
+            }).join("")
+        }</table>`;
+        return `<label>${id}: <label>` + table;;
+    }
+
+    ui.appendChild(stateDisplay);
+
+    syncAll();
     document.documentElement.appendChild(ui);
 
     function syncProgramState() {
@@ -526,8 +628,23 @@ function createDebugUI() {
     function syncAll() {
         syncRangeValue();
         syncProgramState();
+        syncStackFrameDisplay();
+        syncCodeDisplay();
+        syncHeapDisplay();
         syncProgress();
         syncVDomToDom();
+    }
+
+    function displayValue(value) {
+        if (typeof value === "string") {
+            return quote(value);
+        } else {
+            return String(value);
+        }
+    }
+
+    function quote(str) {
+        return '"' + str.replace(/\"/g, '\\"') + '"';
     }
 
 }
