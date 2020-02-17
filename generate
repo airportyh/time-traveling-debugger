@@ -11,9 +11,12 @@ async function main() {
         return;
     }
     const ast = JSON.parse((await fs.readFile(filePath)).toString());
+    const historyFilePath = path.basename(filePath, ".ast") + ".history";
     const dir = path.dirname(filePath);
     const outputFilePath = path.join(dir, path.basename(filePath, ".ast") + ".js");
-    const jsCode = generateCode(ast, {});
+    const jsCode = generateCode(ast, {
+        historyFilePath
+    });
     await fs.writeFile(outputFilePath, jsCode);
     console.log(`Wrote ${outputFilePath}.`);
 }
