@@ -12,6 +12,7 @@ to learn how to make a programming language.
 
 ## Todo
 
+* UI for time-traveling (done)
 * DOM events
-* UI for time-traveling
+* bug: why is styles object nested in dom.play example?
 * Canvas API

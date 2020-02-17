@@ -285,6 +285,10 @@ function setStyle(elementId, stylesId) {
     syncVDomToDom();
 }
 
+// Synchronises the current virtual DOM state contained in `$body` to `document.body`.
+// This works by calculating the difference of `$body` between its state since the
+// last time it was synchronised and its current state, this is done with the `compare`
+// function. Then, for each difference, we mutate the native DOM with that difference.
 function syncVDomToDom() {
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
     for (let i = 0; i < diff.length; i++) {
@@ -333,6 +337,10 @@ function syncVDomToDom() {
     }
 }
 
+// Sets the attributes on a native DOM element. The second parameter `attrs` is assumed
+// to be an object with attribute name/attribute value pairs, with the exception that
+// if the attribute name is style, then the attribute value is assumed to be a nested
+// object containing style name/style value pairs.
 function $domSetAttrs(native, attrs) {
     if (attrs) {
         for (let key in attrs) {
@@ -350,6 +358,7 @@ function $domSetAttrs(native, attrs) {
     }
 }
 
+// Generates a Native DOM element out of a Virtual DOM element.
 function $vdomToNativeDom(elementId) {
     const element = $heapAccess(elementId);
     if (typeof element === "string") {
@@ -368,6 +377,8 @@ function $vdomToNativeDom(elementId) {
     }
 }
 
+// Deep compare of two objects within two different heaps. This is for
+// the virtual DOM difference calculation.
 function compare(source, heap1, destination, heap2) {
     return compareAt([], source, destination);
 
@@ -450,6 +461,7 @@ function compare(source, heap1, destination, heap2) {
 
 }
 
+// Time-Traveling Debugger UI
 function createDebugUI() {
     // Debugger UI Container
     const ui = document.createElement("div");
