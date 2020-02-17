@@ -245,6 +245,7 @@ function appendTo(parentId, childId) {
         ...$heap,
         [parentId]: newParent
     };
+    syncVDomToDom();
 }
 
 function setText(elementId, text) {
@@ -258,6 +259,7 @@ function setText(elementId, text) {
         ...$heap,
         [elementId]: newElement
     };
+    syncVDomToDom();
 }
 
 function setStyle(elementId, stylesId) {
@@ -280,6 +282,7 @@ function setStyle(elementId, stylesId) {
         ...$heap,
         [elementId]: newElement
     };
+    syncVDomToDom();
 }
 
 function syncVDomToDom() {
@@ -661,19 +664,15 @@ async function main() {
         $save(4);
         $setVariable("body", getDocumentBody(), 4);
         $save(5);
-        appendTo($getVariable("body"), $getVariable("div"));
-        $save(6);
         setText($getVariable("button"), "Hello, Jacki!");
-        $save(7);
+        $save(6);
         setStyle($getVariable("button"), $heapAllocate({ color: "orange" }));
-        $save(8);
-        syncVDomToDom();
-        $save(10);
+        $save(7);
         setStyle($getVariable("button"), $heapAllocate({ color: "cyan" }));
-        $save(11);
-        syncVDomToDom();
+        $save(8);
+        appendTo($getVariable("body"), $getVariable("div"));
     } finally {
-        $save(12);
+        $save(9);
         $popFrame();
     }
 }
@@ -684,13 +683,10 @@ const $code = `def main() [
     button = createElement("button", { style: { color: "red" } }, ["Hello, world!"])
     div = createElement("div", { class: "panel" }, [ button ])
     body = getDocumentBody()
-    appendTo(body, div)
     setText(button, "Hello, Jacki!")
     setStyle(button, { color: "orange" })
-    syncVDomToDom()
-
     setStyle(button, { color: "cyan" })
-    syncVDomToDom()
+    appendTo(body, div)
 ]
 `;
 

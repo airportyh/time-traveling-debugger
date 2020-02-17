@@ -354,84 +354,13 @@
           "type": "call_expression",
           "fun_name": {
             "type": "identifier",
-            "value": "appendTo",
-            "start": {
-              "line": 5,
-              "col": 4
-            },
-            "end": {
-              "line": 5,
-              "col": 12
-            }
-          },
-          "arguments": [
-            {
-              "type": "var_reference",
-              "var_name": {
-                "type": "identifier",
-                "value": "body",
-                "start": {
-                  "line": 5,
-                  "col": 13
-                },
-                "end": {
-                  "line": 5,
-                  "col": 17
-                }
-              },
-              "start": {
-                "line": 5,
-                "col": 13
-              },
-              "end": {
-                "line": 5,
-                "col": 17
-              }
-            },
-            {
-              "type": "var_reference",
-              "var_name": {
-                "type": "identifier",
-                "value": "div",
-                "start": {
-                  "line": 5,
-                  "col": 19
-                },
-                "end": {
-                  "line": 5,
-                  "col": 22
-                }
-              },
-              "start": {
-                "line": 5,
-                "col": 19
-              },
-              "end": {
-                "line": 5,
-                "col": 22
-              }
-            }
-          ],
-          "start": {
-            "line": 5,
-            "col": 4
-          },
-          "end": {
-            "line": 5,
-            "col": 23
-          }
-        },
-        {
-          "type": "call_expression",
-          "fun_name": {
-            "type": "identifier",
             "value": "setText",
             "start": {
-              "line": 6,
+              "line": 5,
               "col": 4
             },
             "end": {
-              "line": 6,
+              "line": 5,
               "col": 11
             }
           },
@@ -442,20 +371,20 @@
                 "type": "identifier",
                 "value": "button",
                 "start": {
-                  "line": 6,
+                  "line": 5,
                   "col": 12
                 },
                 "end": {
-                  "line": 6,
+                  "line": 5,
                   "col": 18
                 }
               },
               "start": {
-                "line": 6,
+                "line": 5,
                 "col": 12
               },
               "end": {
-                "line": 6,
+                "line": 5,
                 "col": 18
               }
             },
@@ -463,21 +392,21 @@
               "type": "string_literal",
               "value": "Hello, Jacki!",
               "start": {
-                "line": 6,
+                "line": 5,
                 "col": 20
               },
               "end": {
-                "line": 6,
+                "line": 5,
                 "col": 35
               }
             }
           ],
           "start": {
-            "line": 6,
+            "line": 5,
             "col": 4
           },
           "end": {
-            "line": 6,
+            "line": 5,
             "col": 36
           }
         },
@@ -487,11 +416,11 @@
             "type": "identifier",
             "value": "setStyle",
             "start": {
-              "line": 7,
+              "line": 6,
               "col": 4
             },
             "end": {
-              "line": 7,
+              "line": 6,
               "col": 12
             }
           },
@@ -502,20 +431,20 @@
                 "type": "identifier",
                 "value": "button",
                 "start": {
-                  "line": 7,
+                  "line": 6,
                   "col": 13
                 },
                 "end": {
-                  "line": 7,
+                  "line": 6,
                   "col": 19
                 }
               },
               "start": {
-                "line": 7,
+                "line": 6,
                 "col": 13
               },
               "end": {
-                "line": 7,
+                "line": 6,
                 "col": 19
               }
             },
@@ -527,11 +456,11 @@
                     "type": "identifier",
                     "value": "color",
                     "start": {
-                      "line": 7,
+                      "line": 6,
                       "col": 23
                     },
                     "end": {
-                      "line": 7,
+                      "line": 6,
                       "col": 28
                     }
                   },
@@ -539,57 +468,33 @@
                     "type": "string_literal",
                     "value": "orange",
                     "start": {
-                      "line": 7,
+                      "line": 6,
                       "col": 30
                     },
                     "end": {
-                      "line": 7,
+                      "line": 6,
                       "col": 38
                     }
                   }
                 ]
               ],
               "start": {
-                "line": 7,
+                "line": 6,
                 "col": 21
               },
               "end": {
-                "line": 7,
+                "line": 6,
                 "col": 40
               }
             }
           ],
           "start": {
-            "line": 7,
+            "line": 6,
             "col": 4
           },
           "end": {
-            "line": 7,
+            "line": 6,
             "col": 41
-          }
-        },
-        {
-          "type": "call_expression",
-          "fun_name": {
-            "type": "identifier",
-            "value": "syncVDomToDom",
-            "start": {
-              "line": 8,
-              "col": 4
-            },
-            "end": {
-              "line": 8,
-              "col": 17
-            }
-          },
-          "arguments": [],
-          "start": {
-            "line": 8,
-            "col": 4
-          },
-          "end": {
-            "line": 8,
-            "col": 19
           }
         },
         {
@@ -598,11 +503,11 @@
             "type": "identifier",
             "value": "setStyle",
             "start": {
-              "line": 10,
+              "line": 7,
               "col": 4
             },
             "end": {
-              "line": 10,
+              "line": 7,
               "col": 12
             }
           },
@@ -613,20 +518,20 @@
                 "type": "identifier",
                 "value": "button",
                 "start": {
-                  "line": 10,
+                  "line": 7,
                   "col": 13
                 },
                 "end": {
-                  "line": 10,
+                  "line": 7,
                   "col": 19
                 }
               },
               "start": {
-                "line": 10,
+                "line": 7,
                 "col": 13
               },
               "end": {
-                "line": 10,
+                "line": 7,
                 "col": 19
               }
             },
@@ -638,11 +543,11 @@
                     "type": "identifier",
                     "value": "color",
                     "start": {
-                      "line": 10,
+                      "line": 7,
                       "col": 23
                     },
                     "end": {
-                      "line": 10,
+                      "line": 7,
                       "col": 28
                     }
                   },
@@ -650,32 +555,32 @@
                     "type": "string_literal",
                     "value": "cyan",
                     "start": {
-                      "line": 10,
+                      "line": 7,
                       "col": 30
                     },
                     "end": {
-                      "line": 10,
+                      "line": 7,
                       "col": 36
                     }
                   }
                 ]
               ],
               "start": {
-                "line": 10,
+                "line": 7,
                 "col": 21
               },
               "end": {
-                "line": 10,
+                "line": 7,
                 "col": 38
               }
             }
           ],
           "start": {
-            "line": 10,
+            "line": 7,
             "col": 4
           },
           "end": {
-            "line": 10,
+            "line": 7,
             "col": 39
           }
         },
@@ -683,24 +588,71 @@
           "type": "call_expression",
           "fun_name": {
             "type": "identifier",
-            "value": "syncVDomToDom",
+            "value": "appendTo",
             "start": {
-              "line": 11,
+              "line": 8,
               "col": 4
             },
             "end": {
-              "line": 11,
-              "col": 17
+              "line": 8,
+              "col": 12
             }
           },
-          "arguments": [],
+          "arguments": [
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "body",
+                "start": {
+                  "line": 8,
+                  "col": 13
+                },
+                "end": {
+                  "line": 8,
+                  "col": 17
+                }
+              },
+              "start": {
+                "line": 8,
+                "col": 13
+              },
+              "end": {
+                "line": 8,
+                "col": 17
+              }
+            },
+            {
+              "type": "var_reference",
+              "var_name": {
+                "type": "identifier",
+                "value": "div",
+                "start": {
+                  "line": 8,
+                  "col": 19
+                },
+                "end": {
+                  "line": 8,
+                  "col": 22
+                }
+              },
+              "start": {
+                "line": 8,
+                "col": 19
+              },
+              "end": {
+                "line": 8,
+                "col": 22
+              }
+            }
+          ],
           "start": {
-            "line": 11,
+            "line": 8,
             "col": 4
           },
           "end": {
-            "line": 11,
-            "col": 19
+            "line": 8,
+            "col": 23
           }
         }
       ],
@@ -709,7 +661,7 @@
         "col": 11
       },
       "end": {
-        "line": 12,
+        "line": 9,
         "col": 1
       }
     },
@@ -718,7 +670,7 @@
       "col": 0
     },
     "end": {
-      "line": 12,
+      "line": 9,
       "col": 1
     }
   }

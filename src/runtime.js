@@ -245,6 +245,7 @@ function appendTo(parentId, childId) {
         ...$heap,
         [parentId]: newParent
     };
+    syncVDomToDom();
 }
 
 function setText(elementId, text) {
@@ -258,6 +259,7 @@ function setText(elementId, text) {
         ...$heap,
         [elementId]: newElement
     };
+    syncVDomToDom();
 }
 
 function setStyle(elementId, stylesId) {
@@ -280,6 +282,7 @@ function setStyle(elementId, stylesId) {
         ...$heap,
         [elementId]: newElement
     };
+    syncVDomToDom();
 }
 
 function syncVDomToDom() {

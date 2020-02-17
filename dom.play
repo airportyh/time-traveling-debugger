@@ -2,11 +2,8 @@ def main() [
     button = createElement("button", { style: { color: "red" } }, ["Hello, world!"])
     div = createElement("div", { class: "panel" }, [ button ])
     body = getDocumentBody()
-    appendTo(body, div)
     setText(button, "Hello, Jacki!")
     setStyle(button, { color: "orange" })
-    syncVDomToDom()
-
     setStyle(button, { color: "cyan" })
-    syncVDomToDom()
+    appendTo(body, div)
 ]
