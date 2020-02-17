@@ -282,28 +282,17 @@ function setStyle(elementId, stylesId) {
     syncVDomToDom()
 }
 
-function addEventListener(elementId, eventName, listenerFunc) {
-
-}
-
 // Synchronises the current virtual DOM state contained in `$body` to `document.body`.
 // This works by calculating the difference of `$body` between its state since the
 // last time it was synchronised and its current state, this is done with the `compare`
 // function. Then, for each difference, we mutate the native DOM with that difference.
 function syncVDomToDom() {
-    console.log("syncVDomToDom begin");
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
-    if (diff.length > 1) {
-        console.log("multiple diffs detected", diff);
-        const diff2 = compare(1, $heapOfLastDomSync, 1, $heap);
-        console.log("re-did diff", diff2);
-    }
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
         mutateNativeDom(document.body, update);
     }
     $heapOfLastDomSync = $heap;
-    console.log("syncVDomToDom end");
 
     function mutateNativeDom(element, update) {
         const { path, value } = update;
@@ -319,11 +308,9 @@ function syncVDomToDom() {
                         throw new Error("Expected value to be an array");
                     }
                     for (let i = 0; i < children.length; i++) {
-                        console.log("element.appendChild($vdomToNativeDom(", children[i], "))");
                         element.appendChild($vdomToNativeDom(children[i]));
                     }
                 } else if (update.type === "deletion") {
-                    console.log(`element.innerHTML = "";`);
                     element.innerHTML = "";
                 }
             } else {
@@ -331,14 +318,11 @@ function syncVDomToDom() {
                 if (restRestPath.length === 0) {
                     if (update.type === "deletion") {
                         if (element.childNodes[idx]) {
-                            console.log(`element.removeChild(`, element.childNodes[idx], `);`);
                             element.removeChild(element.childNodes[idx]);
                         }
                     } else if (update.type === "addition") {
-                        console.log(`element.insertBefore($vdomToNativeDom(`, value, `)`, element.childNodes[idx], `)`);
                         element.insertBefore($vdomToNativeDom(value), element.childNodes[idx]);
                     } else if (update.type === "replacement") {
-                        console.log(`element.replaceChild($vdomToNativeDom(`, value, `)`, element.childNodes[idx], `)`);
                         element.replaceChild($vdomToNativeDom(value), element.childNodes[idx]);
                     } else {
                         throw new Error("Unknown update type: " + update.type);
@@ -354,10 +338,8 @@ function syncVDomToDom() {
         } else if (prop === "attrs") {
             if (restPath.length === 1) {
                 const [prop] = restPath;
-                console.log(`$domSetAttrs(`, element, { [prop]: value }, ")");
                 $domSetAttrs(element, { [prop]: value });
             } else if (restPath.length === 0) {
-                console.log(`$domSetAttrs(`, element, value, `)`)
                 $domSetAttrs(element, value);
             } else {
                 throw new Error("Attributes should not be nested deeper than 1 level as is the case with 'styles'.");
@@ -489,16 +471,6 @@ function compare(source, heap1, destination, heap2) {
             childDiffs.push(...result);
         }
 
-        // let iterated = [];
-        // const childDiffs = commonKeys
-        //     .reduce((diffs, key, idx) => {
-        //         iterated.push([key, idx]);
-        //         const result = compareAt([...path, key], source[key], destination[key]);
-        //         return [];
-        //     }, []);
-        // if (iterated.length !== commonKeys.length) {
-        //     throw new Error("loopCount is not equal to commonKeys.length", commonKeys, iterated);
-        // }
         return [
             ...additions,
             ...removals,
