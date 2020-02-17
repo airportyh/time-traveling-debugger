@@ -288,9 +288,13 @@ function setStyle(elementId, stylesId) {
 // function. Then, for each difference, we mutate the native DOM with that difference.
 function syncVDomToDom() {
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
+    const actions = [];
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
-        mutateNativeDom(document.body, update);
+        actions.push(...mutateNativeDom(document.body, update));
+    }
+    for (let action of actions) {
+        action();
     }
     $heapOfLastDomSync = $heap;
 
@@ -307,28 +311,33 @@ function syncVDomToDom() {
                     if (!Array.isArray(children)) {
                         throw new Error("Expected value to be an array");
                     }
+                    const actions = [];
                     for (let i = 0; i < children.length; i++) {
-                        element.appendChild($vdomToNativeDom(children[i]));
+                        actions.push(() => element.appendChild($vdomToNativeDom(children[i])));
                     }
+                    return actions;
                 } else if (update.type === "deletion") {
-                    element.innerHTML = "";
+                    return [() => element.innerHTML = ""];
                 }
             } else {
                 const [idx, ...restRestPath] = restPath;
                 if (restRestPath.length === 0) {
                     if (update.type === "deletion") {
                         if (element.childNodes[idx]) {
-                            element.removeChild(element.childNodes[idx]);
+                            const childElement = element.childNodes[idx];
+                            return [() => element.removeChild(childElement)];
+                        } else {
+                            throw new Error("Unhandled case");
                         }
                     } else if (update.type === "addition") {
-                        element.insertBefore($vdomToNativeDom(value), element.childNodes[idx]);
+                        return [() => element.insertBefore($vdomToNativeDom(value), element.childNodes[idx])];
                     } else if (update.type === "replacement") {
-                        element.replaceChild($vdomToNativeDom(value), element.childNodes[idx]);
+                        return [() => element.replaceChild($vdomToNativeDom(value), element.childNodes[idx])];
                     } else {
                         throw new Error("Unknown update type: " + update.type);
                     }
                 } else {
-                    mutateNativeDom(element.childNodes[idx], {
+                    return mutateNativeDom(element.childNodes[idx], {
                         type: update.type,
                         path: restRestPath,
                         value: value
@@ -338,9 +347,9 @@ function syncVDomToDom() {
         } else if (prop === "attrs") {
             if (restPath.length === 1) {
                 const [prop] = restPath;
-                $domSetAttrs(element, { [prop]: value });
+                return [() => $domSetAttrs(element, { [prop]: value })];
             } else if (restPath.length === 0) {
-                $domSetAttrs(element, value);
+                return [() => $domSetAttrs(element, value)];
             } else {
                 throw new Error("Attributes should not be nested deeper than 1 level as is the case with 'styles'.");
             }

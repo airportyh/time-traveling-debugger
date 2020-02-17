@@ -3,11 +3,11 @@ def main() [
     table = createElement("table", { border: "1" })
     appendTo(body, table)
     i = 1
-    while i <= 3 [
+    while i <= 10 [
         row = createElement("tr")
         appendTo(table, row)
         j = 1
-        while j <= 3 [
+        while j <= 10 [
             product = (i * j) + ""
             cell = createElement("td")
             appendTo(row, cell)
