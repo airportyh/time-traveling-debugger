@@ -680,15 +680,27 @@
           }
         },
         {
-          "type": "comment",
-          "value": " syncVDomToDom()",
+          "type": "call_expression",
+          "fun_name": {
+            "type": "identifier",
+            "value": "syncVDomToDom",
+            "start": {
+              "line": 11,
+              "col": 4
+            },
+            "end": {
+              "line": 11,
+              "col": 17
+            }
+          },
+          "arguments": [],
           "start": {
             "line": 11,
             "col": 4
           },
           "end": {
             "line": 11,
-            "col": 21
+            "col": 19
           }
         }
       ],

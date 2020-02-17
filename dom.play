@@ -8,5 +8,5 @@ def main() [
     syncVDomToDom()
 
     setStyle(button, { color: "cyan" })
-    # syncVDomToDom()
+    syncVDomToDom()
 ]

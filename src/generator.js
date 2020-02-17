@@ -17,6 +17,7 @@ exports.generateCode = function generateCode(ast, options) {
         + (options.historyFilePath ?
             `.finally(() => $saveHistory("${options.historyFilePath}"));` :
             "")])
+    .concat(["createDebugUI();"])
     .join("\n\n");
     return jsCode;
 }

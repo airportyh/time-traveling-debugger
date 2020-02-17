@@ -1,6 +1,7 @@
 // Runtime functions
 // const jsonr = require("@airportyh/jsonr");
 const $history = [];
+let $historyCursor = -1;
 let $stack = [];
 let $nextHeapId = 1;
 let $heap = {};
@@ -37,6 +38,7 @@ function $heapAllocate(value) {
 
 function $save(line) {
     $history.push({ line, stack: $stack, heap: $heap, body: $body });
+    $historyCursor++;
 }
 
 function $getVariable(varName) {
@@ -185,9 +187,6 @@ function addStyle(element, stylesId) {
 function $nativeDomToVDom(node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toLowerCase();
-        if (tag === "script") {
-            return "";
-        }
         const element = { tag };
         const elementId = $heapAllocate(element);
         const attributeNames = node.getAttributeNames();
@@ -280,22 +279,15 @@ function setStyle(elementId, stylesId) {
 }
 
 function syncVDomToDom() {
-    console.log("syncVDomToDom");
-    console.log("no change in heap?", $heapOfLastDomSync, $heap);
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
-    console.log("diff", diff);
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
-        console.log("update", update);
-        if (update.type === "addition") {
-            mutateNativeDom(document.body, update.path, update.value);
-        } else if (update.type === "replacement") {
-            mutateNativeDom(document.body, update.path, update.newValue);
-        }
+        mutateNativeDom(document.body, update);
     }
     $heapOfLastDomSync = $heap;
 
-    function mutateNativeDom(element, path, value) {
+    function mutateNativeDom(element, update) {
+        const { path, value } = update;
         if (path.length === 0) {
             throw new Error("Unexpected state, path elements should have been consumed.");
         }
@@ -303,14 +295,21 @@ function syncVDomToDom() {
         if (prop === "children") {
             const [idx, ...restRestPath] = restPath;
             if (restRestPath.length === 0) {
-                if (Number(idx) === element.childNodes.length) {
-                    element.appendChild($vdomToNativeDom(value));
+                if (update.type === "deletion") {
+                    element.removeChild(element.childNodes[idx]);
+                } else if (update.type === "addition") {
+                    element.insertBefore($vdomToNativeDom(value), element.childNodes[idx]);
+                } else if (update.type === "replacement") {
+                    element.replaceChild($vdomToNativeDom(value), element.childNodes[idx]);
                 } else {
-                    console.log("idx", idx, "element", element, "length", element.childNodes.length);
-                    throw new Error("Not handling this case yet");
+                    throw new Error("Unknown update type: " + update.type);
                 }
             } else {
-                mutateNativeDom(element.childNodes[idx], restRestPath, value);
+                mutateNativeDom(element.childNodes[idx], {
+                    type: update.type,
+                    path: restRestPath,
+                    value: value
+                });
             }
         } else if (prop === "attrs") {
             if (restPath.length === 1) {
@@ -402,7 +401,7 @@ function compare(source, heap1, destination, heap2) {
                         type: "replacement",
                         path: path,
                         oldValue: source,
-                        newValue: destination
+                        value: destination
                     }
                 ];
             }
@@ -444,6 +443,90 @@ function compare(source, heap1, destination, heap2) {
 
 }
 
+function createDebugUI() {
+    // Debugger UI Container
+    const ui = document.createElement("div");
+    ui.style.position = "fixed";
+    ui.style.bottom = "0px";
+    ui.style.left = "0px";
+    ui.style.right = "0px";
+    ui.style.height = "4em";
+    ui.style.backgroundColor = "#ededed";
+    ui.style.padding = "0.5em";
+    ui.style.borderTop = "#888 solid 1px";
+
+    // Prev Button
+    const prevButton = document.createElement("button");
+    prevButton.textContent = "←";//→
+    prevButton.addEventListener("click", () => {
+        if ($historyCursor - 1 >= 0) {
+            $historyCursor = $historyCursor - 1;
+            syncAll();
+        }
+    });
+    ui.appendChild(prevButton);
+    ui.appendChild(document.createTextNode(" "));
+
+    // Progress label
+    const progress = document.createElement("label");
+    syncProgress();
+    function syncProgress() {
+        const total = $history.length;
+        const current = $historyCursor + 1;
+        const labelText = `Step ${current} of ${total}`;
+        progress.textContent = labelText;
+    }
+    ui.appendChild(progress);
+    ui.appendChild(document.createTextNode(" "));
+
+    // Next Button
+    const nextButton = document.createElement("button");
+    nextButton.textContent = "→";
+    nextButton.addEventListener("click", () => {
+        if ($historyCursor + 1 < $history.length) {
+            $historyCursor = $historyCursor + 1;
+            syncAll();
+        }
+    });
+    ui.appendChild(nextButton);
+    ui.appendChild(document.createElement("br"));
+
+    // Slider "Range" Element
+    const range = document.createElement("input");
+    range.style.width = "100%";
+    range.type = "range";
+    range.min = 1;
+    syncRange();
+    range.addEventListener("change", (e) => {
+        $historyCursor = range.value - 1;
+        syncAll();
+    });
+    function syncRange() {
+        range.max = $history.length;
+    }
+    function syncRangeValue() {
+        range.value = $historyCursor + 1;
+    }
+    ui.appendChild(range);
+
+    document.documentElement.appendChild(ui);
+
+    function syncProgramState() {
+        let state = $history[$historyCursor];
+        $stack = state.stack;
+        $heap = state.heap;
+        $body = state.body;
+    }
+
+    function syncAll() {
+        syncRangeValue();
+        syncProgramState();
+        syncProgress();
+        syncVDomToDom();
+    }
+
+}
+
 
 async function main() {
     var $immediateReturnValue;
@@ -465,7 +548,8 @@ async function main() {
         syncVDomToDom();
         $save(10);
         setStyle($getVariable("button"), $heapAllocate({ color: "cyan" }));
-        // syncVDomToDom()
+        $save(11);
+        syncVDomToDom();
     } finally {
         $save(12);
         $popFrame();
@@ -473,3 +557,5 @@ async function main() {
 }
 
 main().catch(err => console.log(err.stack))
+
+createDebugUI();
