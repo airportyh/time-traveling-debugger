@@ -263,7 +263,7 @@ function setStyle(elementId, stylesId) {
     const styles = $heapAccess(stylesId);
     const element = $heapAccess(elementId);
     const attrs = $heapAccess(element.attrs);
-    const oldStyles = $heapAccess(attrs.style);
+    const oldStyles = attrs && $heapAccess(attrs.style);
     const newAttrs = $heapAllocate({
         ...attrs,
         style: {

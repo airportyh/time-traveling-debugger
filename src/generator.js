@@ -181,7 +181,7 @@ function generateCodeForExpression(expression) {
         return `$heapAllocate(${arrayLiteral})`;
     } else if (expression.type === "dictionary_literal") {
         const dictLiteral = "{ " + expression.entries.map(entry => {
-            return entry[0].value + ": " + generateCodeForExpression(entry[1]);
+            return quote(entry[0].value) + ": " + generateCodeForExpression(entry[1]);
         }).join(", ") + " }";
         return `$heapAllocate(${dictLiteral})`;
     } else if (expression.type === "binary_operation") {
@@ -215,4 +215,8 @@ function generateCodeForCodeBlock(codeBlock) {
     return indent(codeBlock.statements.map(
         statement => generateCodeForExecutableStatement(statement))
     .join("\n"));
+}
+
+function quote(str) {
+    return '"' + str.replace(/\"/g, '\\"') + '"';
 }

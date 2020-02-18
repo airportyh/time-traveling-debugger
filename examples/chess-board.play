@@ -1,0 +1,52 @@
+# chess font from https://www.dafont.com/chess.font
+
+def main() [
+    body = getDocumentBody()
+    table = createElement("table")
+    setStyle(table, { "border-collapse": "collapse" })
+    black_back_row = "tJnWlNjT"
+    white_back_row = "RhBqKhBr"
+    appendTo(body, table)
+    for i in range(0, 8) [
+        row = createElement("tr")
+        appendTo(table, row)
+        for j in range(0, 8) [
+            cell = createElement("td")
+            setStyle(cell, {
+                "vertical-align": "middle",
+                "text-align": "center",
+                "font-size": "35px",
+                "font-family": "Chess"
+            })
+            char = ""
+            if i == 1 [
+                # place black pawns
+                if j % 2 == 0 [
+                    char = "O"
+                ] else [
+                    char = "o"
+                ]
+            ] else if i == 6 [
+                # place white pawns
+                if j % 2 == 0 [
+                    char = "p"
+                ] else [
+                    char = "P"
+                ]
+            ] else if i == 0 [
+                char = black_back_row[j]
+            ] else if i == 7 [
+                char = white_back_row[j]
+            ] else [
+                if j % 2 == 1 and i % 2 == 0 [
+                    char = "+"
+                ]
+                if j % 2 == 0 and i % 2 == 1 [
+                    char = "+"
+                ]
+            ]
+            appendTo(row, cell)
+            setText(cell, char)
+        ]
+    ]
+]

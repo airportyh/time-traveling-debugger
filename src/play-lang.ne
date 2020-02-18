@@ -391,6 +391,10 @@ dictionary_entry
         {%
             d => [d[0], d[4]]
         %}
+    |  string_literal _ml ":" _ml expression
+        {%
+            d => [d[0], d[4]]
+        %}
 
 boolean_literal
     -> "true"

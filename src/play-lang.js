@@ -298,6 +298,9 @@ var grammar = {
     {"name": "dictionary_entry", "symbols": ["identifier", "_ml", {"literal":":"}, "_ml", "expression"], "postprocess": 
         d => [d[0], d[4]]
                 },
+    {"name": "dictionary_entry", "symbols": ["string_literal", "_ml", {"literal":":"}, "_ml", "expression"], "postprocess": 
+        d => [d[0], d[4]]
+                },
     {"name": "boolean_literal", "symbols": [{"literal":"true"}], "postprocess": 
         d => ({
             type: "boolean_literal",
