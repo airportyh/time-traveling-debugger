@@ -16,5 +16,6 @@ to learn how to make a programming language.
 * bug: why is styles object nested in dom.play example?
 * numbers nested inside objects are always being interpreted as heap IDs, we may need ref objects to * distinguish refs
 * DOM events
+* there seems to be a bug with VDOM when changes styles across multiple calls to setStyle()
 * Canvas API
 * UI for time-traveling (done)

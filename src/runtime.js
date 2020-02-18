@@ -185,36 +185,6 @@ function addStyle(element, stylesId) {
     }
 }
 
-function $nativeDomToVDom(node) {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-        const tag = node.tagName.toLowerCase();
-        const element = { tag };
-        const elementId = $heapAllocate(element);
-        const attributeNames = node.getAttributeNames();
-        if (attributeNames.length > 0) {
-            const attrs = {};
-            for (let i = 0; i < attributeNames.length; i++) {
-                const attrName = attributeNames[i];
-                attrs[attrName] = node.getAttribute(attrName);
-            }
-            element.attrs = $heapAllocate(attrs);
-        }
-        const childNodes = node.childNodes;
-        if (childNodes.length > 0) {
-            const childNodeResults = [];
-            for (let i = 0; i < childNodes.length; i++) {
-                childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
-            }
-            element.children = $heapAllocate(childNodeResults);
-        }
-        return elementId;
-    } else if (node.nodeType === Node.TEXT_NODE) {
-        return node.data;
-    } else {
-        throw new Error("Unsupported node type: " + node.nodeType);
-    }
-}
-
 function createElement(tag, attrs, children) {
     const element = { tag };
     if (attrs) {
@@ -282,23 +252,53 @@ function setStyle(elementId, stylesId) {
     syncVDomToDom()
 }
 
+function $nativeDomToVDom(node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        const element = { tag };
+        const elementId = $heapAllocate(element);
+        const attributeNames = node.getAttributeNames();
+        if (attributeNames.length > 0) {
+            const attrs = {};
+            for (let i = 0; i < attributeNames.length; i++) {
+                const attrName = attributeNames[i];
+                attrs[attrName] = node.getAttribute(attrName);
+            }
+            element.attrs = $heapAllocate(attrs);
+        }
+        const childNodes = node.childNodes;
+        if (childNodes.length > 0) {
+            const childNodeResults = [];
+            for (let i = 0; i < childNodes.length; i++) {
+                childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
+            }
+            element.children = $heapAllocate(childNodeResults);
+        }
+        return elementId;
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        return node.data;
+    } else {
+        throw new Error("Unsupported node type: " + node.nodeType);
+    }
+}
+
 // Synchronises the current virtual DOM state contained in `$body` to `document.body`.
 // This works by calculating the difference of `$body` between its state since the
 // last time it was synchronised and its current state, this is done with the `compare`
 // function. Then, for each difference, we mutate the native DOM with that difference.
 function syncVDomToDom() {
     const diff = compare(1, $heapOfLastDomSync, 1, $heap);
-    const actions = [];
+    const mutations = [];
     for (let i = 0; i < diff.length; i++) {
         const update = diff[i];
-        actions.push(...mutateNativeDom(document.body, update));
+        mutations.push(...collectNativeDomMutations(document.body, update));
     }
-    for (let action of actions) {
+    for (let action of mutations) {
         action();
     }
     $heapOfLastDomSync = $heap;
 
-    function mutateNativeDom(element, update) {
+    function collectNativeDomMutations(element, update) {
         const { path, value } = update;
         if (path.length === 0) {
             throw new Error("Unexpected state, path elements should have been consumed.");
@@ -337,7 +337,7 @@ function syncVDomToDom() {
                         throw new Error("Unknown update type: " + update.type);
                     }
                 } else {
-                    return mutateNativeDom(element.childNodes[idx], {
+                    return collectNativeDomMutations(element.childNodes[idx], {
                         type: update.type,
                         path: restRestPath,
                         value: value
