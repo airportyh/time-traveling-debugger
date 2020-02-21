@@ -94,6 +94,7 @@ var grammar = {
     {"name": "executable_statement", "symbols": ["while_loop"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["if_statement"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["for_loop"], "postprocess": id},
+    {"name": "executable_statement", "symbols": ["function_definition"], "postprocess": id},
     {"name": "return_statement", "symbols": [{"literal":"return"}, "__", "expression"], "postprocess": 
         d => ({
             type: "return_statement",
@@ -260,7 +261,7 @@ var grammar = {
     {"name": "unary_expression", "symbols": ["dictionary_literal"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["boolean_literal"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["indexed_access"], "postprocess": id},
-    {"name": "unary_expression", "symbols": ["fun_expression"], "postprocess": id},
+    {"name": "unary_expression", "symbols": ["function_expression"], "postprocess": id},
     {"name": "unary_expression", "symbols": [{"literal":"("}, "expression", {"literal":")"}], "postprocess": 
         data => data[1]
                 },
@@ -317,9 +318,9 @@ var grammar = {
             end: tokenEnd(d[0])
         })
                 },
-    {"name": "fun_expression", "symbols": [{"literal":"fun"}, "_", {"literal":"("}, "_", "parameter_list", "_", {"literal":")"}, "_", "code_block"], "postprocess": 
+    {"name": "function_expression", "symbols": [{"literal":"def"}, "_", {"literal":"("}, "_", "parameter_list", "_", {"literal":")"}, "_", "code_block"], "postprocess": 
         d => ({
-            type: "fun_expression",
+            type: "function_expression",
             parameters: d[4],
             body: d[8],
             start: tokenStart(d[0]),

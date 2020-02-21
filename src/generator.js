@@ -98,6 +98,8 @@ function generateCodeForExecutableStatement(statement) {
             `$save(${statement.start.line});`,
             `$set(${subject}, ${index}, ${value});`
         ].join("\n");
+    } else if (statement.type === "function_definition") {
+        return generateFunction(statement);
     } else {
         throw new Error("Unknown AST node type for executable statements: " + statement.type);
     }
@@ -202,7 +204,8 @@ function generateCodeForExpression(expression) {
         const subject = generateCodeForExpression(expression.subject);
         const index = generateCodeForExpression(expression.index);
         return `$get(${subject}, ${index})`;
-    } else if (expression.type === "fun_expression") {
+    } else if (
+        expression.type === "function_expression") {
         return generateFunction(expression);
     } else if (expression.type === "boolean_literal") {
         return String(expression.value);

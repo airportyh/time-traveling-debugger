@@ -10,12 +10,27 @@ To learn more about how Play is built:
 * Watch this [video series](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3DasoOa54Vm9Mr8CATyTbLF)
 to learn how to make a programming language.
 
+## Videos about the Time Traveling Debugger
+
+The current major experimental feature I am going for is the time traveling debugger,
+to learn more about it, you can watch these videos:
+
+* [Time Traveling Debugger - Part 1](https://www.youtube.com/watch?v=pDOLtvPjYXM)
+* [Time Traveling Debugger - Part 2](https://www.youtube.com/watch?v=dTv9aDZqEkI)
+* [Time Traveling Debugger - Part 3](https://www.youtube.com/watch?v=esvlb3ss14A)
+
 ## Todo
 
+* DOM events
+* make closures work...
 * heap display goes into disarray when there is too much data
 * bug: why is styles object nested in dom.play example?
 * numbers nested inside objects are always being interpreted as heap IDs, we may need ref objects to * distinguish refs
-* DOM events
 * there seems to be a bug with VDOM when changes styles across multiple calls to setStyle()
 * Canvas API
-* UI for time-traveling (done)
+* when scrubbing the timeline, have the code display pan to the selected line
+* syntax highlighter for Atom and/or VS Code
+
+## Done
+
+* UI for time-traveling (1st draft done)

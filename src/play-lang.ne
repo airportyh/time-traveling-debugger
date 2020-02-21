@@ -116,6 +116,7 @@ executable_statement
    |  while_loop           {% id %}
    |  if_statement         {% id %}
    |  for_loop             {% id %}
+   |  function_definition  {% id %}
 
 return_statement
    -> "return" __ expression
@@ -334,7 +335,7 @@ unary_expression
     |  dictionary_literal   {% id %}
     |  boolean_literal      {% id %}
     |  indexed_access       {% id %}
-    |  fun_expression       {% id %}
+    |  function_expression       {% id %}
     |  "(" expression ")"
         {%
             data => data[1]
@@ -416,11 +417,11 @@ boolean_literal
             })
         %}
 
-fun_expression
-    -> "fun" _ "(" _ parameter_list _ ")" _ code_block
+function_expression
+    -> "def" _ "(" _ parameter_list _ ")" _ code_block
         {%
             d => ({
-                type: "fun_expression",
+                type: "function_expression",
                 parameters: d[4],
                 body: d[8],
                 start: tokenStart(d[0]),

@@ -1,4 +1,6 @@
 // Runtime functions
+const $nativeToVirtualDomMap = new WeakMap();
+const $virtualDomToNativeMap = new Map();
 const $isBrowser = typeof document !== "undefined";
 const $history = [];
 let $historyCursor = -1;
@@ -252,6 +254,24 @@ function setStyle(elementId, stylesId) {
     syncVDomToDom()
 }
 
+function listenTo(elementId, event, listener) {
+    document.body.addEventListener(event, (event) => {
+        const targetId = $nativeToVirtualDomMap.get(event.target);
+        if (targetId === elementId) {
+            listener(event);
+        }
+    });
+}
+
+function getKey(keyEvent) {
+    return keyEvent.key;
+}
+
+function getValue(inputId) {
+    const input = $virtualDomToNativeMap.get(inputId);
+    return input.value;
+}
+
 function $nativeDomToVDom(node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toLowerCase();
@@ -274,11 +294,35 @@ function $nativeDomToVDom(node) {
             }
             element.children = $heapAllocate(childNodeResults);
         }
+        $virtualDomToNativeMap.set(elementId, node);
+        $nativeToVirtualDomMap.set(node, elementId);
         return elementId;
     } else if (node.nodeType === Node.TEXT_NODE) {
         return node.data;
     } else {
         throw new Error("Unsupported node type: " + node.nodeType);
+    }
+}
+
+// Generates a Native DOM element out of a Virtual DOM element.
+function $vdomToNativeDom(elementId) {
+    const element = $heapAccess(elementId);
+    if (typeof element === "string") {
+        const retval = document.createTextNode(element);
+        return retval;
+    } else {
+        const native = document.createElement(element.tag);
+        const attrs = $heapAccess(element.attrs);
+        $domSetAttrs(native, attrs);
+        const children = $heapAccess(element.children);
+        if (children) {
+            for (let i = 0; i < children.length; i++) {
+                native.appendChild($vdomToNativeDom(children[i]));
+            }
+        }
+        $virtualDomToNativeMap.set(elementId, native);
+        $nativeToVirtualDomMap.set(native, elementId);
+        return native;
     }
 }
 
@@ -311,11 +355,11 @@ function syncVDomToDom() {
                     if (!Array.isArray(children)) {
                         throw new Error("Expected value to be an array");
                     }
-                    const actions = [];
-                    for (let i = 0; i < children.length; i++) {
-                        actions.push(() => element.appendChild($vdomToNativeDom(children[i])));
-                    }
-                    return actions;
+                    return children.map(
+                        (child) =>
+                            () =>
+                                element.appendChild($vdomToNativeDom(child))
+                    );
                 } else if (update.type === "deletion") {
                     return [() => element.innerHTML = ""];
                 }
@@ -377,25 +421,6 @@ function $domSetAttrs(native, attrs) {
                 native.setAttribute(key, attrs[key]);
             }
         }
-    }
-}
-
-// Generates a Native DOM element out of a Virtual DOM element.
-function $vdomToNativeDom(elementId) {
-    const element = $heapAccess(elementId);
-    if (typeof element === "string") {
-        return document.createTextNode(element);
-    } else {
-        const native = document.createElement(element.tag);
-        const attrs = $heapAccess(element.attrs);
-        $domSetAttrs(native, attrs);
-        const children = $heapAccess(element.children);
-        if (children) {
-            for (let i = 0; i < children.length; i++) {
-                native.appendChild($vdomToNativeDom(children[i]));
-            }
-        }
-        return native;
     }
 }
 
