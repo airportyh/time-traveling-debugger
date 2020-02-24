@@ -1,0 +1,2 @@
+#! /bin/sh
+grep 'type: \"' src/play-lang.ne | sed -e 's/^[ ]*type: \"\(.*\)\",/\1/' | uniq | sort

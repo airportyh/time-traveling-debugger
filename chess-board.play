@@ -47,6 +47,9 @@ def main() [
             ]
             appendTo(row, cell)
             setText(cell, char)
+            listenTo(cell, "click", def (event) [
+                print("clicked on", cell)
+            ])
         ]
     ]
 ]
