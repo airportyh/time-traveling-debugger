@@ -88,6 +88,7 @@ exports.traverseAndCollect = function traverseAndCollect(node, visit) {
             ...traverseAndCollect(node.body, visit)
         ];
     } else {
+        console.log("node", node);
         throw new Error("Unhandled node type: " + node.type);
     }
 }

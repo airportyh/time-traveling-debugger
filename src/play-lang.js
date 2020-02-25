@@ -39,7 +39,12 @@ function convertTokenId(data) {
 var grammar = {
     Lexer: lexer,
     ParserRules: [
-    {"name": "input", "symbols": ["top_level_statements"], "postprocess": id},
+    {"name": "input", "symbols": ["top_level_statements"], "postprocess": 
+        d => ({
+            type: "program",
+            statements: d[0]
+        })
+            },
     {"name": "top_level_statements", "symbols": ["top_level_statement"], "postprocess": 
         d => [d[0]]
                 },

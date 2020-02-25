@@ -2,17 +2,15 @@ const indent = require("./indent");
 const path = require("path");
 const fs = require("fs");
 const getFunctions = require("./get-functions");
+const { findClosures } = require("./closure");
 const runtimeCode = fs.readFileSync(path.join(__dirname, "runtime.js")).toString();
 const builtInFunctions = getFunctions(runtimeCode);
 
 exports.generateCode = function generateCode(ast, options) {
+    //const closures = findClosures(ast, [], []);
     const jsCode =
     [runtimeCode]
-    .concat(
-        ast.map(node => {
-            return generateCodeForTopLevelStatement(node);
-        })
-    )
+    .concat(generateCodeForStatement(ast))
     .concat([`main().catch(err => console.log(err.stack))`
         + (options.historyFilePath ?
             `.finally(() => $saveHistory("${options.historyFilePath}"));` :
@@ -23,18 +21,10 @@ exports.generateCode = function generateCode(ast, options) {
     return jsCode;
 }
 
-function generateCodeForTopLevelStatement(node) {
-    if (node.type === "comment") {
-        return "//" + node.value;
-    } else if (node.type === "function_definition") {
-        return generateFunction(node);
-    } else {
-        throw new Error("Unknown AST Node type for top level statements: " + node.type);
-    }
-}
-
-function generateCodeForExecutableStatement(statement) {
-    if (statement.type === "comment") {
+function generateCodeForStatement(statement) {
+    if (statement.type === "code_block" || statement.type === "program") {
+        return generateCodeForCodeBlock(statement);
+    } else if (statement.type === "comment") {
         return "//" + statement.value;
     } else if (statement.type === "return_statement") {
         return [
@@ -73,7 +63,7 @@ function generateCodeForExecutableStatement(statement) {
         return [
             `if ($save(${statement.start.line}), ${condition}) {`,
             indent(statement.consequent.statements.map(statement => {
-                return generateCodeForExecutableStatement(statement);
+                return generateCodeForStatement(statement);
             }).join("\n")),
             "}",
             alternate
@@ -86,7 +76,7 @@ function generateCodeForExecutableStatement(statement) {
             `for (let ${loopVar} of $heapAccess(${generateCodeForExpression(statement.iterable)})) {`,
             indent(`$setVariable("${loopVar}", ${loopVar}, ${loopTopLine});`),
             indent(statement.body.statements.map(statement => {
-                return generateCodeForExecutableStatement(statement);
+                return generateCodeForStatement(statement);
             }).join("\n")),
             "}"
         ].join("\n");
@@ -119,11 +109,11 @@ function generateCallExpression(expression, pauseAfter) {
 
 function generateCodeForIfAlternate(alternate) {
     if (alternate.type === "if_statement") {
-        return "else " + generateCodeForExecutableStatement(alternate);
+        return "else " + generateCodeForStatement(alternate);
     } else {
         return "else {\n" +
             indent(alternate.statements.map(statement => {
-                return generateCodeForExecutableStatement(statement);
+                return generateCodeForStatement(statement);
             }).join("\n")) + "\n}";
     }
 }
@@ -216,7 +206,7 @@ function generateCodeForExpression(expression) {
 
 function generateCodeForCodeBlock(codeBlock) {
     return indent(codeBlock.statements.map(
-        statement => generateCodeForExecutableStatement(statement))
+        statement => generateCodeForStatement(statement))
     .join("\n"));
 }
 

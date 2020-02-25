@@ -36,7 +36,13 @@ function convertTokenId(data) {
 
 @lexer lexer
 
-input -> top_level_statements {% id %}
+input -> top_level_statements
+    {%
+        d => ({
+            type: "program",
+            statements: d[0]
+        })
+    %}
 
 top_level_statements
     ->  top_level_statement

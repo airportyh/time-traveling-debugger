@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const fs = require("mz/fs");
 const util = require("util");
-const { traverseAndCollect } = require("./src/traverser");
+const { findClosures } = require("./src/closure");
 
 async function main() {
     const filename = process.argv[2];
@@ -11,94 +11,9 @@ async function main() {
     }
     const ast = JSON.parse((await fs.readFile(filename)).toString());
     for (let node of ast) {
-        const result = findClosures(node, []);
+        const result = findClosures(node, [], []);
         console.log(util.inspect(result, { depth: 10 }));
     }
 }
 
 main().catch((err) => console.log(err.stack));
-
-function findClosures(node, parentScopes) {
-    return traverseAndCollect(node, (node) => {
-        if (node.type === "function_definition" ||
-            node.type === "function_expression") {
-            // TODO: if parent scope variable collides with function parameter,
-            // throw error. We are planning to disallow variable shadowing.
-            let varDefs = findVarDefinitionsForFun(node);
-            for (let scope of parentScopes) {
-                varDefs = difference(varDefs, scope);
-            }
-            const varRefs = findVarReferencesForFun(node);
-            const externalVarRefs = difference(varRefs, varDefs);
-            const result = [];
-            for (let statement of node.body.statements) {
-                result.push(...findClosures(statement, [varDefs, ...parentScopes]));
-            }
-
-            const closedVars = [];
-            for (let innerFunc of result) {
-                if (!innerFunc.externalVarRefs) {
-                    continue;
-                }
-                for (let varRef of innerFunc.externalVarRefs) {
-                    if (varDefs.indexOf(varRef) !== -1) {
-                        closedVars.push(varRef);
-                    } else {
-                        externalVarRefs.push(varRef);
-                    }
-                }
-            }
-
-            return [{
-                name: node.name ? node.name.value : "<anonymous>",
-                varDefs,
-                varRefs,
-                externalVarRefs,
-                closedVars,
-                innerFunctions: result
-            }];
-        }
-    });
-}
-
-function findVarReferencesForFun(node) {
-    return traverseAndCollect(node, (node) => {
-        if (node.type === "var_reference") {
-            return [node.var_name.value];
-        }
-    })
-}
-
-function findVarDefinitionsForFun(node) {
-    return traverseAndCollect(node, (node) => {
-        if (node.type === "var_assignment") {
-            return [node.var_name.value];
-        } else if (node.type === "for_loop") {
-            return [
-                node.loop_variable.value,
-                ...findVarDefinitionsForFun(node.iterable),
-                ...findVarDefinitionsForFun(node.body)
-            ];
-        }
-    });
-}
-
-function difference(arr1, arr2) {
-    const result = [];
-    for (let i = 0; i < arr1.length; i++) {
-        if (arr2.indexOf(arr1[i]) === -1) {
-            result.push(arr1[i]);
-        }
-    }
-    return result;
-}
-
-function intersection(arr1, arr2) {
-    const result = [];
-    for (let i = 0; i < arr1.length; i++) {
-        if (arr2.indexOf(arr1[i]) !== -1) {
-            result.push(arr1[i]);
-        }
-    }
-    return result;
-}
