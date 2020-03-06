@@ -4,7 +4,8 @@ const lexer = require("./lexer");
 function tokenStart(token) {
     return {
         line: token.line,
-        col: token.col - 1
+        col: token.col - 1,
+        offset: token.offset
     };
 }
 
@@ -15,7 +16,8 @@ function tokenEnd(token) {
     }
     return {
         line: token.line,
-        col: token.col + token.text.length - 1
+        col: token.col + token.text.length - 1,
+        offset: token.offset + token.text.length
     };
 }
 

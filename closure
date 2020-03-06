@@ -10,10 +10,8 @@ async function main() {
         return;
     }
     const ast = JSON.parse((await fs.readFile(filename)).toString());
-    for (let node of ast) {
-        const result = findClosures(node, [], []);
-        console.log(util.inspect(result, { depth: 10 }));
-    }
+    const result = findClosures(ast, [], []);
+    console.log(util.inspect(result, { depth: 10 }));
 }
 
 main().catch((err) => console.log(err.stack));

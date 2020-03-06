@@ -19,13 +19,31 @@ function $popFrame() {
     $stack = $stack.slice(0, $stack.length - 1);
 }
 
-function $setVariable(varName, value, line) {
+function $getVariable(varName) {
+    return $stack[$stack.length - 1].variables[varName];
+}
+
+function $setVariable(varName, value) {
     const frame = $stack[$stack.length - 1];
     const newFrame = {
         ...frame,
         variables: { ...frame.variables, [varName]: value }
     };
     $stack = [...$stack.slice(0, $stack.length - 1), newFrame];
+}
+
+function $getHeapVariable(varName, closureId) {
+    const dict = $heapAccess(closureId);
+    return dict[varName];
+}
+
+function $setHeapVariable(varName, value, closureId) {
+    const dict = $heapAccess(closureId);
+    const newDict = {
+        ...dict,
+        [varName]: value
+    };
+    $heap[closureId] = newDict;
 }
 
 function $heapAllocate(value) {
@@ -41,10 +59,6 @@ function $heapAllocate(value) {
 function $save(line) {
     $history.push({ line, stack: $stack, heap: $heap, body: $body });
     $historyCursor++;
-}
-
-function $getVariable(varName) {
-    return $stack[$stack.length - 1].variables[varName];
 }
 
 function $heapAccess(id) {

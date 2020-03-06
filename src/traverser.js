@@ -1,3 +1,81 @@
+/*
+traverse(ast, (node) => {
+    return false;
+})
+*/
+exports.traverse = 
+function traverse(node, visit) {
+    const result = visit(node);
+    if (result === false) {
+        return;
+    }
+    switch (node.type) {
+        case "program":
+            for (let childNode of node.statements) {
+                traverse(childNode, visit);
+            }
+            break;
+        case "comment":
+            break;
+        case "function_definition":
+            traverse(node.body, visit);
+            break;
+        case "code_block":
+            for (let childNode of node.statements) {
+                traverse(childNode, visit);
+            }
+            break;
+        case "call_expression":
+            for (let childNode of node.arguments) {
+                traverse(childNode, visit);
+            }
+            break;
+        case "string_literal":
+            break;
+        case "var_assignment":
+            traverse(node.value, visit);
+            break;
+        case "var_reference":
+            break;
+        case "dictionary_literal":
+            for (let entry of node.entries) {
+                const entryKey = entry[0];
+                const entryValue = entry[1];
+                traverse(entryKey, visit);
+                traverse(entryValue, visit);
+            }
+            break;
+        case "for_loop":
+            traverse(node.iterable, visit);
+            traverse(node.body, visit);
+            break;
+        case "number_literal":
+            break;
+        case "if_statement":
+            traverse(node.condition, visit);
+            traverse(node.consequent, visit);
+            if (node.alternate) {
+                traverse(node.alternate, visit);
+            }
+            break;
+        case "binary_operation":
+            traverse(node.left, visit);
+            traverse(node.right, visit);
+            break;
+        case "indexed_access":
+            traverse(node.subject, visit);
+            traverse(node.index, visit);
+            break;
+        case "function_expression":
+            traverse(node.body, visit);
+            break;
+        case "identifier":
+            break;
+        default:
+            throw new Error("Unhandled node type: " + node.type);
+    }
+};
+
 exports.traverseAndCollect = function traverseAndCollect(node, visit) {
     const result = visit(node);
     if (result) {
@@ -17,7 +95,7 @@ exports.traverseAndCollect = function traverseAndCollect(node, visit) {
             result.push(...traverseAndCollect(arg, visit));
         }
         return result;
-    } else if (node.type === "code_block") {
+    } else if (node.type === "code_block" || node.type === "program") {
         const result = [];
         for (let statement of node.statements) {
             result.push(...traverseAndCollect(statement, visit));

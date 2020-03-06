@@ -1,0 +1,15 @@
+def main() [
+    aDict = {}
+    counter = 1
+    body = getDocumentBody()
+    button = createElement("button")
+    setText(button, "Click")
+    appendTo(body, button)
+    label = createElement("label")
+    appendTo(body, label)
+    listenTo(button, "click", def () [
+        counter = counter + 1
+        display = "Current count: " + counter
+        setText(label, display)
+    ])
+]

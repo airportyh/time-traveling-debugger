@@ -1,0 +1,25 @@
+def main() [
+    todos = [
+        "Water the plants",
+        "Homework"
+    ]
+    body = getDocumentBody()
+    field = createElement("input")
+    list = createElement("ul")
+    setStyle(list, { margin: "0px", padding: "0px", "list-style": "none" })
+    appendTo(body, field)
+    appendTo(body, list)
+
+    for todo in todos [
+        item = createElement("li")
+        setText(item, todo)
+        appendTo(list, item)
+    ]
+
+    listenTo(field, "keypress", def (event) [
+        if getKey(event) == "Enter" [
+            newItem = getValue(field)
+            push(todos, newItem)
+        ]
+    ])
+]

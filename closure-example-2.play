@@ -1,0 +1,8 @@
+def main() [
+    name = "Kelly"
+    for i in name [
+        listenTo(button, "click", def () [
+            print(name)
+        ])
+    ]
+]

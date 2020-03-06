@@ -1,0 +1,9 @@
+def main() [
+    button = createElement("button")
+    for i in range(1, 4) [
+        name = i + "_blah"
+        listenTo(button, "click", def () [
+            print(name)
+        ])
+    ]
+]

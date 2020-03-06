@@ -1,0 +1,23 @@
+def main() [
+    def initializeUI() [
+        body = getDocumentBody()
+        button = createElement("button")
+        setText(button, "Click")
+        appendTo(body, button)
+        label = createElement("label")
+        appendTo(body, lable)
+        listenTo(button, "click", def () [
+            counter = counter + 1
+            display = "Current count: " + counter
+            setText(label, display)
+        ])
+        
+        listenTo(button, "click", def () [
+            counter2 = counter2 + 1
+        ])
+    ]
+    
+    counter = 1
+    counter2 = 1
+    initializeUI()
+]

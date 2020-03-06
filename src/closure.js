@@ -8,7 +8,7 @@ exports.findClosures = function findClosures(node, varDefs, parentScopes) {
             return findClosures(node.body, params, parentScopes);
         } else if (node.type === "for_loop") {
             return findClosures(node.body, [node.loop_variable.value], parentScopes);
-        } else if (node.type === "code_block") {
+        } else if (node.type === "code_block" || node.type === "program") {
             // TODO: if parent scope variable collides with function parameter,
             // throw error. We are planning to disallow variable shadowing.
             varDefs = varDefs.concat(findVarDefinitions(node));
@@ -30,6 +30,7 @@ exports.findClosures = function findClosures(node, varDefs, parentScopes) {
                 for (let varRef of innerFunc.externalVarRefs) {
                     if (varDefs.indexOf(varRef) !== -1) {
                         closedVars.push(varRef);
+                    } else if (innerFunc.varRefs.indexOf(varRef) !== -1) {
                     } else {
                         externalVarRefs.push(varRef);
                     }

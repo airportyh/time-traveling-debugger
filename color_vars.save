@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+const fs = require("mz/fs");
+const util = require("util");
+const { traverseAndCollect } = require("./src/traverser");
+const path = require("path");
+const colors = require('colors/safe');
+
+async function main() {
+    const filename = process.argv[2];
+    if (!filename) {
+        console.log("Please provide a file name.");
+        return;
+    }
+    const codeText = (await fs.readFile(filename)).toString();
+    const code = codeText.split("");
+    const astFilename = path.basename(filename, ".play") + ".ast";
+    const ast = JSON.parse((await fs.readFile(astFilename)).toString());
+    const varRefs = traverseAndCollect(ast, (node) => {
+        if (node.type === "var_reference") {
+            return [node];
+        }
+    });
+    const varAssigns = traverseAndCollect(ast, (node) => {
+        if (node.type === "var_assignment") {
+            return [node];
+        }
+    });
+    for (let varRef of varRefs) {
+        replace(varRef, colors.rainbow(varRef.var_name.value));
+    }
+    for (let varAssign of varAssigns) {
+        replace(varAssign.var_name, colors.america(varAssign.var_name.value));
+    }
+    //console.log(util.inspect(varRefs, { depth: 10 }));
+    const newCode = code.join("");
+    console.log(newCode);
+
+    function replace(node, replacement) {
+        code[node.start.offset] = replacement;
+        for (let i = node.start.offset + 1; i < node.end.offset; i++) {
+            code[i] = "";
+        }
+    }
+}
+
+main().catch((err) => console.log(err.stack));

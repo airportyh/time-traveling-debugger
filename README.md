@@ -31,6 +31,12 @@ to learn more about it, you can watch these videos:
 * when scrubbing the timeline, have the code display pan to the selected line
 * syntax highlighter for Atom and/or VS Code
 
+## Closure: Problems to Solve
+
+1. displaying closure variables in the debugger
+2. multi-level closures
+3. cleaning up of closures
+
 ## Done
 
 * UI for time-traveling (1st draft done)

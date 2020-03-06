@@ -1,36 +1,38 @@
 const indent = require("./indent");
 const path = require("path");
 const fs = require("fs");
+const util = require("util");
 const getFunctions = require("./get-functions");
 const { findClosures } = require("./closure");
 const runtimeCode = fs.readFileSync(path.join(__dirname, "runtime.js")).toString();
 const builtInFunctions = getFunctions(runtimeCode);
 
 exports.generateCode = function generateCode(ast, options) {
-    //const closures = findClosures(ast, [], []);
     const jsCode =
-    [runtimeCode]
-    .concat(generateCodeForStatement(ast))
-    .concat([`main().catch(err => console.log(err.stack))`
-        + (options.historyFilePath ?
-            `.finally(() => $saveHistory("${options.historyFilePath}"));` :
-            "")])
-    .concat([options.code ? `const $code = \`${options.code}\`;` : "const $code = null;"])
-    .concat(["$isBrowser && createDebugUI();"])
-    .join("\n\n");
+        [runtimeCode]
+        .concat(generateCodeForStatement(ast))
+        .concat([`main().catch(err => console.log(err.stack))`
+            + (options.historyFilePath ?
+                `.finally(() => $saveHistory("${options.historyFilePath}"));` :
+                "")])
+        .concat([options.code ? `const $code = \`${options.code}\`;` : "const $code = null;"])
+        .concat(["$isBrowser && createDebugUI();"])
+        .join("\n\n");
     return jsCode;
 }
 
 function generateCodeForStatement(statement) {
-    if (statement.type === "code_block" || statement.type === "program") {
+    if (statement.type === "program") {
         return generateCodeForCodeBlock(statement);
+    } else if (statement.type === "code_block") {
+        return indent(generateCodeForCodeBlock(statement));
     } else if (statement.type === "comment") {
         return "//" + statement.value;
     } else if (statement.type === "return_statement") {
         return [
             `$save(${statement.start.line});`,
             `var $retval = ${generateCodeForExpression(statement.value)};`,
-            `$setVariable("<ret val>", $retval, ${statement.start.line});`,
+            `$setVariable("<ret val>", $retval);`,
             `return $retval;`
         ].join("\n");
         return "return " + generateCodeForExpression(statement.value) + ";";
@@ -41,7 +43,7 @@ function generateCodeForStatement(statement) {
         const line = statement.start.line;
         return [
             `$save(${statement.start.line});`,
-            `$setVariable("${varName}", ${value}, ${line});`
+            `$setVariable("${varName}", ${value});`
         ].join("\n");
     } else if (statement.type === "call_expression") {
         return [
@@ -53,7 +55,7 @@ function generateCodeForStatement(statement) {
         return [
             `$save(${statement.start.line});`,
             `while (${condition}) {`,
-            `${generateCodeForCodeBlock(statement.body)}`,
+            `${generateCodeForStatement(statement.body)}`,
             `}`
         ].join("\n");
     } else if (statement.type === "if_statement") {
@@ -74,7 +76,7 @@ function generateCodeForStatement(statement) {
         return [
             `$save(${statement.start.line});`,
             `for (let ${loopVar} of $heapAccess(${generateCodeForExpression(statement.iterable)})) {`,
-            indent(`$setVariable("${loopVar}", ${loopVar}, ${loopTopLine});`),
+            indent(`$setVariable("${loopVar}", ${loopVar});`),
             indent(statement.body.statements.map(statement => {
                 return generateCodeForStatement(statement);
             }).join("\n")),
@@ -130,7 +132,7 @@ function generateFunction(node) {
         .join(", ");
     const line1 = (isAsync ? "async " : "") +
         "function " + (funName || "") + "(" + parameters + ") {";
-    const body = generateCodeForCodeBlock(node.body);
+    const body = indent(generateCodeForCodeBlock(node.body));
     return [
         line1,
         indent(`var $immediateReturnValue;`),
@@ -140,7 +142,8 @@ function generateFunction(node) {
         indent(`} finally {`),
         indent(indent([
             `$save(${lastLine});`,
-            `$popFrame();`
+            `$popFrame();`,
+            `$save(${lastLine});`,
         ].join("\n"))),
         indent(`}`),
         "}"
@@ -205,9 +208,9 @@ function generateCodeForExpression(expression) {
 }
 
 function generateCodeForCodeBlock(codeBlock) {
-    return indent(codeBlock.statements.map(
+    return codeBlock.statements.map(
         statement => generateCodeForStatement(statement))
-    .join("\n"));
+    .join("\n");
 }
 
 function quote(str) {
