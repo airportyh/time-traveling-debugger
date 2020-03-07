@@ -21,8 +21,6 @@ to learn more about it, you can watch these videos:
 
 ## Todo
 
-* DOM events
-* make closures work...
 * heap display goes into disarray when there is too much data
 * bug: why is styles object nested in dom.play example?
 * numbers nested inside objects are always being interpreted as heap IDs, we may need ref objects to * distinguish refs
@@ -40,3 +38,5 @@ to learn more about it, you can watch these videos:
 ## Done
 
 * UI for time-traveling (1st draft done)
+* DOM events
+* make closures work...

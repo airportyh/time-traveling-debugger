@@ -10,8 +10,8 @@ let $heap = {};
 let $body = $isBrowser && $nativeDomToVDom(document.body);
 let $heapOfLastDomSync = $heap;
 
-function $pushFrame(funName, variables) {
-    const newFrame = { funName, parameters: variables, variables };
+function $pushFrame(funName, variables, closures) {
+    const newFrame = { funName, parameters: variables, variables, closures };
     $stack = [...$stack, newFrame];
 }
 
