@@ -45,6 +45,11 @@ function traverse(node, visit) {
                 traverse(entryValue, visit);
             }
             break;
+        case "list_literal":
+            for (let item of node.items) {
+                traverse(item, visit);
+            }
+            break;
         case "for_loop":
             traverse(node.iterable, visit);
             traverse(node.body, visit);

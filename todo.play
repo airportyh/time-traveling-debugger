@@ -11,15 +11,19 @@ def main() [
     appendTo(body, list)
 
     for todo in todos [
-        item = createElement("li")
-        setText(item, todo)
-        appendTo(list, item)
+        li = createElement("li")
+        setText(li, todo)
+        appendTo(list, li)
     ]
 
     listenTo(field, "keypress", def (event) [
         if getKey(event) == "Enter" [
-            newItem = getValue(field)
-            push(todos, newItem)
+            newTodo = getValue(field)
+            push(todos, newTodo)
+            li = createElement("li")
+            setText(li, newTodo)
+            appendTo(list, li)
+            setValue(field, "")
         ]
     ])
 ]

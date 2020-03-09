@@ -10,7 +10,7 @@ function gatherClosureInfo(ast, parentScopes, level, closureProviders, closureDe
             const varRefs = findVariableReferences(node.body);
             const varAssns = findVariableAssignments(node.body);
             const innerFunctions = findInnerFunctions(node.body);
-            const varDefs = node.parameters.concat(varAssns.map((assn) => assn.var_name));
+            const varDefs = node.parameters.concat(varAssns);
             const closures = {};
             
             // figure out which scope each var ref belongs to
@@ -89,7 +89,9 @@ function findVariableAssignments(blockNode) {
     const results = [];
     traverse(blockNode, (node) => {
         if (node.type === "var_assignment") {
-            results.push(node);
+            results.push(node.var_name);
+        } else if (node.type === "for_loop") {
+            results.push(node.loop_variable);
         } else if (
             node.type === "function_definition" ||
             node.type === "function_expression")

@@ -23,9 +23,12 @@ to learn more about it, you can watch these videos:
 
 ## Todo
 
+* do some code challenges on CodeWars, etc
+* gather closure info function, doesn't work with the loop iterator variable of a for loop
 * suspend execution while in debugger mode
 * make some toy programs
 * anonymous functions as closure providers
+* use static analysis to check for references of undefined functions
 * debugger: don't show vdom?
 * clean up closures when functions are no longer referenced
 * clean up unused heap variables?

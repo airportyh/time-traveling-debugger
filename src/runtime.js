@@ -286,6 +286,11 @@ function getValue(inputId) {
     return input.value;
 }
 
+function setValue(inputId, value) {
+    const input = $virtualDomToNativeMap.get(inputId);
+    input.value = value;
+}
+
 function $nativeDomToVDom(node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toLowerCase();
