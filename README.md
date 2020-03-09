@@ -23,8 +23,9 @@ to learn more about it, you can watch these videos:
 
 ## Todo
 
+* suspend execution while in debugger mode
+* make some toy programs
 * anonymous functions as closure providers
-* display closure variables in stack frame within debugger
 * debugger: don't show vdom?
 * clean up closures when functions are no longer referenced
 * clean up unused heap variables?
@@ -38,6 +39,7 @@ to learn more about it, you can watch these videos:
 
 ## Done
 
+* display closure variables in stack frame within debugger
 * UI for time-traveling (1st draft done)
 * DOM events
 * make closures work...

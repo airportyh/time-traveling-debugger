@@ -644,6 +644,14 @@ function createDebugUI() {
             for (let varName in frame.variables) {
                 lines.push(`<li style="list-style: none;">${varName} = ${displayValue(frame.variables[varName])}</li>`);
             }
+            if (frame.closures) {
+                for (let closure of frame.closures) {
+                    const vars = $heapAccess(closure);
+                    for (let varName in vars) {
+                        lines.push(`<li style="list-style: none;">${varName} = ${displayValue(vars[varName])}</li>`);
+                    }
+                }
+            }
             lines.push("</ul>");
             return lines.join("");
         }).join("");
