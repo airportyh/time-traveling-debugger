@@ -25,7 +25,6 @@ to learn more about it, you can watch these videos:
 
 * do some code challenges on CodeWars, etc
 * gather closure info function, doesn't work with the loop iterator variable of a for loop
-* suspend execution while in debugger mode
 * make some toy programs
 * anonymous functions as closure providers
 * use static analysis to check for references of undefined functions
@@ -42,6 +41,7 @@ to learn more about it, you can watch these videos:
 
 ## Done
 
+* suspend execution while in debugger mode
 * display closure variables in stack frame within debugger
 * UI for time-traveling (1st draft done)
 * DOM events

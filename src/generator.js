@@ -25,7 +25,7 @@ exports.generateCode = function generateCode(ast, options) {
                 `.finally(() => $saveHistory("${options.historyFilePath}"));` :
                 "")])
         .concat([options.code ? `const $code = \`${options.code}\`;` : "const $code = null;"])
-        .concat(["$isBrowser && createDebugUI();"])
+        .concat(["$isBrowser && createDebugButton();"])
         .join("\n\n");
     return jsCode;
 }

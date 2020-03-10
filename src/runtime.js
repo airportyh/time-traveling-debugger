@@ -534,7 +534,28 @@ function compare(source, heap1, destination, heap2) {
 }
 
 // Time-Traveling Debugger UI
+function sleep(ms) {
+    return new Promise((accept) => {
+        setTimeout(() => accept(), ms);
+    });
+}
+
+function createDebugButton() {
+    const button = document.createElement("button");
+    button.textContent = "Debug";
+    button.style.position = "fixed";
+    button.style.bottom = "5px";
+    button.style.right = "5px";
+    button.addEventListener("click", () => {
+        document.documentElement.removeChild(button);
+        createDebugUI();
+    });
+    document.documentElement.appendChild(button);
+}
+
 function createDebugUI() {
+    document.body.style.pointerEvents = "none";
+    document.body.style.userSelect = "none";
     // Debugger UI Container
     const ui = document.createElement("div");
     ui.style.position = "fixed";
@@ -545,6 +566,22 @@ function createDebugUI() {
     ui.style.backgroundColor = "#ededed";
     ui.style.padding = "0.5em";
     ui.style.borderTop = "#888 solid 1px";
+    
+    // Close Button
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "×";
+    closeButton.style.position = "absolute";
+    closeButton.style.right = "5px";
+    closeButton.addEventListener("click", async () => {
+        $historyCursor = $history.length - 1;
+        syncAll();
+        await sleep(500);
+        document.documentElement.removeChild(ui);
+        createDebugButton();
+        document.body.style.pointerEvents = "inherit";
+        document.body.style.userSelect = "inherit";
+    });
+    ui.appendChild(closeButton);
 
     // Prev Button
     const prevButton = document.createElement("button");
