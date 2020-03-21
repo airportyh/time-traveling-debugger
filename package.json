@@ -1,6 +1,6 @@
 {
   "name": "play-lang",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Play is a small programming language in the spirit of Python and JavaScript. It is used as a test bed for experimental debugger and compiler techniques.",
   "files": [
     "src"
