@@ -54,6 +54,10 @@ function traverse(node, visit) {
             traverse(node.iterable, visit);
             traverse(node.body, visit);
             break;
+        case "while_loop":
+            traverse(node.condition, visit);
+            traverse(node.body, visit);
+            break;
         case "number_literal":
             break;
         case "if_statement":
@@ -71,10 +75,18 @@ function traverse(node, visit) {
             traverse(node.subject, visit);
             traverse(node.index, visit);
             break;
+        case "indexed_assignment":
+            traverse(node.subject, visit);
+            traverse(node.index, visit);
+            traverse(node.value, visit);
+            break;
         case "function_expression":
             traverse(node.body, visit);
             break;
         case "identifier":
+            break;
+        case "return_statement":
+            traverse(node.value, visit);
             break;
         default:
             throw new Error("Unhandled node type: " + node.type);

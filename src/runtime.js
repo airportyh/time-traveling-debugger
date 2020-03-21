@@ -11,7 +11,10 @@ let $body = $isBrowser && $nativeDomToVDom(document.body);
 let $heapOfLastDomSync = $heap;
 
 function $pushFrame(funName, variables, closures) {
-    const newFrame = { funName, parameters: variables, variables, closures };
+    const newFrame = { funName, parameters: variables, variables };
+    if (closures) {
+        newFrame.closures = closures;
+    }
     $stack = [...$stack, newFrame];
 }
 
