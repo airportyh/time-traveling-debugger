@@ -313,8 +313,8 @@ additive_expression
         %}
 
 multiplicative_expression
-    -> unary_expression     {% id %}
-    |  unary_expression _ [*/%] _ multiplicative_expression
+    -> maybe_not_expression     {% id %}
+    |  maybe_not_expression _ [*/%] _ multiplicative_expression
         {%
             d => ({
                 type: "binary_operation",
@@ -325,6 +325,16 @@ multiplicative_expression
                 end: d[4].end
             })
         %}
+
+maybe_not_expression
+    -> "!" _ unary_expression
+        {%
+            data => ({
+                type: "not_operation",
+                subject: data[2]
+            })
+        %}
+    |  unary_expression     {% id %}
 
 unary_expression
     -> number               {% id %}
@@ -343,11 +353,12 @@ unary_expression
     |  dictionary_literal   {% id %}
     |  boolean_literal      {% id %}
     |  indexed_access       {% id %}
-    |  function_expression       {% id %}
+    |  function_expression  {% id %}
     |  "(" expression ")"
         {%
             data => data[1]
         %}
+    
 
 list_literal
     -> "[" list_items "]"

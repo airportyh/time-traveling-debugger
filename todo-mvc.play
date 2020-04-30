@@ -1,0 +1,111 @@
+def main() [
+    todos = [
+        {
+            name: "water the plant",
+            completed: false
+        }
+    ]
+    body = getDocumentBody()
+    todoAppSection = createElement("section", {
+        class: "todoapp"
+    })
+    header = createElement("header", {
+        class: "header"
+    })
+    h1 = createElement("h1")
+    newTodoInput = createElement("input", {
+        class: "new-todo",
+        placeholder: "What needs to be done?",
+        autofocus: "autofocus"
+    })
+    listenTo(newTodoInput, "keypress", def (event) [
+        key = getKey(event)
+        if key == "Enter" [
+            newTodo = {
+                name: getValue(newTodoInput),
+                completed: false
+            }
+            push(todos, newTodo)
+            addTodo(newTodo, todoListUl)
+            setValue(newTodoInput, "")
+        ]
+    ])
+    setText(h1, "todos")
+    appendTo(header, h1)
+    appendTo(header, newTodoInput)
+    appendTo(todoAppSection, header)
+    appendTo(body, todoAppSection)
+    
+    mainSection = createElement("section", {
+        class: "main"
+    })
+    todoListUl = createElement("ul", {
+        class: "todo-list"
+    })
+    
+    appendTo(mainSection, todoListUl)
+    appendTo(todoAppSection, mainSection)
+    
+    footer = createElement("footer", {
+        class: "footer"
+    })
+    setStyle(footer, {
+        height: "3em"
+    })
+    todoCountSpan = createElement("span", {
+        class: "todo-count"
+    })
+    appendTo(footer, todoCountSpan)
+    appendTo(todoAppSection, footer)
+    
+    for aTodo in todos [
+        addTodo(aTodo, todoListUl)
+    ]
+    
+    def updateTodoCount() [
+        activeTodos = filter(def (todo) [
+            return !todo["completed"]
+        ], todos)
+        setText(todoCountSpan, count(activeTodos) + " items left")
+    ]
+    
+    def addTodo(todo, todoListUl) [
+        # add a new todo
+        li = createElement("li")
+        viewDiv = createElement("div", {
+            class: "view"
+        })
+        checkbox = createElement("input", {
+            type: "checkbox",
+            class: "toggle"
+        })
+        if todo["completed"] [
+            setAttribute(checkbox, "checked", "checked")
+        ]
+        listenTo(checkbox, "click", def () [
+            completed = getChecked(checkbox)
+            todo["completed"] = completed
+            if completed [
+                addClass(li, "completed")
+            ] else [
+                removeClass(li, "completed")
+            ]
+            updateTodoCount()
+        ])
+        appendTo(viewDiv, checkbox)
+        label = createElement("label")
+        setText(label, todo["name"])
+        appendTo(viewDiv, label)
+        destroyButton = createElement("button", {
+            class: "destroy"
+        })
+        listenTo(destroyButton, "click", def () [
+            removeFrom(todoListUl, li)
+        ])
+        appendTo(viewDiv, destroyButton)
+        appendTo(li, viewDiv)
+        appendTo(todoListUl, li)
+        updateTodoCount()
+    ]
+]
+

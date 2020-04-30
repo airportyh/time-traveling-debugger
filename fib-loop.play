@@ -1,0 +1,16 @@
+def fib(n) [
+    i = 1
+    fib1 = 1
+    fib2 = 1
+    while i < n [
+        fib_next = fib1 + fib2
+        fib1 = fib2
+        fib2 = fib_next
+        i = i + 1
+    ]
+    return fib1
+]
+
+def main() [
+    print(fib(3))
+]

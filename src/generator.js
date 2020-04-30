@@ -82,10 +82,10 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
     } else if (statement.type === "while_loop") {
         const condition = generateCodeForExpression(statement.condition, funNode, closureInfo);
         return [
-            `$save(${statement.start.line});`,
-            `while (${condition}) {`,
+            `while ($save(${statement.condition.start.line}), ${condition}) {`,
             `${generateCodeForStatement(statement.body, funNode, closureInfo)}`,
-            `}`
+            `}`,
+            `$save(${statement.end.line});`
         ].join("\n");
     } else if (statement.type === "if_statement") {
         const condition = generateCodeForExpression(statement.condition, funNode, closureInfo);
@@ -218,6 +218,8 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         return generateFunction(expression, closureInfo);
     } else if (expression.type === "boolean_literal") {
         return String(expression.value);
+    } else if (expression.type === "not_operation") {
+        return "!" + generateCodeForExpression(expression.subject, funNode, closureInfo);
     } else {
         throw new Error("Unsupported AST node type for expressions: " + expression.type);
     }
@@ -233,10 +235,10 @@ function generateFunction(node, closureInfo) {
     const lastLine = node.body.end.line;
     const parameters = node
         .parameters
-        .map(p => p.value)
-        .join(", ");
+        .map(p => p.value);
+    let stackParameters = parameters;
     const line1 = (isAsync ? "async " : "") +
-        "function " + (funName || "") + "(" + parameters + ") {";
+        "function " + (funName || "") + "(" + parameters.join(", ") + ") {";
     const body = indent(generateCodeForCodeBlock(node.body, node, closureInfo));
     const initLines = [`var $immediateReturnValue;`];
     const closuresArray = [];
@@ -244,6 +246,12 @@ function generateFunction(node, closureInfo) {
         const closureVar = `$${funName}_closure`;
         initLines.push(indent(`var ${closureVar} = $heapAllocate({});`));
         closuresArray.push(closureVar);
+        stackParameters = parameters.filter((param) => !closureProvider.has(param));
+        for (let param of parameters) {
+            if (closureProvider.has(param)) {
+                initLines.push(indent(`$setHeapVariable("${param}", ${param}, ${closureVar});`));
+            }
+        }
     }
     if (closureDependencies) {
         for (let funName in closureDependencies) {
@@ -252,10 +260,10 @@ function generateFunction(node, closureInfo) {
         }
     }
     if (closuresArray.length === 0) {
-        initLines.push(indent(`$pushFrame("${funName || '<anonymous>'}", { ${parameters} });`));
+        initLines.push(indent(`$pushFrame("${funName || '<anonymous>'}", { ${stackParameters.join(", ")} });`));
     } else {
         initLines.push(
-            indent(`$pushFrame("${funName || '<anonymous>'}", { ${parameters} }, [${closuresArray.join(", ")}]);`)
+            indent(`$pushFrame("${funName || '<anonymous>'}", { ${stackParameters.join(", ")} }, [${closuresArray.join(", ")}]);`)
         );
     }
     return [
@@ -266,8 +274,7 @@ function generateFunction(node, closureInfo) {
         indent(`} finally {`),
         indent(indent([
             `$save(${lastLine});`,
-            `$popFrame();`,
-            `$save(${lastLine});`,
+            `$popFrame();`
         ].join("\n"))),
         indent(`}`),
         "}"

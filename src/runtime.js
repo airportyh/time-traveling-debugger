@@ -11,7 +11,10 @@ let $body = $isBrowser && $nativeDomToVDom(document.body);
 let $heapOfLastDomSync = $heap;
 
 function $pushFrame(funName, variables, closures) {
-    const newFrame = { funName, parameters: variables, variables, closures };
+    const newFrame = { funName, parameters: variables, variables };
+    if (closures) {
+        newFrame.closures = closures;
+    }
     $stack = [...$stack, newFrame];
 }
 
@@ -102,7 +105,7 @@ function $saveHistory(filePath) {
     require("fs").writeFile(
         filePath,
         jsonr.stringify($history, "	"),
-        () => undefined
+        () => console.log(`Wrote ${filePath}.`)
     );
 }
 
@@ -231,12 +234,45 @@ function appendTo(parentId, childId) {
     syncVDomToDom()
 }
 
+function removeFrom(parentId, childId) {
+    const parent = $heapAccess(parentId);
+    const children = $heapAccess(parent.children) || [];
+    const newChildren = $heapAllocate(children.filter((child) => child !== childId));
+    const newParent = {
+        ...parent,
+        children: newChildren
+    };
+    $heap = {
+        ...$heap,
+        [parentId]: newParent
+    };
+    syncVDomToDom()
+}
+
 function setText(elementId, text) {
     const element = $heapAccess(elementId);
     const newChildren = $heapAllocate([text]);
     const newElement = {
         ...element,
         children: newChildren
+    };
+    $heap = {
+        ...$heap,
+        [elementId]: newElement
+    };
+    syncVDomToDom()
+}
+
+function setAttribute(elementId, attrName, attrValue) {
+    const element = $heapAccess(elementId);
+    const attrs = $heapAccess(element.attrs);
+    const newAttrs = $heapAllocate({
+        ...attrs,
+        [attrName]: attrValue
+    });
+    const newElement = {
+        ...element,
+        attrs: newAttrs
     };
     $heap = {
         ...$heap,
@@ -289,6 +325,26 @@ function getValue(inputId) {
 function setValue(inputId, value) {
     const input = $virtualDomToNativeMap.get(inputId);
     input.value = value;
+}
+
+function getChecked(inputId) {
+    const input = $virtualDomToNativeMap.get(inputId);
+    return input.checked;
+}
+
+function setChecked(inputId, checked) {
+    const input = $virtualDomToNativeMap.get(inputId);
+    return input.checked = checked;
+}
+
+function addClass(elementId, clazz) {
+    const element = $virtualDomToNativeMap.get(elementId);
+    element.classList.add(clazz);
+}
+
+function removeClass(elementId, clazz) {
+    const element = $virtualDomToNativeMap.get(elementId);
+    element.classList.remove(clazz);
 }
 
 function $nativeDomToVDom(node) {

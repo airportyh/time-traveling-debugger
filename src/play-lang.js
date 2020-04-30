@@ -242,8 +242,8 @@ var grammar = {
             end: d[4].end
         })
                 },
-    {"name": "multiplicative_expression", "symbols": ["unary_expression"], "postprocess": id},
-    {"name": "multiplicative_expression", "symbols": ["unary_expression", "_", /[*\/%]/, "_", "multiplicative_expression"], "postprocess": 
+    {"name": "multiplicative_expression", "symbols": ["maybe_not_expression"], "postprocess": id},
+    {"name": "multiplicative_expression", "symbols": ["maybe_not_expression", "_", /[*\/%]/, "_", "multiplicative_expression"], "postprocess": 
         d => ({
             type: "binary_operation",
             operator: convertToken(d[2]),
@@ -253,6 +253,13 @@ var grammar = {
             end: d[4].end
         })
                 },
+    {"name": "maybe_not_expression", "symbols": [{"literal":"!"}, "_", "unary_expression"], "postprocess": 
+        data => ({
+            type: "not_operation",
+            subject: data[2]
+        })
+                },
+    {"name": "maybe_not_expression", "symbols": ["unary_expression"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["number"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["identifier"], "postprocess": 
         d => ({
