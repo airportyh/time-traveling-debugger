@@ -54,6 +54,10 @@ function traverse(node, visit) {
             traverse(node.iterable, visit);
             traverse(node.body, visit);
             break;
+        case "while_loop":
+            traverse(node.condition, visit);
+            traverse(node.body, visit);
+            break;
         case "number_literal":
             break;
         case "boolean_literal":
@@ -76,6 +80,11 @@ function traverse(node, visit) {
         case "indexed_access":
             traverse(node.subject, visit);
             traverse(node.index, visit);
+            break;
+        case "indexed_assignment":
+            traverse(node.subject, visit);
+            traverse(node.index, visit);
+            traverse(node.value, visit);
             break;
         case "function_expression":
             traverse(node.body, visit);

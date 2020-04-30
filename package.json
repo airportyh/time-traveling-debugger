@@ -1,8 +1,10 @@
 {
-  "name": "fun-lang",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "play-lang",
+  "version": "1.0.3",
+  "description": "Play is a small programming language in the spirit of Python and JavaScript. It is used as a test bed for experimental debugger and compiler techniques.",
+  "files": [
+    "src"
+  ],
   "scripts": {
     "gen-parser": "nearleyc src/play-lang.ne -o src/play-lang.js; npm run check-parser-js",
     "check-parser-js": "node src/play-lang.js # check syntax of embedded JS by running the output file",
