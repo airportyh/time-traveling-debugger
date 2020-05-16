@@ -171,8 +171,11 @@ function reduce(fn, initValue, arrayId) {
     return arr.reduce(fn, initValue);
 }
 
-function count(arrayId) {
-    const arr = $heap[arrayId];
+function count(thing) {
+    if (typeof thing === "string") {
+        return thing.length;
+    }
+    const arr = $heap[thing];
     return arr.length;
 }
 

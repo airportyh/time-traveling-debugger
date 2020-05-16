@@ -1,0 +1,345 @@
+[
+	{
+		"line": 2,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": &1 {
+				},
+				"variables": *1
+			}
+		],
+		"heap": &2 {
+		},
+		"body": false
+	},
+	{
+		"line": 3,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas"
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 4,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": ""
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &3 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "",
+					"i": 6
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *3,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "s",
+					"i": 6
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &4 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "s",
+					"i": 5
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *4,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sa",
+					"i": 5
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &5 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sa",
+					"i": 4
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *5,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "san",
+					"i": 4
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &6 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "san",
+					"i": 3
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *6,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sana",
+					"i": 3
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &7 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sana",
+					"i": 2
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *7,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sanan",
+					"i": 2
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &8 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sanan",
+					"i": 1
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *8,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sanana",
+					"i": 1
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &9 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sanana",
+					"i": 0
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": *9,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sananab",
+					"i": 0
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 5,
+		"stack": &10 [
+			{
+				"funName": "main",
+				"parameters": *1,
+				"variables": {
+					"str": "bananas",
+					"result_str": "sananab",
+					"i": -1
+				}
+			}
+		],
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 8,
+		"stack": *10,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 9,
+		"stack": *10,
+		"heap": *2,
+		"body": false
+	},
+	{
+		"line": 10,
+		"stack": *10,
+		"heap": *2,
+		"body": false
+	}
+]

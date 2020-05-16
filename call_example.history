@@ -1,0 +1,114 @@
+[
+	{
+		"line": 10,
+		"stack": [
+			&1 {
+				"funName": "main",
+				"parameters": &2 {
+				},
+				"variables": *2
+			}
+		],
+		"heap": &3 {
+		},
+		"body": false
+	},
+	{
+		"line": 2,
+		"stack": [
+			*1,
+			{
+				"funName": "f",
+				"parameters": &4 {
+					"x": 2
+				},
+				"variables": *4
+			}
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 3,
+		"stack": [
+			*1,
+			{
+				"funName": "f",
+				"parameters": *4,
+				"variables": {
+					"x": 2,
+					"<ret val>": 4
+				}
+			}
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 10,
+		"stack": [
+			*1
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 6,
+		"stack": [
+			*1,
+			{
+				"funName": "g",
+				"parameters": &5 {
+					"x": 4
+				},
+				"variables": *5
+			}
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 7,
+		"stack": [
+			*1,
+			{
+				"funName": "g",
+				"parameters": *5,
+				"variables": {
+					"x": 4,
+					"<ret val>": 12
+				}
+			}
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 10,
+		"stack": [
+			*1
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 11,
+		"stack": &6 [
+			{
+				"funName": "main",
+				"parameters": *2,
+				"variables": {
+					"m": 16
+				}
+			}
+		],
+		"heap": *3,
+		"body": false
+	},
+	{
+		"line": 12,
+		"stack": *6,
+		"heap": *3,
+		"body": false
+	}
+]

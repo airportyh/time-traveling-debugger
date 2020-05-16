@@ -25,8 +25,10 @@ to learn more about it, you can watch these videos:
 
 ## Deep Zoom Debugger
 
-* I've started a [new repo called Deep Zoom Debugger](https://github.com/airportyh/deep-zoom-debugger) for a branch of this on going work, which is an experiment to create a zoom-based user-interface for
+I've started a [new repo called Deep Zoom Debugger](https://github.com/airportyh/deep-zoom-debugger) for a branch of this on going work, which is an experiment to create a zoom-based user-interface for
 post-mortem debuggers. It uses the play-lang parser.
+
+You can [watch a demo of the deep-zoom debugger](https://www.youtube.com/watch?v=lVb9bt7wDy8&t).
 
 ## Todo
 

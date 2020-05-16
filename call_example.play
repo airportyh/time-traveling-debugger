@@ -1,0 +1,12 @@
+def f(x) [
+    return x + 2
+]
+
+def g(x) [
+    return x * 3
+]
+
+def main() [
+    m = f(2) + g(4)
+    print(m)
+]

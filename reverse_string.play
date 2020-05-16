@@ -1,0 +1,10 @@
+def main() [
+    str = "bananas"
+    result_str = ""
+    i = count(str) - 1
+    while i >= 0 [
+        result_str = result_str + str[i]
+        i = i - 1
+    ]
+    print(result_str)
+]
