@@ -45,7 +45,7 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
             `return $retval;`
         ].join("\n");
         return "return " + generateCodeForExpression(statement.value, closureInfo) + ";";
-    } else if (statement.type === "var_assignment") {
+    } else if (statement.type === "var_assignment" || statement.type === "var_declaration") {
         const closureProvider = closureInfo.providers.get(funNode);
         const closureDependencies = closureInfo.dependencies.get(funNode);
         // return "var " + statement.var_name.value + " = " + generateCodeForExpression(statement.value) + ";";

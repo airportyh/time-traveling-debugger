@@ -94,6 +94,7 @@ var grammar = {
         d => [d[1], ...d[4]]
                 },
     {"name": "executable_statement", "symbols": ["return_statement"], "postprocess": id},
+    {"name": "executable_statement", "symbols": ["var_declaration"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["var_assignment"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["call_statement"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["line_comment"], "postprocess": id},
@@ -110,6 +111,20 @@ var grammar = {
             end: d[2].end
         })
                },
+    {"name": "var_declaration", "symbols": ["type_tag", "__", "identifier", "_", {"literal":"="}, "_", "expression"], "postprocess": 
+        d => ({
+            type: "var_declaration",
+            type_tag: d[0],
+            var_name: d[2],
+            value: d[6],
+            start: d[2].start,
+            end: d[6].end
+        })
+               },
+    {"name": "type_tag", "symbols": [{"literal":"string"}], "postprocess": id},
+    {"name": "type_tag", "symbols": [{"literal":"number"}], "postprocess": id},
+    {"name": "type_tag", "symbols": [{"literal":"array"}], "postprocess": id},
+    {"name": "type_tag", "symbols": [{"literal":"dict"}], "postprocess": id},
     {"name": "var_assignment", "symbols": ["identifier", "_", {"literal":"="}, "_", "expression"], "postprocess": 
         d => ({
             type: "var_assignment",
