@@ -29,8 +29,8 @@ I've started a [new repo called Deep Zoom Debugger](https://github.com/airportyh
 post-mortem debuggers. It uses the play-lang parser. Here are two introductory videos
 about the debugger:
 
-* [Introducing the Deep-Zoom Debugger](https://www.youtube.com/watch?v=QE54x1ahHa4)
-* [Deep-Zoom Debugger Demo with Huiqi Zhou](https://www.youtube.com/watch?v=lVb9bt7wDy8&t).
+* [Introducing the Deep-Zoom Debugger (5 minutes)](https://www.youtube.com/watch?v=QE54x1ahHa4)
+* [Deep-Zoom Debugger Demo with Huiqi Zhou (17 minutes)](https://www.youtube.com/watch?v=lVb9bt7wDy8&t).
 
 ## Todo
 
