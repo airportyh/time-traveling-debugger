@@ -33,7 +33,6 @@ function traverse(node, visit) {
         case "string_literal":
             break;
         case "var_assignment":
-        case "var_declaration":
             traverse(node.value, visit);
             break;
         case "var_reference":

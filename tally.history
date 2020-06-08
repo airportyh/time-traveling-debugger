@@ -1167,5 +1167,12 @@
 		"stack": *65,
 		"heap": *67,
 		"body": false
+	},
+	{
+		"line": 12,
+		"stack": [
+		],
+		"heap": *67,
+		"body": false
 	}
 ]

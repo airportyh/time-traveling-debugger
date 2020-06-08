@@ -117,7 +117,6 @@ executable_statements
 
 executable_statement
    -> return_statement     {% id %}
-   |  var_declaration      {% id %}
    |  var_assignment       {% id %}
    |  call_statement       {% id %}
    |  line_comment         {% id %}
@@ -137,25 +136,6 @@ return_statement
                end: d[2].end
            })
        %}
-
-var_declaration
-   -> type_tag __ identifier _ "=" _ expression
-       {%
-           d => ({
-               type: "var_declaration",
-               type_tag: d[0],
-               var_name: d[2],
-               value: d[6],
-               start: d[2].start,
-               end: d[6].end
-           })
-       %}
-
-type_tag
-    -> "string"       {% id %}
-    |  "number"       {% id %}
-    |  "array"        {% id %}
-    |  "dict"         {% id %}
 
 var_assignment
     -> identifier _ "=" _ expression

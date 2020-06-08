@@ -88,7 +88,7 @@ function findVariableReferences(blockNode) {
 function findVariableAssignments(blockNode) {
     const results = [];
     traverse(blockNode, (node) => {
-        if (node.type === "var_assignment" || node.type === "var_declaration") {
+        if (node.type === "var_assignment") {
             results.push(node.var_name);
         } else if (node.type === "for_loop") {
             results.push(node.loop_variable);
