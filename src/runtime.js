@@ -150,13 +150,13 @@ function pop(thing) {
     }
 }
 
-function push(arrayId, item) {
+function push(thing, item) {
     if ($isHeapObject(thing)) {
-        const array = $heap[arrayId];
+        const array = $heap[thing.id];
         const newArray = [...array, item];
         $heap = {
             ...$heap,
-            [arrayId]: newArray
+            [thing.id]: newArray
         };
         return newArray.length;
     } else {

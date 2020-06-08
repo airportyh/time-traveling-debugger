@@ -1,0 +1,15 @@
+def main() [
+    array = []
+    push(array, {
+        "firstName": "Marty",
+        "lastName": "Ho"
+    })
+    push(array, {
+        "firstName": "Linus",
+        "lastName": "Ho"
+    })
+    push(array, {
+        "firstName": "Emma",
+        "lastName": "Ho"
+    })
+]
