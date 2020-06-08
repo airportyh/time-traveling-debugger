@@ -35,32 +35,34 @@
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1
+					"tally": &3 {
+						"id": 1
+					}
 				}
 			}
 		],
 		"heap": {
-			"1": &3 {
+			"1": &4 {
 			}
 		},
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &4 [
+		"stack": &5 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "W"
 				}
 			}
 		],
-		"heap": &5 {
-			"1": *3,
-			"2": &6 [
+		"heap": &6 {
+			"1": *4,
+			"2": &7 [
 				"W",
 				"h",
 				"a",
@@ -98,138 +100,138 @@
 	},
 	{
 		"line": 8,
-		"stack": *4,
-		"heap": *5,
+		"stack": *5,
+		"heap": *6,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &7 [
+		"stack": &8 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "h"
 				}
 			}
 		],
-		"heap": &8 {
+		"heap": &9 {
 			"1": {
 				"W": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *7,
-		"heap": *8,
+		"stack": *8,
+		"heap": *9,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &9 [
+		"stack": &10 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "a"
 				}
 			}
 		],
-		"heap": &10 {
+		"heap": &11 {
 			"1": {
 				"W": 1,
 				"h": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *9,
-		"heap": *10,
+		"stack": *10,
+		"heap": *11,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &11 [
+		"stack": &12 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "t"
 				}
 			}
 		],
-		"heap": &12 {
+		"heap": &13 {
 			"1": {
 				"W": 1,
 				"h": 1,
 				"a": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *11,
-		"heap": *12,
+		"stack": *12,
+		"heap": *13,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &13 [
+		"stack": &14 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": " "
 				}
 			}
 		],
-		"heap": &14 {
+		"heap": &15 {
 			"1": {
 				"W": 1,
 				"h": 1,
 				"a": 1,
 				"t": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *13,
-		"heap": *14,
+		"stack": *14,
+		"heap": *15,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &15 [
+		"stack": &16 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "i"
 				}
 			}
 		],
-		"heap": &16 {
+		"heap": &17 {
 			"1": {
 				"W": 1,
 				"h": 1,
@@ -237,30 +239,30 @@
 				"t": 1,
 				" ": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *15,
-		"heap": *16,
+		"stack": *16,
+		"heap": *17,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &17 [
+		"stack": &18 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "s"
 				}
 			}
 		],
-		"heap": &18 {
+		"heap": &19 {
 			"1": {
 				"W": 1,
 				"h": 1,
@@ -269,30 +271,30 @@
 				" ": 1,
 				"i": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *17,
-		"heap": *18,
+		"stack": *18,
+		"heap": *19,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &19 [
+		"stack": &20 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": " "
 				}
 			}
 		],
-		"heap": &20 {
+		"heap": &21 {
 			"1": {
 				"W": 1,
 				"h": 1,
@@ -302,30 +304,30 @@
 				"i": 1,
 				"s": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *19,
-		"heap": *20,
+		"stack": *20,
+		"heap": *21,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &21 [
+		"stack": &22 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "t"
 				}
 			}
 		],
-		"heap": &22 {
+		"heap": &23 {
 			"1": {
 				"W": 1,
 				"h": 1,
@@ -335,30 +337,30 @@
 				"i": 1,
 				"s": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *21,
-		"heap": *22,
+		"stack": *22,
+		"heap": *23,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &23 [
+		"stack": &24 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "h"
 				}
 			}
 		],
-		"heap": &24 {
+		"heap": &25 {
 			"1": {
 				"W": 1,
 				"h": 1,
@@ -368,30 +370,30 @@
 				"i": 1,
 				"s": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *23,
-		"heap": *24,
+		"stack": *24,
+		"heap": *25,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &25 [
+		"stack": &26 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "i"
 				}
 			}
 		],
-		"heap": &26 {
+		"heap": &27 {
 			"1": {
 				"W": 1,
 				"h": 2,
@@ -401,30 +403,30 @@
 				"i": 1,
 				"s": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *25,
-		"heap": *26,
+		"stack": *26,
+		"heap": *27,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &27 [
+		"stack": &28 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "s"
 				}
 			}
 		],
-		"heap": &28 {
+		"heap": &29 {
 			"1": {
 				"W": 1,
 				"h": 2,
@@ -434,30 +436,30 @@
 				"i": 2,
 				"s": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *27,
-		"heap": *28,
+		"stack": *28,
+		"heap": *29,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &29 [
+		"stack": &30 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": " "
 				}
 			}
 		],
-		"heap": &30 {
+		"heap": &31 {
 			"1": {
 				"W": 1,
 				"h": 2,
@@ -467,30 +469,30 @@
 				"i": 2,
 				"s": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *29,
-		"heap": *30,
+		"stack": *30,
+		"heap": *31,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &31 [
+		"stack": &32 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "t"
 				}
 			}
 		],
-		"heap": &32 {
+		"heap": &33 {
 			"1": {
 				"W": 1,
 				"h": 2,
@@ -500,30 +502,30 @@
 				"i": 2,
 				"s": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *31,
-		"heap": *32,
+		"stack": *32,
+		"heap": *33,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &33 [
+		"stack": &34 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "h"
 				}
 			}
 		],
-		"heap": &34 {
+		"heap": &35 {
 			"1": {
 				"W": 1,
 				"h": 2,
@@ -533,30 +535,30 @@
 				"i": 2,
 				"s": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *33,
-		"heap": *34,
+		"stack": *34,
+		"heap": *35,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &35 [
+		"stack": &36 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "i"
 				}
 			}
 		],
-		"heap": &36 {
+		"heap": &37 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -566,30 +568,30 @@
 				"i": 2,
 				"s": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *35,
-		"heap": *36,
+		"stack": *36,
+		"heap": *37,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &37 [
+		"stack": &38 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "n"
 				}
 			}
 		],
-		"heap": &38 {
+		"heap": &39 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -599,30 +601,30 @@
 				"i": 3,
 				"s": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *37,
-		"heap": *38,
+		"stack": *38,
+		"heap": *39,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &39 [
+		"stack": &40 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "g"
 				}
 			}
 		],
-		"heap": &40 {
+		"heap": &41 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -633,30 +635,30 @@
 				"s": 2,
 				"n": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *39,
-		"heap": *40,
+		"stack": *40,
+		"heap": *41,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &41 [
+		"stack": &42 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": " "
 				}
 			}
 		],
-		"heap": &42 {
+		"heap": &43 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -668,30 +670,30 @@
 				"n": 1,
 				"g": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *41,
-		"heap": *42,
+		"stack": *42,
+		"heap": *43,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &43 [
+		"stack": &44 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "c"
 				}
 			}
 		],
-		"heap": &44 {
+		"heap": &45 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -703,30 +705,30 @@
 				"n": 1,
 				"g": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *43,
-		"heap": *44,
+		"stack": *44,
+		"heap": *45,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &45 [
+		"stack": &46 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "a"
 				}
 			}
 		],
-		"heap": &46 {
+		"heap": &47 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -739,30 +741,30 @@
 				"g": 1,
 				"c": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *45,
-		"heap": *46,
+		"stack": *46,
+		"heap": *47,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &47 [
+		"stack": &48 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "l"
 				}
 			}
 		],
-		"heap": &48 {
+		"heap": &49 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -775,30 +777,30 @@
 				"g": 1,
 				"c": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *47,
-		"heap": *48,
+		"stack": *48,
+		"heap": *49,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &49 [
+		"stack": &50 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "l"
 				}
 			}
 		],
-		"heap": &50 {
+		"heap": &51 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -812,30 +814,30 @@
 				"c": 1,
 				"l": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *49,
-		"heap": *50,
+		"stack": *50,
+		"heap": *51,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &51 [
+		"stack": &52 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "e"
 				}
 			}
 		],
-		"heap": &52 {
+		"heap": &53 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -849,30 +851,30 @@
 				"c": 1,
 				"l": 2
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *51,
-		"heap": *52,
+		"stack": *52,
+		"heap": *53,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &53 [
+		"stack": &54 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "d"
 				}
 			}
 		],
-		"heap": &54 {
+		"heap": &55 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -887,30 +889,30 @@
 				"l": 2,
 				"e": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *53,
-		"heap": *54,
+		"stack": *54,
+		"heap": *55,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &55 [
+		"stack": &56 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": " "
 				}
 			}
 		],
-		"heap": &56 {
+		"heap": &57 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -926,30 +928,30 @@
 				"e": 1,
 				"d": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *55,
-		"heap": *56,
+		"stack": *56,
+		"heap": *57,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &57 [
+		"stack": &58 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "l"
 				}
 			}
 		],
-		"heap": &58 {
+		"heap": &59 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -965,30 +967,30 @@
 				"e": 1,
 				"d": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *57,
-		"heap": *58,
+		"stack": *58,
+		"heap": *59,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &59 [
+		"stack": &60 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "o"
 				}
 			}
 		],
-		"heap": &60 {
+		"heap": &61 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -1004,30 +1006,30 @@
 				"e": 1,
 				"d": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *59,
-		"heap": *60,
+		"stack": *60,
+		"heap": *61,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &61 [
+		"stack": &62 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "v"
 				}
 			}
 		],
-		"heap": &62 {
+		"heap": &63 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -1044,30 +1046,30 @@
 				"d": 1,
 				"o": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *61,
-		"heap": *62,
+		"stack": *62,
+		"heap": *63,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &63 [
+		"stack": &64 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "e"
 				}
 			}
 		],
-		"heap": &64 {
+		"heap": &65 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -1085,30 +1087,30 @@
 				"o": 1,
 				"v": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 6,
-		"stack": *63,
-		"heap": *64,
+		"stack": *64,
+		"heap": *65,
 		"body": false
 	},
 	{
 		"line": 5,
-		"stack": &65 [
+		"stack": &66 [
 			{
 				"funName": "main",
 				"parameters": *1,
 				"variables": {
 					"text": "What is this thing called love?",
-					"tally": 1,
+					"tally": *3,
 					"char": "?"
 				}
 			}
 		],
-		"heap": &66 {
+		"heap": &67 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -1126,20 +1128,20 @@
 				"o": 1,
 				"v": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 8,
-		"stack": *65,
-		"heap": *66,
+		"stack": *66,
+		"heap": *67,
 		"body": false
 	},
 	{
 		"line": 11,
-		"stack": *65,
-		"heap": &67 {
+		"stack": *66,
+		"heap": &68 {
 			"1": {
 				"W": 1,
 				"h": 3,
@@ -1158,21 +1160,14 @@
 				"v": 1,
 				"?": 1
 			},
-			"2": *6
+			"2": *7
 		},
 		"body": false
 	},
 	{
 		"line": 12,
-		"stack": *65,
-		"heap": *67,
-		"body": false
-	},
-	{
-		"line": 12,
-		"stack": [
-		],
-		"heap": *67,
+		"stack": *66,
+		"heap": *68,
 		"body": false
 	}
 ]

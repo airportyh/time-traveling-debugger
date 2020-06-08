@@ -49,6 +49,10 @@ function $setHeapVariable(varName, value, closureId) {
     $heap[closureId] = newDict;
 }
 
+function $isHeapObject(thing) {
+    return typeof thing === "object";
+}
+
 function $heapAllocate(value) {
     const id = $nextHeapId;
     $nextHeapId++;
@@ -56,7 +60,7 @@ function $heapAllocate(value) {
         ...$heap,
         [id]: value
     };
-    return id;
+    return { id };
 }
 
 function $save(line) {
@@ -64,36 +68,38 @@ function $save(line) {
     $historyCursor++;
 }
 
-function $heapAccess(id) {
-    if (typeof id === "string") {
-        return id;
+function $heapAccess(thing) {
+    if ($isHeapObject(thing)) {
+        return $heap[thing.id];
+    } else {
+        return thing;
     }
-    return $heap[id];
 }
 
-function $get(id, index) {
-    if (typeof id === "string") {
-        return id[index];
-    }
-    const object = $heap[id];
-    return object[index];
+function $get(thing, index) {
+    return $heapAccess(thing)[index];
 }
 
-function $set(id, index, value) {
-    const object = $heap[id];
+function $set(thing, index, value) {
+    let object;
     let newObject;
+    if ($isHeapObject(thing)) {
+        object = $heap[thing.id];
+    } else {
+        object = thing;
+    }
     if (Array.isArray(object)) {
         newObject = object.slice();
         newObject[index] = value;
     } else {
         newObject = {
-            ...$heap[id],
+            ...object,
             [index]: value
         };
     }
     $heap = {
         ...$heap,
-        [id]: newObject
+        [thing.id]: newObject
     };
 }
 
@@ -136,47 +142,67 @@ function print(...args) {
     console.log(...args);
 }
 
-function pop(arrayId) {
-    return $heapAllocate($heap[arrayId].pop());
+function pop(thing) {
+    if ($isHeapObject(thing)) {
+        return $heapAllocate($heap[thing.id].pop());
+    } else {
+        throw new Error("Cannot pop() for a " + (typeof thing));
+    }
 }
 
 function push(arrayId, item) {
-    const array = $heap[arrayId];
-    const newArray = [...array, item];
-    $heap = {
-        ...$heap,
-        [arrayId]: newArray
-    };
-    return newArray.length;
+    if ($isHeapObject(thing)) {
+        const array = $heap[arrayId];
+        const newArray = [...array, item];
+        $heap = {
+            ...$heap,
+            [arrayId]: newArray
+        };
+        return newArray.length;
+    } else {
+        throw new Error("Cannot push() for a " + (typeof thing));
+    }
 }
 
-function concat(oneId, otherId) {
-    const one = $heap[oneId];
-    const other = $heap[otherId];
-    return $heapAllocate(one.concat(other));
+function concat(one, other) {
+    if ($isHeapObject(one) && $isHeapObject(other)) {
+        const one = $heap[one.id];
+        const other = $heap[other.id];
+        return $heapAllocate(one.concat(other));
+    } else {
+        throw new Error("Cannot concat() a " + (typeof one) + " and a " + (typeof other));
+    }
 }
 
-function map(fn, arrayId) {
-    const arr = $heap[arrayId];
-    return $heapAllocate(arr.map(fn));
+function map(fn, thing) {
+    if ($isHeapObject(thing)) {
+        const arr = $heap[thing.id];
+        return $heapAllocate(arr.map(fn));
+    } else {
+        throw new Error("Cannot map() for a " + (typeof thing));
+    }
 }
 
-function filter(fn, arrayId) {
-    const arr = $heap[arrayId];
-    return $heapAllocate(arr.filter(fn));
+function filter(fn, thing) {
+    if ($isHeapObject(thing)) {
+        const arr = $heap[thing.id];
+        return $heapAllocate(arr.filter(fn));
+    } else {
+        throw new Error("Cannot filter() for a " + (typeof thing));
+    }
 }
 
-function reduce(fn, initValue, arrayId) {
-    const arr = $heap[arrayId];
-    return arr.reduce(fn, initValue);
+function reduce(fn, initValue, thing) {
+    if ($isHeapObject(thing)) {
+        const arr = $heap[thing.id];
+        return arr.reduce(fn, initValue);
+    } else {
+        throw new Error("Cannot reduce() for a " + (typeof thing));
+    }
 }
 
 function count(thing) {
-    if (typeof thing === "string") {
-        return thing.length;
-    }
-    const arr = $heap[thing];
-    return arr.length;
+    return $heapAccess(thing).length;
 }
 
 function sqrt(num) {
@@ -187,9 +213,13 @@ function sqr(num) {
     return num * num;
 }
 
-function join(arrayId, separator) {
-    const array = $heap[arrayId];
-    return array.join(separator);
+function join(thing, separator) {
+    if ($isHeapObject(thing)) {
+        const array = $heap[thing.id];
+        return array.join(separator);
+    } else {
+        throw new Error("Cannot join() for a " + (typeof thing));
+    }
 }
 
 function floor(num) {
@@ -197,10 +227,12 @@ function floor(num) {
 }
 
 function getElementById(id) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     return document.getElementById(id);
 }
 
 function addStyle(element, stylesId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const styles = $heap[stylesId];
     for (let prop in styles) {
         element.style[prop] = styles[prop];
@@ -208,6 +240,7 @@ function addStyle(element, stylesId) {
 }
 
 function createElement(tag, attrs, children) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const element = { tag };
     if (attrs) {
         element.attrs = attrs;
@@ -219,10 +252,12 @@ function createElement(tag, attrs, children) {
 }
 
 function getDocumentBody() {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     return $body;
 }
 
 function appendTo(parentId, childId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const parent = $heapAccess(parentId);
     const children = $heapAccess(parent.children) || [];
     const newChildren = $heapAllocate([...children, childId]);
@@ -238,6 +273,7 @@ function appendTo(parentId, childId) {
 }
 
 function removeFrom(parentId, childId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const parent = $heapAccess(parentId);
     const children = $heapAccess(parent.children) || [];
     const newChildren = $heapAllocate(children.filter((child) => child !== childId));
@@ -253,6 +289,7 @@ function removeFrom(parentId, childId) {
 }
 
 function setText(elementId, text) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const element = $heapAccess(elementId);
     const newChildren = $heapAllocate([text]);
     const newElement = {
@@ -267,6 +304,7 @@ function setText(elementId, text) {
 }
 
 function setAttribute(elementId, attrName, attrValue) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const element = $heapAccess(elementId);
     const attrs = $heapAccess(element.attrs);
     const newAttrs = $heapAllocate({
@@ -285,6 +323,7 @@ function setAttribute(elementId, attrName, attrValue) {
 }
 
 function setStyle(elementId, stylesId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const styles = $heapAccess(stylesId);
     const element = $heapAccess(elementId);
     const attrs = $heapAccess(element.attrs);
@@ -308,6 +347,7 @@ function setStyle(elementId, stylesId) {
 }
 
 function listenTo(elementId, event, listener) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     document.body.addEventListener(event, (event) => {
         const targetId = $nativeToVirtualDomMap.get(event.target);
         if (targetId === elementId) {
@@ -317,40 +357,48 @@ function listenTo(elementId, event, listener) {
 }
 
 function getKey(keyEvent) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     return keyEvent.key;
 }
 
 function getValue(inputId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const input = $virtualDomToNativeMap.get(inputId);
     return input.value;
 }
 
 function setValue(inputId, value) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const input = $virtualDomToNativeMap.get(inputId);
     input.value = value;
 }
 
 function getChecked(inputId) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const input = $virtualDomToNativeMap.get(inputId);
     return input.checked;
 }
 
 function setChecked(inputId, checked) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const input = $virtualDomToNativeMap.get(inputId);
     return input.checked = checked;
 }
 
 function addClass(elementId, clazz) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const element = $virtualDomToNativeMap.get(elementId);
     element.classList.add(clazz);
 }
 
 function removeClass(elementId, clazz) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     const element = $virtualDomToNativeMap.get(elementId);
     element.classList.remove(clazz);
 }
 
 function $nativeDomToVDom(node) {
+    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
     if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toLowerCase();
         const element = { tag };

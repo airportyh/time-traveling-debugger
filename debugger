@@ -242,7 +242,9 @@ main().catch((e) => console.log(e.stack));
 // ============= Helper functions ================
 
 function displayValue(value) {
-    if (typeof value === "string") {
+    if (typeof value === "object") {
+        return "<" + value.id + ">";
+    } else if (typeof value === "string") {
         return quote(value);
     } else {
         return String(value);
