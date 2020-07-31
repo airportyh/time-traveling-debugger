@@ -778,16 +778,60 @@ function createDebugUI() {
     });
     ui.appendChild(closeButton);
 
-    // Prev Button
-    const prevButton = document.createElement("button");
-    prevButton.textContent = "←";//→
-    prevButton.addEventListener("click", () => {
+    // Prev Buttons
+    const prevOutButton = document.createElement("button");
+    prevOutButton.textContent = "⇤";
+    prevOutButton.addEventListener("click", () => {
+        const state = $history[$historyCursor];
+        // find next state where the stack height is the same or less
+        let cursor = $historyCursor - 1;
+        while (true) {
+            const prevState = $history[cursor];
+            if (prevState) {
+                if (prevState.stack.length < state.stack.length) {
+                    $historyCursor = cursor;
+                    syncAll();
+                    break;
+                }
+            } else {
+                break;
+            }
+            cursor--;
+        }
+    });
+    ui.appendChild(prevOutButton);
+    
+    const prevIntoButton = document.createElement("button");
+    prevIntoButton.textContent = "↖";
+    prevIntoButton.addEventListener("click", () => {
         if ($historyCursor - 1 >= 0) {
             $historyCursor = $historyCursor - 1;
             syncAll();
         }
     });
-    ui.appendChild(prevButton);
+    ui.appendChild(prevIntoButton);
+    
+    const prevOverButton = document.createElement("button");
+    prevOverButton.textContent = "←";
+    prevOverButton.addEventListener("click", () => {
+        const state = $history[$historyCursor];
+        // find next state where the stack height is the same or less
+        let cursor = $historyCursor - 1;
+        while (true) {
+            const prevState = $history[cursor];
+            if (prevState) {
+                if (prevState.stack.length <= state.stack.length) {
+                    $historyCursor = cursor;
+                    syncAll();
+                    break;
+                }
+            } else {
+                break;
+            }
+            cursor--;
+        }
+    });
+    ui.appendChild(prevOverButton);
     ui.appendChild(document.createTextNode(" "));
 
     // Progress label
@@ -803,18 +847,64 @@ function createDebugUI() {
     ui.appendChild(progress);
     ui.appendChild(document.createTextNode(" "));
 
-    // Next Button
-    const nextButton = document.createElement("button");
-    nextButton.textContent = "→";
-    const advance = () => {
+    // Next Buttons
+    const nextOverButton = document.createElement("button");
+    nextOverButton.textContent = "→";
+    nextOverButton.addEventListener("click", () => {
+        const state = $history[$historyCursor];
+        // find next state where the stack height is the same or less
+        let cursor = $historyCursor + 1;
+        while (true) {
+            const nextState = $history[cursor];
+            if (nextState) {
+                if (nextState.stack.length <= state.stack.length) {
+                    $historyCursor = cursor;
+                    syncAll();
+                    break;
+                }
+            } else {
+                break;
+            }
+            cursor++;
+        }
+    });
+    ui.appendChild(nextOverButton);
+    
+    const nextIntoButton = document.createElement("button");
+    nextIntoButton.textContent = "↘";
+    nextIntoButton.addEventListener("click", () => {
         if ($historyCursor + 1 < $history.length) {
             $historyCursor = $historyCursor + 1;
             syncAll();
         }
-    };
-    nextButton.addEventListener("click", advance);
-    ui.appendChild(nextButton);
+    });
+    ui.appendChild(nextIntoButton);
+    
+    const nextOutButton = document.createElement("button");
+    nextOutButton.textContent = "⇥";
+    nextOutButton.addEventListener("click", () => {
+        const state = $history[$historyCursor];
+        // find next state where the stack height is the same or less
+        let cursor = $historyCursor + 1;
+        while (true) {
+            const nextState = $history[cursor];
+            if (nextState) {
+                if (nextState.stack.length < state.stack.length) {
+                    $historyCursor = cursor;
+                    syncAll();
+                    break;
+                }
+            } else {
+                break;
+            }
+            cursor++;
+        }
+    });
+    ui.appendChild(nextOutButton);
+    
     ui.appendChild(document.createElement("br"));
+    
+    
 
     // Slider "Range" Element
     const range = document.createElement("input");
@@ -851,7 +941,7 @@ function createDebugUI() {
     codePane.style.position = "relative";
     codePane.style.height = "30%";
     codePane.style.overflow = "auto";
-    codePane.style.padding = "0px";
+    codePane.style.padding = "1em 0px";
     codePane.style.backgroundColor = "#444";
     codePane.style.margin = "0px";
     codePane.style.color = "#ffffff";
@@ -860,7 +950,7 @@ function createDebugUI() {
     function initCodeDisplay() {
         const lines = $code.split("\n");
         const linesDisplay = lines.map((line, idx) => {
-            return `<div>${line}</div>`;
+            return `<div class="code-line">${line}</div>`;
         }).join("");
         codePane.innerHTML = linesDisplay;
     }
@@ -890,7 +980,7 @@ function createDebugUI() {
     const stackFramePane = document.createElement("div");
     stackFramePane.style.overflow = "auto";
     stackFramePane.style.height = "30%";
-    stackFramePane.style.padding = "1em";
+    stackFramePane.style.borderTop = "1px solid #eee";
     stackFramePane.style.backgroundColor = "#d1ebeb";
     stackFramePane.style.fontFamily = "Inconsolata, Monaco, monospace";
     function syncStackFrameDisplay() {
@@ -900,7 +990,10 @@ function createDebugUI() {
                 .map(key => `${key}=${displayValue(frame.parameters[key])}`)
                 .join(", ");
             const title = "<label>" + frame.funName + "(" + paramList + ")" + "</label>";
-            const lines = [title, `<ul style="padding-left: 1em; margin: 0;">`];
+            const lines = [
+                `<div class="stack-frame">`,
+                title, `<ul style="padding-left: 1em; margin: 0;">`
+            ];
             for (let varName in frame.variables) {
                 lines.push(`<li style="list-style: none;">${escapeVarName(varName)} = ${displayValue(frame.variables[varName])}</li>`);
             }
@@ -913,6 +1006,7 @@ function createDebugUI() {
                 }
             }
             lines.push("</ul>");
+            lines.push("</div>");
             return lines.join("");
         }).join("");
         stackFramePane.innerHTML = html;
