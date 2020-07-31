@@ -815,20 +815,28 @@ function createDebugUI() {
     prevOverButton.textContent = "←";
     prevOverButton.addEventListener("click", () => {
         const state = $history[$historyCursor];
-        // find next state where the stack height is the same or less
-        let cursor = $historyCursor - 1;
-        while (true) {
-            const prevState = $history[cursor];
-            if (prevState) {
-                if (prevState.stack.length <= state.stack.length) {
-                    $historyCursor = cursor;
-                    syncAll();
+        const prevState = $history[$historyCursor - 1];
+        if (prevState && prevState.stack.length > state.stack.length) {
+            // find next state where the stack height is the same or less
+            let cursor = $historyCursor - 1;
+            while (true) {
+                const prevState = $history[cursor];
+                if (prevState) {
+                    if (prevState.stack.length <= state.stack.length && prevState.line !== state.line) {
+                        $historyCursor = cursor;
+                        syncAll();
+                        break;
+                    }
+                } else {
                     break;
                 }
-            } else {
-                break;
+                cursor--;
             }
-            cursor--;
+        } else {
+            if ($historyCursor - 1 >= 0) {
+                $historyCursor = $historyCursor - 1;
+                syncAll();
+            }
         }
     });
     ui.appendChild(prevOverButton);
@@ -852,20 +860,28 @@ function createDebugUI() {
     nextOverButton.textContent = "→";
     nextOverButton.addEventListener("click", () => {
         const state = $history[$historyCursor];
-        // find next state where the stack height is the same or less
-        let cursor = $historyCursor + 1;
-        while (true) {
-            const nextState = $history[cursor];
-            if (nextState) {
-                if (nextState.stack.length <= state.stack.length) {
-                    $historyCursor = cursor;
-                    syncAll();
+        const nextState = $history[$historyCursor + 1];
+        if (nextState && nextState.stack.length > state.stack.length) {
+            // find next state where the stack height is the same or less
+            let cursor = $historyCursor + 1;
+            while (true) {
+                const nextState = $history[cursor];
+                if (nextState) {
+                    if (nextState.stack.length <= state.stack.length && nextState.line !== state.line) {
+                        $historyCursor = cursor;
+                        syncAll();
+                        break;
+                    }
+                } else {
                     break;
                 }
-            } else {
-                break;
+                cursor++;
             }
-            cursor++;
+        } else {
+            if ($historyCursor + 1 < $history.length) {
+                $historyCursor = $historyCursor + 1;
+                syncAll();
+            }
         }
     });
     ui.appendChild(nextOverButton);
