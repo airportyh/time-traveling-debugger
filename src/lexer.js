@@ -8,6 +8,7 @@ const lexer = moo.compile({
     gte: ">=",
     gt: ">",
     eq: "==",
+    ne: "!=",
     not: "!",
     lparan: "(",
     rparan: ")",
@@ -48,7 +49,8 @@ const lexer = moo.compile({
             and: "and",
             or: "or",
             true: "true",
-            false: "false"
+            false: "false",
+            break: "break"
         })
     }
 });

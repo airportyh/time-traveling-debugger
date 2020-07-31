@@ -5,6 +5,6 @@ module.exports = function getFunctions(code) {
     const dict = {};
     ast.body
         .filter((node) => node.type === "FunctionDeclaration")
-        .forEach((node) => dict[node.id.name] = true);
+        .forEach((node) => dict[node.id.name] = node);
     return dict;
 }

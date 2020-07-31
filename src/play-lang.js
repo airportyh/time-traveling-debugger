@@ -102,12 +102,16 @@ var grammar = {
     {"name": "executable_statement", "symbols": ["if_statement"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["for_loop"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["function_definition"], "postprocess": id},
-    {"name": "return_statement", "symbols": [{"literal":"return"}, "__", "expression"], "postprocess": 
+    {"name": "executable_statement", "symbols": ["break"], "postprocess": id},
+    {"name": "return_statement$ebnf$1$subexpression$1", "symbols": ["__", "expression"]},
+    {"name": "return_statement$ebnf$1", "symbols": ["return_statement$ebnf$1$subexpression$1"], "postprocess": id},
+    {"name": "return_statement$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
+    {"name": "return_statement", "symbols": [{"literal":"return"}, "return_statement$ebnf$1"], "postprocess": 
         d => ({
             type: "return_statement",
-            value: d[2],
+            value: d[1] ? d[1][1] : null,
             start: tokenStart(d[0]),
-            end: d[2].end
+            end: d[1] ? d[1][1].end : d[0].end
         })
                },
     {"name": "var_assignment", "symbols": ["identifier", "_", {"literal":"="}, "_", "expression"], "postprocess": 
@@ -231,6 +235,7 @@ var grammar = {
     {"name": "comparison_operator", "symbols": [{"literal":"<"}], "postprocess": convertTokenId},
     {"name": "comparison_operator", "symbols": [{"literal":"<="}], "postprocess": convertTokenId},
     {"name": "comparison_operator", "symbols": [{"literal":"=="}], "postprocess": convertTokenId},
+    {"name": "comparison_operator", "symbols": [{"literal":"!="}], "postprocess": convertTokenId},
     {"name": "additive_expression", "symbols": ["multiplicative_expression"], "postprocess": id},
     {"name": "additive_expression", "symbols": ["multiplicative_expression", "_", /[+-]/, "_", "additive_expression"], "postprocess": 
         d => ({
@@ -345,6 +350,7 @@ var grammar = {
     {"name": "string_literal", "symbols": [(lexer.has("string_literal") ? {type: "string_literal"} : string_literal)], "postprocess": convertTokenId},
     {"name": "number", "symbols": [(lexer.has("number_literal") ? {type: "number_literal"} : number_literal)], "postprocess": convertTokenId},
     {"name": "identifier", "symbols": [(lexer.has("identifier") ? {type: "identifier"} : identifier)], "postprocess": convertTokenId},
+    {"name": "break", "symbols": [{"literal":"break"}], "postprocess": convertTokenId},
     {"name": "_ml$ebnf$1", "symbols": []},
     {"name": "_ml$ebnf$1", "symbols": ["_ml$ebnf$1", "multi_line_ws_char"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "_ml", "symbols": ["_ml$ebnf$1"]},

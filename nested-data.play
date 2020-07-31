@@ -1,15 +1,21 @@
 def main() [
-    array = []
-    push(array, {
-        "firstName": "Marty",
-        "lastName": "Ho"
-    })
-    push(array, {
-        "firstName": "Linus",
-        "lastName": "Ho"
-    })
-    push(array, {
-        "firstName": "Emma",
-        "lastName": "Ho"
-    })
+    array = [
+        {
+            "firstName": "Marty",
+            "lastName": "Ho"
+        },
+        {
+            "firstName": "Linus",
+            "lastName": "Ho"
+        },
+        {
+            "firstName": "Emma",
+            "lastName": "Ho"
+        }
+    ]
+
+    dict = {
+        "name": "Toby",
+        "children": array
+    }
 ]

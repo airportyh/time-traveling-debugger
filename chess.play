@@ -1,0 +1,195 @@
+def main() [
+    setFont("100px sans-serif")
+    while true [
+        playGame()
+        drawText("Click to play again", 0, 400)
+        waitForEvent("click")
+    ]
+    
+]
+
+def playGame() [
+    clear()
+    currentPlayer = "O"
+    gameOver = false
+    board = [
+        { x: 100, y: 100, state: "" },
+        { x: 200, y: 100, state: "" },
+        { x: 300, y: 100, state: "" },
+        { x: 100, y: 200, state: "" },
+        { x: 200, y: 200, state: "" },
+        { x: 300, y: 200, state: "" },
+        { x: 100, y: 300, state: "" },
+        { x: 200, y: 300, state: "" },
+        { x: 300, y: 300, state: "" }
+    ]
+    drawBoard(board)
+
+    while true [
+        humanMove(board, currentPlayer)
+        
+        if isWinner(board, currentPlayer) [
+            setFont("60px sans-serif")
+            drawText("The winner is " + currentPlayer, 0, 0)
+            gameOver = true
+        ] else [
+            currentPlayer = switchPlayer(currentPlayer)
+        ]
+        
+        if gameOver [
+            break
+        ]
+        
+        if isDraw(board) [
+            gameOver = true
+            setFont("60px sans-serif")
+            drawText("It's a draw", 0, 0)
+            break
+        ]
+        
+        sleep(1000)
+        
+        # Computer moves
+        notDumbComputer(board, currentPlayer)
+        if isWinner(board, currentPlayer) [
+            setFont("60px sans-serif")
+            drawText("The winner is " + currentPlayer, 0, 0)
+            gameOver = true
+        ] else [
+            currentPlayer = switchPlayer(currentPlayer)
+        ]
+        
+        if gameOver [
+            break
+        ]
+        
+    ]
+]
+
+def humanMove(board, currentPlayer) [
+    while true [
+        click = waitForEvent("click")
+        x = click["x"]
+        y = click["y"]
+
+        for square in board [
+            sx = square["x"]
+            sy = square["y"]
+            state = square["state"]
+            if x > sx and x < sx + 90 and y > sy and y < sy + 90 [
+                if state == "" [
+                    square["state"] = currentPlayer
+                    setFont("100px sans-serif")
+                    setColor("black")
+                    drawText(currentPlayer, sx + 5, sy)
+                    return
+                ]
+            ]
+        ]
+    ]
+]
+
+def naiveComputer(board, currentPlayer) [
+    for square in board [
+        sx = square["x"]
+        sy = square["y"]
+        state = square["state"]
+        # Use the first available square
+        if state == "" [
+            square["state"] = currentPlayer
+            drawText(currentPlayer, sx + 5, sy)
+            break
+        ]
+    ]
+]
+
+def notDumbComputer(board, me) [
+    # If I can win, win it
+    for square in board [
+        sx = square["x"]
+        sy = square["y"]
+        state = square["state"]
+        if state == "" [
+            # try taking this square and see if I win
+            square["state"] = me
+            if isWinner(board, me) [
+                drawText(me, sx + 5, sy)
+                return
+            ] else [
+                # Revert the move
+                square["state"] = ""
+            ]
+        ]
+    ]
+    
+    # If they can win, block it
+    for square in board [
+        sx = square["x"]
+        sy = square["y"]
+        state = square["state"]
+        if state == "" [
+            # try letting them take this square
+            opponent = switchPlayer(me)
+            square["state"] = opponent
+            if isWinner(board, opponent) [
+                square["state"] = me
+                drawText(me, sx + 5, sy)
+                return
+            ] else [
+                # Revert the move
+                square["state"] = ""
+            ]
+        ]
+    ]
+    
+    # Default to naive completer
+    naiveComputer(board, me)
+]
+
+def isDraw(board) [
+    for square in board [
+        if square["state"] == "" [
+            return false
+        ]
+    ]
+    return true
+]
+
+def isWinner(board, player) [
+    zero = board[0]["state"] == player
+    one = board[1]["state"] == player
+    two = board[2]["state"] == player
+    three = board[3]["state"] == player
+    four = board[4]["state"] == player
+    five = board[5]["state"] == player
+    six = board[6]["state"] == player
+    seven = board[7]["state"] == player
+    eight = board[8]["state"] == player
+    a = zero and one and two
+    b = three and four and five
+    c = six and seven and eight
+    d = zero and four and eight
+    e = two and four and six
+    f = zero and three and six
+    g = one and four and seven
+    h = two and five and eight
+    return a or b or c or d or e or f or g or h
+]
+
+def switchPlayer(player) [
+    if player == "O" [
+        return "X"
+    ] else [
+        return "O"
+    ]
+]
+
+def drawBoard(board) [
+    setColor("#dddddd")
+
+    for square in board [
+        x = square["x"]
+        y = square["y"]
+        fillRect(x, y, 90, 90)
+    ]
+]

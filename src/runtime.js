@@ -7,8 +7,14 @@ let $historyCursor = -1;
 let $stack = [];
 let $nextHeapId = 1;
 let $heap = {};
-let $body = $isBrowser && $nativeDomToVDom(document.body);
+let $interops = [];
+let $halted = false;
+let $errorMessage = null;
+// let $body = $isBrowser && $nativeDomToVDom(document.body);
 let $heapOfLastDomSync = $heap;
+let $canvas = document.getElementById("canvas");
+let $canvasContext = $canvas.getContext("2d");
+$canvasContext.textBaseline = "top";
 
 function $pushFrame(funName, variables, closures) {
     const newFrame = { funName, parameters: variables, variables };
@@ -23,7 +29,15 @@ function $popFrame() {
 }
 
 function $getVariable(varName) {
-    return $stack[$stack.length - 1].variables[varName];
+    const variables = $stack[$stack.length - 1].variables;
+    if (varName in variables) {
+        return variables[varName];
+    } else {
+        $errorMessage = `Reference to undefined variable ${varName} encountered.`;
+        alert($errorMessage);
+        $halted = true;
+        throw new Error($errorMessage);
+    }
 }
 
 function $setVariable(varName, value) {
@@ -49,8 +63,8 @@ function $setHeapVariable(varName, value, closureId) {
     $heap[closureId] = newDict;
 }
 
-function $isHeapObject(thing) {
-    return typeof thing === "object";
+function $isHeapRef(thing) {
+    return typeof thing === "object" && typeof thing.id === "number";
 }
 
 function $heapAllocate(value) {
@@ -64,12 +78,21 @@ function $heapAllocate(value) {
 }
 
 function $save(line) {
-    $history.push({ line, stack: $stack, heap: $heap, body: $body });
+    const entry = {
+        line, 
+        stack: $stack, 
+        heap: $heap
+    };
+    if ($interops.length > 0) {
+        entry.interops = $interops;
+    }
+    $history.push(entry);
+    $interops = [];
     $historyCursor++;
 }
 
 function $heapAccess(thing) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         return $heap[thing.id];
     } else {
         return thing;
@@ -83,7 +106,7 @@ function $get(thing, index) {
 function $set(thing, index, value) {
     let object;
     let newObject;
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         object = $heap[thing.id];
     } else {
         object = thing;
@@ -143,7 +166,7 @@ function print(...args) {
 }
 
 function pop(thing) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         return $heapAllocate($heap[thing.id].pop());
     } else {
         throw new Error("Cannot pop() for a " + (typeof thing));
@@ -151,7 +174,7 @@ function pop(thing) {
 }
 
 function push(thing, item) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         const array = $heap[thing.id];
         const newArray = [...array, item];
         $heap = {
@@ -165,7 +188,7 @@ function push(thing, item) {
 }
 
 function concat(one, other) {
-    if ($isHeapObject(one) && $isHeapObject(other)) {
+    if ($isHeapRef(one) && $isHeapRef(other)) {
         const one = $heap[one.id];
         const other = $heap[other.id];
         return $heapAllocate(one.concat(other));
@@ -175,7 +198,7 @@ function concat(one, other) {
 }
 
 function map(fn, thing) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
         return $heapAllocate(arr.map(fn));
     } else {
@@ -184,7 +207,7 @@ function map(fn, thing) {
 }
 
 function filter(fn, thing) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
         return $heapAllocate(arr.filter(fn));
     } else {
@@ -193,7 +216,7 @@ function filter(fn, thing) {
 }
 
 function reduce(fn, initValue, thing) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
         return arr.reduce(fn, initValue);
     } else {
@@ -214,7 +237,7 @@ function sqr(num) {
 }
 
 function join(thing, separator) {
-    if ($isHeapObject(thing)) {
+    if ($isHeapRef(thing)) {
         const array = $heap[thing.id];
         return array.join(separator);
     } else {
@@ -641,9 +664,73 @@ function compare(source, heap1, destination, heap2) {
 }
 
 // Time-Traveling Debugger UI
-function sleep(ms) {
+async function sleep(ms) {
     return new Promise((accept) => {
         setTimeout(() => accept(), ms);
+    });
+}
+
+// Canvas
+
+
+// interop functions
+
+function fillRect(x, y, width, height) {
+    $canvasContext.fillRect(x, y, width, height);
+}
+fillRect = $interop(fillRect);
+
+function clear() {
+    $canvasContext.clearRect(0, 0, $canvas.width, $canvas.height);
+}
+clear = $interop(clear, true);
+
+function drawText(text, x, y) {
+    $canvasContext.fillText(text, x, y);
+}
+drawText = $interop(drawText);
+
+function setFont(font) {
+    $canvasContext.font = font;
+}
+setFont = $interop(setFont);
+
+function setColor(color) {
+    $canvasContext.fillStyle = color;
+}
+setColor = $interop(setColor);
+
+function $interop(fun, reset) {
+    const ret = function(...args) {
+        const result = fun(...args);
+        const entry = {
+            type: "interop",
+            fun: fun.name,
+            arguments: args,
+            result
+        };
+        if (reset) {
+            entry.reset = reset;
+        }
+        $interops.push(entry);
+        return result;
+    };
+    ret.original = fun;
+    return ret;
+}
+
+async function waitForEvent(eventName) {
+    return new Promise((accept) => {
+        const callback = (event) => {
+            $canvas.removeEventListener(eventName, callback);
+            const eventObject = $heapAllocate({
+                type: event.type,
+                x: event.x,
+                y: event.y
+            });
+            accept(eventObject);
+        };
+        $canvas.addEventListener(eventName, callback);
     });
 }
 
@@ -667,9 +754,10 @@ function createDebugUI() {
     const ui = document.createElement("div");
     ui.style.position = "fixed";
     ui.style.bottom = "0px";
-    ui.style.left = "0px";
+    ui.style.top = "0px";
+    ui.style.left = "50%";
     ui.style.right = "0px";
-    ui.style.height = "50%";
+    ui.style.height = "100%";
     ui.style.backgroundColor = "#ededed";
     ui.style.padding = "0.5em";
     ui.style.borderTop = "#888 solid 1px";
@@ -682,7 +770,7 @@ function createDebugUI() {
     closeButton.addEventListener("click", async () => {
         $historyCursor = $history.length - 1;
         syncAll();
-        await sleep(500);
+        await sleep(100);
         document.documentElement.removeChild(ui);
         createDebugButton();
         document.body.style.pointerEvents = "inherit";
@@ -718,12 +806,13 @@ function createDebugUI() {
     // Next Button
     const nextButton = document.createElement("button");
     nextButton.textContent = "→";
-    nextButton.addEventListener("click", () => {
+    const advance = () => {
         if ($historyCursor + 1 < $history.length) {
             $historyCursor = $historyCursor + 1;
             syncAll();
         }
-    });
+    };
+    nextButton.addEventListener("click", advance);
     ui.appendChild(nextButton);
     ui.appendChild(document.createElement("br"));
 
@@ -744,60 +833,82 @@ function createDebugUI() {
         range.value = $historyCursor + 1;
     }
     ui.appendChild(range);
+    
+    // Error Message
+    if ($errorMessage) {
+        const errorLabel = document.createElement("div");
+        errorLabel.className = "error-message";
+        errorLabel.textContent = $errorMessage;
+        ui.appendChild(errorLabel);
+    }
 
     // The 3-pane state display which includes the code pane, the
     // stack frame pane, and the heap pane
     const stateDisplay = document.createElement("div");
     stateDisplay.style.marginTop = "5px";
-    stateDisplay.style.height = "250px";
+    stateDisplay.style.height = "90%";
     const codePane = document.createElement("pre");
-    codePane.style.width = "33%";
-    codePane.style.height = "100%";
+    codePane.style.position = "relative";
+    codePane.style.height = "30%";
     codePane.style.overflow = "auto";
-    codePane.style.padding = "1em";
+    codePane.style.padding = "0px";
     codePane.style.backgroundColor = "#444";
     codePane.style.margin = "0px";
     codePane.style.color = "#ffffff";
-    codePane.style.float = "left";
+    codePane.style.fontFamily = "Inconsolata, Monaco, monospace";
 
-    function syncCodeDisplay() {
-        const state = $history[$historyCursor];
+    function initCodeDisplay() {
         const lines = $code.split("\n");
         const linesDisplay = lines.map((line, idx) => {
-            if (state.line === idx + 1) {
-                return `<span style="background-color: yellow; color: black;">${line}</span>`;
-            } else {
-                return line;
-            }
-        }).join("\n");
+            return `<div>${line}</div>`;
+        }).join("");
         codePane.innerHTML = linesDisplay;
     }
-    syncCodeDisplay();
-    stateDisplay.appendChild(codePane);
 
+    function syncCodeDisplay() {
+        const prevLine = codePane.querySelector(".current-line");
+        if (prevLine) {
+            prevLine.classList.remove("current-line");
+        }
+        const state = $history[$historyCursor];
+        const currentLine = codePane.children[state.line - 1];
+        currentLine.classList.add("current-line");
+        
+        // scroll into view if needed
+        const top = currentLine.offsetTop;
+        const height = currentLine.offsetHeight;
+        const scrollTop = codePane.scrollTop;
+        const parentHeight = codePane.offsetHeight;
+        if (top < scrollTop || top + height > scrollTop + parentHeight) {
+            codePane.scrollTop = top - parentHeight / 2 + height / 2;
+        }
+    }
+    initCodeDisplay();
+    stateDisplay.appendChild(codePane);
+    setTimeout(syncCodeDisplay, 0);
+    
     const stackFramePane = document.createElement("div");
-    stackFramePane.style.width = "33%";
     stackFramePane.style.overflow = "auto";
-    stackFramePane.style.height = "100%";
-    stackFramePane.style.float = "left";
+    stackFramePane.style.height = "30%";
     stackFramePane.style.padding = "1em";
-    stackFramePane.style.backgroundColor = "#dedede";
+    stackFramePane.style.backgroundColor = "#d1ebeb";
+    stackFramePane.style.fontFamily = "Inconsolata, Monaco, monospace";
     function syncStackFrameDisplay() {
         const state = $history[$historyCursor];
-        const html = state.stack.map((frame) => {
+        const html = state.stack.slice().reverse().map((frame) => {
             const paramList = Object.keys(frame.parameters)
                 .map(key => `${key}=${displayValue(frame.parameters[key])}`)
                 .join(", ");
             const title = "<label>" + frame.funName + "(" + paramList + ")" + "</label>";
             const lines = [title, `<ul style="padding-left: 1em; margin: 0;">`];
             for (let varName in frame.variables) {
-                lines.push(`<li style="list-style: none;">${varName} = ${displayValue(frame.variables[varName])}</li>`);
+                lines.push(`<li style="list-style: none;">${escapeVarName(varName)} = ${displayValue(frame.variables[varName])}</li>`);
             }
             if (frame.closures) {
                 for (let closure of frame.closures) {
                     const vars = $heapAccess(closure);
                     for (let varName in vars) {
-                        lines.push(`<li style="list-style: none;">${varName} = ${displayValue(vars[varName])}</li>`);
+                        lines.push(`<li style="list-style: none;">${escapeVarName(varName)} = ${displayValue(vars[varName])}</li>`);
                     }
                 }
             }
@@ -806,21 +917,82 @@ function createDebugUI() {
         }).join("");
         stackFramePane.innerHTML = html;
     }
+    
+    function escapeVarName(varName) {
+        return varName.replace(/>/g, "&gt;").replace(/</g, "&lt;");
+    }
 
     stateDisplay.appendChild(stackFramePane);
     const heapPane = document.createElement("div");
-    heapPane.style.height = "100%";
-    heapPane.style.width = "33%";
+    heapPane.style.height = "30%";
     heapPane.style.padding = "1em";
-    heapPane.style.float = "left";
     heapPane.style.overflow = "auto";
     heapPane.style.backgroundColor = "#fdffe5";
+    heapPane.style.display = "flex";
+    heapPane.style.flexWrap = "wrap";
+    heapPane.style.fontFamily = "Inconsolata, Monaco, monospace";
     stateDisplay.appendChild(heapPane);
 
     function syncHeapDisplay() {
         const state = $history[$historyCursor];
+        
+        // Sort of like a mark and sweep algorithm to
+        // filter out unreferenced heap objects and
+        // also prioritize ones that are referenced
+        // higher up in the stack frame
+        const markings = new Map();
+        for (let i = 0; i < state.stack.length; i++) {
+            const frame = state.stack[i];
+            for (let varName in frame.variables) {
+                const value = frame.variables[varName];
+                if ($isHeapRef(value)) {
+                    traverse(value, i);
+                }
+            }
+        }
+        
+        function traverse(ref, priority) {
+            const object = $heap[ref.id];
+            if (markings.has(ref.id)) {
+                const prevPriority = markings.get(ref.id);
+                if (priority > prevPriority) {
+                    markings.set(ref.id, priority);
+                } else {
+                    return;
+                }
+            } else {
+                markings.set(ref.id, priority);
+            }
+            if (Array.isArray(object)) {
+                traverseArray(object, priority);
+            } else {
+                traverseDictionary(object, priority);
+            }
+        }
+        
+        function traverseArray(array, priority) {
+            for (let item of array) {
+                if ($isHeapRef(item)) {
+                    traverse(item, priority);
+                }
+            }
+        }
+        
+        function traverseDictionary(object, priority) {
+            for (let key in object) {
+                const value = object[key];
+                if ($isHeapRef(value)) {
+                    traverse(value, priority);
+                }
+            }
+        }
+        
+        const entries = Array.from(markings.entries());
+        entries.sort((one, other) => other[1] - one[1]);
+        const ids = entries.map(entry => entry[0]);
+        
         const htmlLines = [];
-        for (let id in state.heap) {
+        for (let id of ids) {
             const object = state.heap[id];
             if (Array.isArray(object)) {
                 htmlLines.push(renderArray(id, object));
@@ -839,7 +1011,7 @@ function createDebugUI() {
                 return `<td>${displayValue(item)}</td>`
             }).join("")
         }</tr></table>`;
-        return `<label>${id}: <label>` + table;
+        return `<div class="heap-object"><label><span class="heap-id">${id}</span>: <label>${table}</div>`;
     }
 
     function renderDictionary(id, dict) {
@@ -849,7 +1021,7 @@ function createDebugUI() {
                 return `<tr><td>${key}</td><td>${displayValue(dict[key])}</td></tr>`;
             }).join("")
         }</table>`;
-        return `<label>${id}: <label>` + table;;
+        return `<div class="heap-object"><label><span class="heap-id">${id}</span>: <label>${table}</div>`;
     }
 
     ui.appendChild(stateDisplay);
@@ -861,7 +1033,40 @@ function createDebugUI() {
         let state = $history[$historyCursor];
         $stack = state.stack;
         $heap = state.heap;
-        $body = state.body;
+        //$body = state.body;
+    }
+    
+    function syncCanvas() {
+        let state = $history[$historyCursor];
+        
+        // redo interops starting from the beginning or
+        // last interop where reset is true
+        
+        const interops = [];
+        let index = $historyCursor;
+        let seeking = true;
+        while (seeking) {
+            const state = $history[index];
+            if (state.interops) {
+                for (let i = state.interops.length - 1; i >= 0; i--) {
+                    const interop = state.interops[i];
+                    interops.unshift(interop);
+                    if (interop.reset) {
+                        // done
+                        seeking = false;
+                        break;
+                    }
+                }
+            }
+            index--;
+            if (index < 0) {
+                break;
+            }
+        }
+        for (let interop of interops) {
+            const fun = window[interop.fun].original;
+            fun(...interop.arguments);
+        }
     }
 
     function syncAll() {
@@ -871,11 +1076,14 @@ function createDebugUI() {
         syncCodeDisplay();
         syncHeapDisplay();
         syncProgress();
-        syncVDomToDom();
+        syncCanvas();
+        //syncVDomToDom();
     }
 
     function displayValue(value) {
-        if (typeof value === "string") {
+        if ($isHeapRef(value)) {
+            return `<span class="heap-id">${value.id}</span>`;
+        } else if (typeof value === "string") {
             return quote(value);
         } else {
             return String(value);

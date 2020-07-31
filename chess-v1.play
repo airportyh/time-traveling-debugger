@@ -1,0 +1,91 @@
+def main() [
+    setFont("100px sans-serif")
+    drawBoard()
+    currentPlayer = "O"
+    board = [
+        "", "", "",
+        "", "", "",
+        "", "", ""
+    ]
+    while true [
+        click = waitForEvent("click")
+        x = click["x"]
+        y = click["y"]
+        if x > 100 and x < 190 [
+            if y > 100 and y < 190 [
+                setColor("black")
+                drawText(currentPlayer, 105, 100)
+                board[0] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 200 and y < 290 [
+                setColor("black")
+                drawText(currentPlayer, 105, 200)
+                board[3] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 300 and y < 390 [
+                setColor("black")
+                drawText(currentPlayer, 105, 300)
+                board[6] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ]
+        ] else if x > 200 and x < 290 [
+            if y > 100 and y < 190 [
+                setColor("black")
+                drawText(currentPlayer, 205, 100)
+                board[1] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 200 and y < 290 [
+                setColor("black")
+                drawText(currentPlayer, 205, 200)
+                board[4] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 300 and y < 390 [
+                setColor("black")
+                drawText(currentPlayer, 205, 300)
+                board[7] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ]
+        ] else if x > 300 and x < 390 [
+            if y > 100 and y < 190 [
+                setColor("black")
+                drawText(currentPlayer, 305, 100)
+                board[2] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 200 and y < 290 [
+                setColor("black")
+                drawText(currentPlayer, 305, 200)
+                board[5] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ] else if y > 300 and y < 390 [
+                setColor("black")
+                drawText(currentPlayer, 305, 300)
+                board[8] = currentPlayer
+                currentPlayer = switchPlayer(currentPlayer)
+            ]
+        ]
+    ]
+]
+
+def switchPlayer(player) [
+    if player == "O" [
+        return "X"
+    ] else [
+        return "O"
+    ]
+]
+
+def drawBoard() [
+    setColor("#dddddd")
+
+    fillRect(100, 100, 90, 90)
+    fillRect(200, 100, 90, 90)
+    fillRect(300, 100, 90, 90)
+
+    fillRect(100, 200, 90, 90)
+    fillRect(200, 200, 90, 90)
+    fillRect(300, 200, 90, 90)
+
+    fillRect(100, 300, 90, 90)
+    fillRect(200, 300, 90, 90)
+    fillRect(300, 300, 90, 90)
+]

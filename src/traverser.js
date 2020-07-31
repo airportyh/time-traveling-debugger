@@ -92,7 +92,9 @@ function traverse(node, visit) {
         case "identifier":
             break;
         case "return_statement":
-            traverse(node.value, visit);
+            if (node.value) {
+                traverse(node.value, visit);
+            }
             break;
         case "not_operation":
             traverse(node.subject, visit);
@@ -100,6 +102,8 @@ function traverse(node, visit) {
         case "while_loop":
             traverse(node.condition, visit);
             traverse(node.body, visit);
+            break;
+        case "break":
             break;
         default:
             throw new Error("Unhandled node type: " + node.type);

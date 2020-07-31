@@ -20,6 +20,7 @@ exports.generateCode = function generateCode(ast, options) {
     const jsCode =
         [runtimeCode]
         .concat(generateCodeForStatement(ast, null, closureInfo))
+        .concat('clear()')
         .concat([`main().catch(err => console.log(err.stack))`
             + (options.historyFilePath ?
                 `.finally(() => $saveHistory("${options.historyFilePath}"));` :
@@ -40,7 +41,7 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
     } else if (statement.type === "return_statement") {
         return [
             `$save(${statement.start.line});`,
-            `var $retval = ${generateCodeForExpression(statement.value, funNode, closureInfo)};`,
+            `var $retval = ${statement.value ? generateCodeForExpression(statement.value, funNode, closureInfo): undefined};`,
             `$setVariable("<ret val>", $retval);`,
             `return $retval;`
         ].join("\n");
@@ -111,6 +112,8 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
             }).join("\n")),
             "}"
         ].join("\n");
+    } else if (statement.type === "break") {
+        return "break;";
     } else if (statement.type === "indexed_assignment") {
         const subject = generateCodeForExpression(statement.subject, funNode, closureInfo);
         const index = generateCodeForExpression(statement.index, funNode, closureInfo);
@@ -128,9 +131,15 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
 
 function generateCallExpression(expression, funNode, closureInfo, pauseAfter) {
     const line = expression.start.line;
-    const funcCall = expression.fun_name.value + "(" +
+    const funName = expression.fun_name.value;
+    const builtIn = builtInFunctions[funName];
+    const isAsync = builtIn ? builtIn.async : true;
+    let funcCall = funName + "(" +
         expression.arguments.map(arg => generateCodeForExpression(arg, funNode, closureInfo))
             .join(", ") + ")";
+    if (isAsync) {
+        funcCall = `await ${funcCall}`;
+    }
     if (pauseAfter) {
         return `($immediateReturnValue = ${funcCall}, $save(${line}), $immediateReturnValue)`;
     } else {
@@ -155,6 +164,7 @@ const operatorMap = {
     "<": "<",
     "<=": "<=",
     "==": "===",
+    "!=": "!==",
     "+": "+",
     "-": "-",
     "*": "*",
@@ -207,7 +217,9 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         }
         // return expression.var_name.value;
     } else if (expression.type === "call_expression") {
-        const pauseAfter = !builtInFunctions[expression.fun_name.value]
+        const funName = expression.fun_name.value;
+        const builtIn = builtInFunctions[funName];
+        const pauseAfter = !builtIn;
         return generateCallExpression(expression, funNode, closureInfo, pauseAfter);
     } else if (expression.type === "indexed_access") {
         const subject = generateCodeForExpression(expression.subject, funNode, closureInfo);
@@ -230,7 +242,7 @@ function generateFunction(node, closureInfo) {
     const closureProvider = closureInfo.providers.get(node);
     const closureDependencies = closureInfo.dependencies.get(node);
     const funName = node.name && node.name.value || null;
-    const isAsync = node.type === "function_definition" && funName === "main";
+    const isAsync = true;
     const firstLine = node.body.start.line;
     const lastLine = node.body.end.line;
     const parameters = node
@@ -273,8 +285,10 @@ function generateFunction(node, closureInfo) {
         indent(body),
         indent(`} finally {`),
         indent(indent([
-            `$save(${lastLine});`,
-            `$popFrame();`
+            `if (!$halted) {`,
+            `   $save(${lastLine});`,
+            `   $popFrame();`,
+            `}`
         ].join("\n"))),
         indent(`}`),
         "}"

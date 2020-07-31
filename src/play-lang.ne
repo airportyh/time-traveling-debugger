@@ -125,17 +125,19 @@ executable_statement
    |  if_statement         {% id %}
    |  for_loop             {% id %}
    |  function_definition  {% id %}
+   |  break                {% id %}
 
 return_statement
-   -> "return" __ expression
+   -> "return" (__ expression):?
        {%
            d => ({
                type: "return_statement",
-               value: d[2],
+               value: d[1] ? d[1][1] : null,
                start: tokenStart(d[0]),
-               end: d[2].end
+               end: d[1] ? d[1][1].end : d[0].end
            })
        %}
+
 
 var_assignment
     -> identifier _ "=" _ expression
@@ -297,6 +299,7 @@ comparison_operator
     |  "<"   {% convertTokenId %}
     |  "<="  {% convertTokenId %}
     |  "=="  {% convertTokenId %}
+    |  "!="  {% convertTokenId %}
 
 additive_expression
     -> multiplicative_expression    {% id %}
@@ -455,6 +458,8 @@ string_literal -> %string_literal {% convertTokenId %}
 number -> %number_literal {% convertTokenId %}
 
 identifier -> %identifier {% convertTokenId %}
+
+break -> "break"  {% convertTokenId %}
 
 _ml -> multi_line_ws_char:*
 
