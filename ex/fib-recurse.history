@@ -1,0 +1,2322 @@
+[
+	{
+		"line": 12,
+		"stack": [
+			&1 {
+				"funName": "main",
+				"parameters": &2 {
+				},
+				"variables": *2
+			}
+		],
+		"heap": &3 {
+		}
+	},
+	{
+		"line": 2,
+		"stack": &4 [
+			*1,
+			&5 {
+				"funName": "fib",
+				"parameters": &6 {
+					"n": 7
+				},
+				"variables": *6
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *4,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *4,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &7 [
+			*1,
+			*5,
+			&8 {
+				"funName": "fib",
+				"parameters": &9 {
+					"n": 6
+				},
+				"variables": *9
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *7,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *7,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &10 [
+			*1,
+			*5,
+			*8,
+			&11 {
+				"funName": "fib",
+				"parameters": &12 {
+					"n": 5
+				},
+				"variables": *12
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *10,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *10,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &13 [
+			*1,
+			*5,
+			*8,
+			*11,
+			&14 {
+				"funName": "fib",
+				"parameters": &15 {
+					"n": 4
+				},
+				"variables": *15
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *13,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *13,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &16 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			&17 {
+				"funName": "fib",
+				"parameters": &18 {
+					"n": 3
+				},
+				"variables": *18
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *16,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *16,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &19 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			&20 {
+				"funName": "fib",
+				"parameters": &21 {
+					"n": 2
+				},
+				"variables": *21
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *19,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *19,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &22 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20,
+			{
+				"funName": "fib",
+				"parameters": &23 {
+					"n": 1
+				},
+				"variables": *23
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *22,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *22,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20,
+			{
+				"funName": "fib",
+				"parameters": *23,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &24 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20,
+			{
+				"funName": "fib",
+				"parameters": &25 {
+					"n": 0
+				},
+				"variables": *25
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *24,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20,
+			{
+				"funName": "fib",
+				"parameters": *25,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			*20
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			{
+				"funName": "fib",
+				"parameters": *21,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &26 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			{
+				"funName": "fib",
+				"parameters": &27 {
+					"n": 1
+				},
+				"variables": *27
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *26,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *26,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17,
+			{
+				"funName": "fib",
+				"parameters": *27,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*17
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			{
+				"funName": "fib",
+				"parameters": *18,
+				"variables": {
+					"n": 3,
+					"<ret val>": 2
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &28 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			&29 {
+				"funName": "fib",
+				"parameters": &30 {
+					"n": 2
+				},
+				"variables": *30
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *28,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *28,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &31 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29,
+			{
+				"funName": "fib",
+				"parameters": &32 {
+					"n": 1
+				},
+				"variables": *32
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *31,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *31,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29,
+			{
+				"funName": "fib",
+				"parameters": *32,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &33 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29,
+			{
+				"funName": "fib",
+				"parameters": &34 {
+					"n": 0
+				},
+				"variables": *34
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *33,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29,
+			{
+				"funName": "fib",
+				"parameters": *34,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			*29
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14,
+			{
+				"funName": "fib",
+				"parameters": *30,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*14
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			{
+				"funName": "fib",
+				"parameters": *15,
+				"variables": {
+					"n": 4,
+					"<ret val>": 3
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &35 [
+			*1,
+			*5,
+			*8,
+			*11,
+			&36 {
+				"funName": "fib",
+				"parameters": &37 {
+					"n": 3
+				},
+				"variables": *37
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *35,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *35,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &38 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			&39 {
+				"funName": "fib",
+				"parameters": &40 {
+					"n": 2
+				},
+				"variables": *40
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *38,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *38,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &41 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39,
+			{
+				"funName": "fib",
+				"parameters": &42 {
+					"n": 1
+				},
+				"variables": *42
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *41,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *41,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39,
+			{
+				"funName": "fib",
+				"parameters": *42,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &43 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39,
+			{
+				"funName": "fib",
+				"parameters": &44 {
+					"n": 0
+				},
+				"variables": *44
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *43,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39,
+			{
+				"funName": "fib",
+				"parameters": *44,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			*39
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			{
+				"funName": "fib",
+				"parameters": *40,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &45 [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			{
+				"funName": "fib",
+				"parameters": &46 {
+					"n": 1
+				},
+				"variables": *46
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *45,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *45,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36,
+			{
+				"funName": "fib",
+				"parameters": *46,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			*36
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11,
+			{
+				"funName": "fib",
+				"parameters": *37,
+				"variables": {
+					"n": 3,
+					"<ret val>": 2
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*11
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			{
+				"funName": "fib",
+				"parameters": *12,
+				"variables": {
+					"n": 5,
+					"<ret val>": 5
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &47 [
+			*1,
+			*5,
+			*8,
+			&48 {
+				"funName": "fib",
+				"parameters": &49 {
+					"n": 4
+				},
+				"variables": *49
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *47,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *47,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &50 [
+			*1,
+			*5,
+			*8,
+			*48,
+			&51 {
+				"funName": "fib",
+				"parameters": &52 {
+					"n": 3
+				},
+				"variables": *52
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *50,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *50,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &53 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			&54 {
+				"funName": "fib",
+				"parameters": &55 {
+					"n": 2
+				},
+				"variables": *55
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *53,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *53,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &56 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54,
+			{
+				"funName": "fib",
+				"parameters": &57 {
+					"n": 1
+				},
+				"variables": *57
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *56,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *56,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54,
+			{
+				"funName": "fib",
+				"parameters": *57,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &58 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54,
+			{
+				"funName": "fib",
+				"parameters": &59 {
+					"n": 0
+				},
+				"variables": *59
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *58,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54,
+			{
+				"funName": "fib",
+				"parameters": *59,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			*54
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			{
+				"funName": "fib",
+				"parameters": *55,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &60 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			{
+				"funName": "fib",
+				"parameters": &61 {
+					"n": 1
+				},
+				"variables": *61
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *60,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *60,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51,
+			{
+				"funName": "fib",
+				"parameters": *61,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*51
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			{
+				"funName": "fib",
+				"parameters": *52,
+				"variables": {
+					"n": 3,
+					"<ret val>": 2
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &62 [
+			*1,
+			*5,
+			*8,
+			*48,
+			&63 {
+				"funName": "fib",
+				"parameters": &64 {
+					"n": 2
+				},
+				"variables": *64
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *62,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *62,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &65 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63,
+			{
+				"funName": "fib",
+				"parameters": &66 {
+					"n": 1
+				},
+				"variables": *66
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *65,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *65,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63,
+			{
+				"funName": "fib",
+				"parameters": *66,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &67 [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63,
+			{
+				"funName": "fib",
+				"parameters": &68 {
+					"n": 0
+				},
+				"variables": *68
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *67,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63,
+			{
+				"funName": "fib",
+				"parameters": *68,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			*63
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48,
+			{
+				"funName": "fib",
+				"parameters": *64,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			*48
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*8,
+			{
+				"funName": "fib",
+				"parameters": *49,
+				"variables": {
+					"n": 4,
+					"<ret val>": 3
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*8
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			{
+				"funName": "fib",
+				"parameters": *9,
+				"variables": {
+					"n": 6,
+					"<ret val>": 8
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &69 [
+			*1,
+			*5,
+			&70 {
+				"funName": "fib",
+				"parameters": &71 {
+					"n": 5
+				},
+				"variables": *71
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *69,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *69,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &72 [
+			*1,
+			*5,
+			*70,
+			&73 {
+				"funName": "fib",
+				"parameters": &74 {
+					"n": 4
+				},
+				"variables": *74
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *72,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *72,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &75 [
+			*1,
+			*5,
+			*70,
+			*73,
+			&76 {
+				"funName": "fib",
+				"parameters": &77 {
+					"n": 3
+				},
+				"variables": *77
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *75,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *75,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &78 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			&79 {
+				"funName": "fib",
+				"parameters": &80 {
+					"n": 2
+				},
+				"variables": *80
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *78,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *78,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &81 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79,
+			{
+				"funName": "fib",
+				"parameters": &82 {
+					"n": 1
+				},
+				"variables": *82
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *81,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *81,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79,
+			{
+				"funName": "fib",
+				"parameters": *82,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &83 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79,
+			{
+				"funName": "fib",
+				"parameters": &84 {
+					"n": 0
+				},
+				"variables": *84
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *83,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79,
+			{
+				"funName": "fib",
+				"parameters": *84,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			*79
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			{
+				"funName": "fib",
+				"parameters": *80,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &85 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			{
+				"funName": "fib",
+				"parameters": &86 {
+					"n": 1
+				},
+				"variables": *86
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *85,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *85,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76,
+			{
+				"funName": "fib",
+				"parameters": *86,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*76
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			{
+				"funName": "fib",
+				"parameters": *77,
+				"variables": {
+					"n": 3,
+					"<ret val>": 2
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &87 [
+			*1,
+			*5,
+			*70,
+			*73,
+			&88 {
+				"funName": "fib",
+				"parameters": &89 {
+					"n": 2
+				},
+				"variables": *89
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *87,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *87,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &90 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88,
+			{
+				"funName": "fib",
+				"parameters": &91 {
+					"n": 1
+				},
+				"variables": *91
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *90,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *90,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88,
+			{
+				"funName": "fib",
+				"parameters": *91,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &92 [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88,
+			{
+				"funName": "fib",
+				"parameters": &93 {
+					"n": 0
+				},
+				"variables": *93
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *92,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88,
+			{
+				"funName": "fib",
+				"parameters": *93,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			*88
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73,
+			{
+				"funName": "fib",
+				"parameters": *89,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*73
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			{
+				"funName": "fib",
+				"parameters": *74,
+				"variables": {
+					"n": 4,
+					"<ret val>": 3
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &94 [
+			*1,
+			*5,
+			*70,
+			&95 {
+				"funName": "fib",
+				"parameters": &96 {
+					"n": 3
+				},
+				"variables": *96
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *94,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *94,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &97 [
+			*1,
+			*5,
+			*70,
+			*95,
+			&98 {
+				"funName": "fib",
+				"parameters": &99 {
+					"n": 2
+				},
+				"variables": *99
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *97,
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": *97,
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &100 [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98,
+			{
+				"funName": "fib",
+				"parameters": &101 {
+					"n": 1
+				},
+				"variables": *101
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *100,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *100,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98,
+			{
+				"funName": "fib",
+				"parameters": *101,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &102 [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98,
+			{
+				"funName": "fib",
+				"parameters": &103 {
+					"n": 0
+				},
+				"variables": *103
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 3,
+		"stack": *102,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98,
+			{
+				"funName": "fib",
+				"parameters": *103,
+				"variables": {
+					"n": 0,
+					"<ret val>": 0
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			*98
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			{
+				"funName": "fib",
+				"parameters": *99,
+				"variables": {
+					"n": 2,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95
+		],
+		"heap": *3
+	},
+	{
+		"line": 2,
+		"stack": &104 [
+			*1,
+			*5,
+			*70,
+			*95,
+			{
+				"funName": "fib",
+				"parameters": &105 {
+					"n": 1
+				},
+				"variables": *105
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 5,
+		"stack": *104,
+		"heap": *3
+	},
+	{
+		"line": 6,
+		"stack": *104,
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95,
+			{
+				"funName": "fib",
+				"parameters": *105,
+				"variables": {
+					"n": 1,
+					"<ret val>": 1
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			*95
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			*70,
+			{
+				"funName": "fib",
+				"parameters": *96,
+				"variables": {
+					"n": 3,
+					"<ret val>": 2
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5,
+			*70
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			*5,
+			{
+				"funName": "fib",
+				"parameters": *71,
+				"variables": {
+					"n": 5,
+					"<ret val>": 5
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 8,
+		"stack": [
+			*1,
+			*5
+		],
+		"heap": *3
+	},
+	{
+		"line": 9,
+		"stack": [
+			*1,
+			{
+				"funName": "fib",
+				"parameters": *6,
+				"variables": {
+					"n": 7,
+					"<ret val>": 13
+				}
+			}
+		],
+		"heap": *3
+	},
+	{
+		"line": 12,
+		"stack": &106 [
+			*1
+		],
+		"heap": *3
+	},
+	{
+		"line": 13,
+		"stack": *106,
+		"heap": *3
+	}
+]

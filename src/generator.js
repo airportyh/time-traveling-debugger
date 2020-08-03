@@ -20,7 +20,6 @@ exports.generateCode = function generateCode(ast, options) {
     const jsCode =
         [runtimeCode]
         .concat(generateCodeForStatement(ast, null, closureInfo))
-        .concat('clear()')
         .concat([`main().catch(err => console.log(err.stack))`
             + (options.historyFilePath ?
                 `.finally(() => $saveHistory("${options.historyFilePath}"));` :
@@ -41,7 +40,7 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
     } else if (statement.type === "return_statement") {
         return [
             `$save(${statement.start.line});`,
-            `var $retval = ${statement.value ? generateCodeForExpression(statement.value, funNode, closureInfo): undefined};`,
+            `var $retval = ${statement.value ? generateCodeForExpression(statement.value, funNode, closureInfo): null};`,
             `$setVariable("<ret val>", $retval);`,
             `return $retval;`
         ].join("\n");

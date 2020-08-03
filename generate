@@ -11,9 +11,9 @@ async function main() {
         return;
     }
     const ast = JSON.parse((await fs.readFile(filePath)).toString());
-    const codeFilePath = path.basename(filePath, ".ast") + ".play";
+    const codeFilePath = filePath.replace(".ast", ".play");
     const code = (await fs.readFile(codeFilePath)).toString();
-    const historyFilePath = path.basename(filePath, ".ast") + ".history";
+    const historyFilePath = filePath.replace(".ast", ".history");
     const dir = path.dirname(filePath);
     const outputFilePath = path.join(dir, path.basename(filePath, ".ast") + ".js");
     const jsCode = generateCode(ast, {

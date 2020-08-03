@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"lib": ["es2015", "es2017", "dom"],
+		"sourceMap": true,
+		"forceConsistentCasingInFileNames": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noImplicitAny": false,
+		"strictNullChecks": false,
+		"downlevelIteration": true
+  }
+}

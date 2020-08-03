@@ -1,0 +1,12 @@
+def main() [
+    x = 1
+    while x < 5 [
+        answer = f(x) + f(x + 1)
+        x = x + 1
+    ]
+    print(answer)
+]
+
+def f(x) [
+    return x * x
+]

@@ -8,13 +8,15 @@
   "scripts": {
     "gen-parser": "nearleyc src/play-lang.ne -o src/play-lang.js; npm run check-parser-js",
     "check-parser-js": "node src/play-lang.js # check syntax of embedded JS by running the output file",
-    "test": "jest"
+    "test": "jest",
+    "build-zoom-debugger": "webpack --config zoom-debugger.webpack.lib.config.js",
+    "test-zoom-debugger": "webpack-dev-server --config zoom-debugger.webpack.test.config.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@airportyh/jsonr": "^1.0.6",
+    "@airportyh/jsonr": "^1.0.10",
     "acorn": "^7.1.0",
     "colors": "^1.4.0",
     "diff": "^4.0.1",
@@ -22,10 +24,14 @@
     "lodash": "^4.17.15",
     "moo": "^0.5.0",
     "mz": "^2.7.0",
-    "nearley": "^2.19.0"
+    "nearley": "^2.19.0",
+    "simple-sleep": "^1.0.2",
+    "typescript": "^3.9.7",
+    "webpack": "^4.44.1"
   },
   "devDependencies": {
-    "jest": "^24.9.0"
+    "jest": "^24.9.0",
+    "tslib": "^2.0.0"
   },
   "jest": {
     "testRegex": [
