@@ -35,7 +35,11 @@ And it has a children array which contains its children boxes.
 export type ContainerBox = {
     type: "container",
     direction: "vertical" | "horizontal",
-    children: Box[]
+    children: Box[],
+    border?: {
+        width?: number,
+        color?: string
+    }
 };
 
 /* A point is a coordinate on the canvas 2D plane. */
@@ -233,7 +237,7 @@ export function layout(
     Map<Box, BoundingBox> {
     if (box.type === "text") {
         if (typeof box.text !== "string") {
-            throw new Error("BLARGH");
+            throw new Error("Please provide a string for the text property of a text box.");
         }
         let width = textMeasurer.measureText(box.text);
         //console.log("measureText:", box.text, fontSize, "=", width);
@@ -344,22 +348,27 @@ export function render(
             ctx.fillStyle = box.color;
         }
         const yOffset = fontSize * ((lineHeight - 1) / 2);
-        if (box.border) {
-            const width = box.border.width || 1;
-            const color = box.border.color || "black";
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.strokeRect(mybbox.x, mybbox.y, mybbox.width, mybbox.height);
-        }
+        drawBorder(box, mybbox, ctx);
         ctx.fillText(box.text, mybbox.x, mybbox.y + yOffset);
         ctx.restore();
     } else if (box.type === "container") {
         for (let child of box.children) {
             render(child, bBoxMap, visibleBox, fontSize, lineHeight, ctx);
         }
+        drawBorder(box, mybbox, ctx);
     } else {
         throw new Error("Not implemented");
     }    
+}
+
+function drawBorder(box: Box, bbox: BoundingBox, ctx: CanvasRenderingContext2D) {
+    if (box.border) {
+        const width = box.border.width || 1;
+        const color = box.border.color || "black";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+    }
 }
 
 /*

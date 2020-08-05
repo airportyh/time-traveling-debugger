@@ -50,7 +50,8 @@ const lexer = moo.compile({
             or: "or",
             true: "true",
             false: "false",
-            break: "break"
+            break: "break",
+            null: "null"
         })
     }
 });

@@ -1,0 +1,83 @@
+#! /usr/bin/env node
+
+const fs = require("mz/fs");
+const path = require("path");
+const mkdirp = require("mkdirp");
+const util = require('util');
+const { parse } = require("./src/parser");
+const { generateCode } = require("./src/generator");
+
+async function main() {
+    const filepath = process.argv[2];
+    if (!filepath) {
+        console.log("Please provide a .play file.");
+        return;
+    }
+    const outputDir = filepath.replace(".play", "");
+    await mkdirp(outputDir);
+    console.log(`Created directory ${outputDir}`);
+    await compileFile(filepath, outputDir);
+    await copyFile(
+        path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js`), 
+        path.join(outputDir, "zoom-debugger.js")
+    );
+    await copyFile(
+        path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js.map`), 
+        path.join(outputDir, "zoom-debugger.js.map")
+    );
+    await copyFile(
+        path.join(__dirname, `src`, `web-debugger.js`), 
+        path.join(outputDir, `web-debugger.js`)
+    );
+    await copyFile(
+        path.join(__dirname, `src`, `jsonr.js`), 
+        path.join(outputDir, `jsonr.js`)
+    );
+    await createHtml(filepath, outputDir);
+    console.log();
+    console.log("Type this to get started:");
+    console.log(`    open ${outputDir}/index.html`);
+}
+
+async function copyFile(source, destination) {
+    await fs.copyFile(source, destination);
+    console.log(`Wrote ${destination}`);
+}
+
+async function createHtml(filepath, outputDir) {
+    const title = path.basename(filepath).replace(".play", "").replace(/-/g, " ");
+    const jsFilePath = path.basename(filepath).replace(".play", ".js");
+    const htmlFilePath = path.join(outputDir, "index.html");
+    const html = 
+`<!doctype html>
+<html lang="en">
+<head>
+    <title>${title}</title>
+    <meta charset="utf-8"/>
+</head>
+<body>
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <script src="jsonr.js"></script>
+    <script src="web-debugger.js"></script>
+    <script src="zoom-debugger.js"></script>
+    <script src="${jsFilePath}"></script>
+</body>
+</html>`;
+    await fs.writeFile(htmlFilePath, html);
+    console.log(`Wrote ${htmlFilePath}`);
+}
+
+async function compileFile(filepath, outputDir) {
+    const code = (await fs.readFile(filepath)).toString();
+    const ast = parse(code);
+    const js = generateCode(ast, {
+        code: code
+    });
+    const jsFile = path.join(
+        outputDir, 
+        path.basename(filepath).replace(".play", ".js"));
+    await fs.writeFile(jsFile, js);
+    console.log(`Wrote ${jsFile}`);
+}
+
+main().catch(err => console.log(err.stack));

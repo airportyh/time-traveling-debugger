@@ -361,6 +361,7 @@ unary_expression
         {%
             data => data[1]
         %}
+    |  null_literal         {% id %}
     
 
 list_literal
@@ -460,6 +461,8 @@ number -> %number_literal {% convertTokenId %}
 identifier -> %identifier {% convertTokenId %}
 
 break -> "break"  {% convertTokenId %}
+
+null_literal -> "null" {% convertTokenId %}
 
 _ml -> multi_line_ws_char:*
 

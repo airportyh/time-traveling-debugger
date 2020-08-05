@@ -284,6 +284,7 @@ var grammar = {
     {"name": "unary_expression", "symbols": [{"literal":"("}, "expression", {"literal":")"}], "postprocess": 
         data => data[1]
                 },
+    {"name": "unary_expression", "symbols": ["null_literal"], "postprocess": id},
     {"name": "list_literal", "symbols": [{"literal":"["}, "list_items", {"literal":"]"}], "postprocess": 
         d => ({
             type: "list_literal",
@@ -351,6 +352,7 @@ var grammar = {
     {"name": "number", "symbols": [(lexer.has("number_literal") ? {type: "number_literal"} : number_literal)], "postprocess": convertTokenId},
     {"name": "identifier", "symbols": [(lexer.has("identifier") ? {type: "identifier"} : identifier)], "postprocess": convertTokenId},
     {"name": "break", "symbols": [{"literal":"break"}], "postprocess": convertTokenId},
+    {"name": "null_literal", "symbols": [{"literal":"null"}], "postprocess": convertTokenId},
     {"name": "_ml$ebnf$1", "symbols": []},
     {"name": "_ml$ebnf$1", "symbols": ["_ml$ebnf$1", "multi_line_ws_char"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
     {"name": "_ml", "symbols": ["_ml$ebnf$1"]},

@@ -22,6 +22,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
+    canvas.style.backgroundColor = "white";
     canvas.style.border = "1px solid black";
     canvas.style.transform = `scale(0.5) translate(-${canvas.width / 2}px, -${canvas.height / 2}px)`;
 

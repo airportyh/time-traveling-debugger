@@ -9,7 +9,7 @@ module.exports = {
       library: 'ZoomDebugger',
       libraryTarget: 'umd',
       filename: "zoom-debugger.js",
-      path: path.resolve(__dirname, "zoom-debugger")
+      path: path.resolve(__dirname, "zoom-debugger-build")
   },
   resolve: {
     extensions: [".ts", ".js"]

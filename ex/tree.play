@@ -1,0 +1,24 @@
+def main() [
+    name = "Jessica"
+    age = 30
+    j = { name: name, age: age }
+    name = "Bret"
+    age = 27
+    b = { name: name, age: age }
+    name = "Shawn"
+    age = 33
+    s = { name: name, age: age }
+    players = [j, b, s]
+    b = tree(j, null, null)
+    c = tree(b, null, null)
+    root = tree(s, b, c)
+    
+]
+
+def tree(data, left, right) [
+    return {
+        data: data,
+        left: left,
+        right: right
+    }
+]

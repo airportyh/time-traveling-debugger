@@ -5,17 +5,88 @@ import { traverse } from "../traverser";
 
 const CODE_LINE_HEIGHT = 1.5;
 const CODE_FONT_FAMILY = "Monaco";
-const LINE_NUMBER_COLOR = "#489dff";
+const LINE_NUMBER_COLOR = "#666666";
 const CODE_COLOR = "black";
 const VARIABLE_DISPLAY_COLOR = "#f0b155";
+const HEAP_REF_COLOR = "#119af5";
 
 type SubEntryGroup = {
     callExpr: any
     entries: HistoryEntry[]
 };
 
-function isHeapRef(thing) {
-    return typeof thing === "object" && typeof thing.id === "number";
+type HeapRef = { id: number };
+
+function isHeapRef(thing): thing is HeapRef {
+    return thing && typeof thing === "object" && typeof thing.id === "number";
+}
+
+function hasHeapValueChanged(id: number, heapOne: any, heapTwo) {
+    if (heapOne[id] !== heapTwo[id]) {
+        return true;
+    } else {
+        const thingOne = heapOne[id];
+        const thingTwo = heapTwo[id];
+        if (Array.isArray(thingOne)) {
+            for (let i = 0; i < thingOne.length; i++) {
+                if (thingOne[i] !== thingTwo[i]) {
+                    return true;
+                } else if (isHeapRef(thingOne[i])) {
+                    if (hasHeapValueChanged(thingOne[i].id, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else if (typeof thingOne === "object") {
+            for (let prop in thingOne) {
+                const valueOne = thingOne[prop];
+                const valueTwo = thingTwo[prop];
+                if (valueOne !== valueTwo) {
+                    return true;
+                } else if (isHeapRef(valueOne)) {
+                    if (hasHeapValueChanged(valueOne.id, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else {
+            return false;
+        }
+    }
+}
+
+function getValueDisplay(
+    value: any, 
+    childMap: Map<Box, ZoomRenderable>, 
+    heap: any,
+    textMeasurer: TextMeasurer): TextBox {
+    if (isHeapRef(value)) {
+        const textBox: TextBox = {
+            type: "text",
+            text: "*" + value.id,
+            color: VARIABLE_DISPLAY_COLOR,
+            border: {
+                color: VARIABLE_DISPLAY_COLOR
+            }
+        };
+        
+        childMap.set(textBox, new HeapObjectRenderer(value, textMeasurer, heap));
+        return textBox;
+    }
+    return {
+        type: "text",
+        text: JSON.stringify(value),
+        color: VARIABLE_DISPLAY_COLOR
+    };
+}
+
+function getValueDisplayLength(value: any): number {
+    if (isHeapRef(value)) {
+        return String("*" + value.id).length;
+    }
+    return JSON.stringify(value).length;
 }
 
 export class CodeScopeRenderer implements ZoomRenderable {
@@ -56,9 +127,9 @@ export class CodeScopeRenderer implements ZoomRenderable {
 
         ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
-        const { currentEntries, childEntries } = groupHistoryEntries2(funNode, this.entries, userDefinedFunctionNames);
+        const { currentEntries, childEntries } = groupHistoryEntries(funNode, this.entries, userDefinedFunctionNames);
         
-        console.log("group entries", currentEntries, childEntries);
+        //console.log(funName, "group entries", currentEntries, childEntries, this.entries);
 
         if (myAreaRatio < 0.4) {
             // not rendering children
@@ -112,7 +183,6 @@ export class CodeScopeRenderer implements ZoomRenderable {
         // layout the function signature
         codeBox.children.push(this.layoutFunctionSignature(funNode, stackFrame, codeLines, lineNumberWidth, childMap, firstEntry.heap));
         
-        console.log("Current entries for", funName, currentEntries);
         // Go through current entries and layout the code line by line
         for (let i = 0; i < currentEntries.length; i++) {
             const entry = currentEntries[i];
@@ -139,7 +209,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             const valueDisplayStrings: TextBox[][] = [];
             
             this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
-            
+            this.renderUpdatedHeapObjects(entry, nextEntry, childMap, valueDisplayStrings);
             this.renderReturnValues(funNode, entry, nextEntry, valueDisplayStrings);
             
             /*
@@ -240,7 +310,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
         entry: HistoryEntry, 
         lineBox: ContainerBox, 
         childEntries: Map<HistoryEntry, SubEntryGroup[]>,
-        childMap: any
+        childMap: Map<Box, ZoomRenderable>
     ) {
         const subEntryGroups = childEntries.get(entry);
         //console.log("renderLine subEntryGroups", subEntryGroups, "childEntries", childEntries, "entry", entry);
@@ -298,7 +368,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
     }
     
-    renderVariableAssignmentValues(entry: HistoryEntry, funNode: any, nextEntry: HistoryEntry, childMap: any, valueDisplayStrings: TextBox[][]) {
+    renderVariableAssignmentValues(entry: HistoryEntry, funNode: any, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         // Display variable values for assignments
         const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line)[0];
         if (assignmentNode) {
@@ -306,13 +376,9 @@ export class CodeScopeRenderer implements ZoomRenderable {
             if (nextEntry) {
                 const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
                 let varValue = nextStackFrame.variables[varName];
-                if (isHeapRef(varValue)) {
-                    // heap reference
-                    varValue = nextEntry.heap[varValue.id];
-                }
                 const varValueDisplay = this.getVarValueDisplay(varValue, childMap, nextEntry.heap);
                 const prefix = `${varName} = `;
-                const tboxes: TextBox[][] = varValueDisplay.map((boxes, idx) => {
+                const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
                     if (idx === 0) {
                         return [
                             {
@@ -336,6 +402,51 @@ export class CodeScopeRenderer implements ZoomRenderable {
             }
         }
         
+    }
+    
+    renderUpdatedHeapObjects(entry: HistoryEntry, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+        if (nextEntry) {
+            const nextFrame = nextEntry.stack[nextEntry.stack.length - 1];
+            const currentFrame = entry.stack[entry.stack.length - 1];
+            for (let varName in currentFrame.variables) {
+                const value = currentFrame.variables[varName];
+                if (isHeapRef(value)) {
+                    const nextValue = nextFrame.variables[varName];
+                    const headValueChanged = hasHeapValueChanged(value.id, entry.heap, nextEntry.heap);
+                    //console.log("line", entry.line, "value", value, "prevValue", nextValue, "entry.heap[value.id]", value && entry.heap[value.id],
+                    //    "prevEntry.heap[prevValue.id]", nextValue && nextEntry.heap[nextValue.id], headValueChanged);
+                    if (!nextValue || 
+                        (isHeapRef(value) && (
+                        (value.id !== nextValue.id) || headValueChanged))) {
+                        //console.log(varName, "heap value changed on line", entry.line);
+                        const varValueDisplay = this.getVarValueDisplay(value, childMap, nextEntry.heap);
+                        //console.log("adding valueDisplayStrings", valueDisplayStrings);
+                        const taggedVarValueDisplay: Box[][] = varValueDisplay.map((line, idx) => {
+                            if (idx === 0) {
+                                return [
+                                    {
+                                        type: "text",
+                                        text: `${varName} = `,
+                                        color: VARIABLE_DISPLAY_COLOR
+                                    } as TextBox,
+                                    ...line
+                                ];
+                            } else {
+                                return [
+                                    {
+                                        type: "text",
+                                        text: Array(`${varName} = `.length + 1).join(" "),
+                                        color: VARIABLE_DISPLAY_COLOR
+                                    } as TextBox,
+                                    ...line
+                                ];;
+                            }
+                        });
+                        valueDisplayStrings.push(...taggedVarValueDisplay);
+                    }
+                }
+            }
+        }    
     }
     
     renderReturnValues(funNode: any, entry: HistoryEntry, nextEntry: HistoryEntry, valueDisplayStrings: TextBox[][]) {
@@ -401,8 +512,46 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
         return funSigBox;
     }
+    
+    getVarValueDisplay(value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
+        if (isHeapRef(value)) {
+            const object = heap[value.id];
+            if (Array.isArray(object)) {
+                const row: Box[] = [];
+                for (let i = 0; i < object.length; i++) {
+                    const item = object[i];
+                    const itemBox = getValueDisplay(item, childMap, heap, this.textMeasurer);
+                    itemBox.text = " " + itemBox.text + " ";
+                    row.push(itemBox);
+                }
+                return [row];
+            } else { // it's a dictionary
+                const leftColumnWidth = Math.max(...Object.keys(object).map((key) => key.length));
+                const rightColumnWidth = Math.max(...Object.keys(object).map((key) => getValueDisplayLength(object[key])));
+                const table: Box[][] = [];
+                for (let prop in object) {
+                    const propValue = object[prop];
+                    const propTextBox: TextBox = {
+                        type: "text",
+                        text: prop.padEnd(leftColumnWidth, " "),
+                        color: VARIABLE_DISPLAY_COLOR,
+                        border: { color: VARIABLE_DISPLAY_COLOR }
+                    };
+                    const propValueBox = getValueDisplay(propValue, childMap, heap, this.textMeasurer);
+                    propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
+                    propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
+                    table.push([propTextBox, propValueBox]);
+                }
+                return table;
+            }
+        }
+        return [[getValueDisplay(value, childMap, heap, this.textMeasurer)]];
+    }
 
-    getVarValueDisplay(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
+    getVarValueDisplay_(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
+        if (isHeapRef(varValue)) {
+            varValue = heap[varValue.id];
+        }
         if (typeof varValue === "string") {
             return [[{
                 type: "text",
@@ -415,7 +564,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 const display = isHeapRef(item) ? String(item.id) : " " + JSON.stringify(item) + " ";
                 const textBox: TextBox = {
                     type: "text",
-                    text: display,
+                    text: " " + display + " ",
                     color: VARIABLE_DISPLAY_COLOR,
                     border: {
                         color: VARIABLE_DISPLAY_COLOR
@@ -495,47 +644,11 @@ export class CodeScopeRenderer implements ZoomRenderable {
     }
 }
 
-
-function groupHistoryEntries(funNode, entries: HistoryEntry[], userDefinedFunctionNames: string[]) {
-    const currentStackHeight = entries[0].stack.length;
-    const childEntries: Map<any, HistoryEntry[]> = new Map();
-    const currentEntries = [];
-    
-    let currentLine: number = null;
-    let callExprs: any[] = null;
-    let currentCallExprIdx = null;
-    for (let entry of entries) {
-        if (entry.stack.length === currentStackHeight) {
-            if (currentLine !== entry.line) {
-                currentLine = entry.line;
-                // initialize context for this line
-                currentEntries.push(entry);
-                // find call expressions on this line
-                callExprs = findNodesOfTypeOnLine(funNode, "call_expression", entry.line)
-                    .filter(expr => userDefinedFunctionNames.includes(expr.fun_name.value));
-                currentCallExprIdx = 0;
-            } else { // currentLine === entry.line
-                currentCallExprIdx++;
-            }
-        } else {
-            // nested scope execution
-            const callExpr = callExprs[currentCallExprIdx];
-            if (!childEntries.has(callExpr)) {
-                childEntries.set(callExpr, []);
-            }
-            childEntries.get(callExpr).push(entry);
-        }
-    }
-    
-    return {
-        currentEntries,
-        childEntries
-    };
-}
-
-function groupHistoryEntries2(funNode: any, entries: HistoryEntry[], userDefinedFunctionNames: string[]) {
+function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedFunctionNames: string[]) {
     const funName = funNode.name.value;
-    //debugger
+    if (funName === "playGame") {
+        //debugger;
+    }
     const currentStackHeight = entries[0].stack.length;
     const currentLevelEntries: HistoryEntry[] = [];
     let currentParentEntry: HistoryEntry = entries[0];
@@ -571,7 +684,6 @@ function groupHistoryEntries2(funNode: any, entries: HistoryEntry[], userDefined
                     entries: currentChildLevelEntries
                 };
                 subEntryGroups.push(newGroup);
-                //entryMap.set(currentParentEntry, );
                 
                 callExprsIdx++;
                 if (callExprsIdx >= callExprs.length) {
@@ -579,6 +691,16 @@ function groupHistoryEntries2(funNode: any, entries: HistoryEntry[], userDefined
                     
                     entryMap.set(currentParentEntry, subEntryGroups);
                     subEntryGroups = [];
+                    
+                    // if entry is the same line as currentParentEntry that means
+                    // there is no need to add the entry to the currentLevelEntries
+                    // again because the previous instance is enough, it's also
+                    // important to leave the last instance because that's the instance
+                    // we are using as the key to entryMap
+                    
+                    if (entry.line !== currentParentEntry.line) {
+                        currentLevelEntries.push(entry);
+                    }
                     currentParentEntry = entry;
                     
                 } else {
@@ -601,6 +723,83 @@ function groupHistoryEntries2(funNode: any, entries: HistoryEntry[], userDefined
         currentEntries: currentLevelEntries,
         childEntries: entryMap
     };
+}
+
+class HeapObjectRenderer implements ZoomRenderable {
+    constructor(private value: any, private textMeasurer: TextMeasurer, private heap: any) {
+    }
+    
+    render(
+        ctx: CanvasRenderingContext2D,
+        bbox: BoundingBox,
+        viewport: BoundingBox): Map<BoundingBox, ZoomRenderable> {
+        const childMap: Map<Box, ZoomRenderable> = new Map();
+        const myArea = bbox.width * bbox.height;
+        const myAreaRatio = myArea / (viewport.width * viewport.height);
+        if (myAreaRatio > 0.0005) {
+            ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
+            const object = this.heap[this.value.id];
+            let box: Box;
+            if (Array.isArray(object)) {
+                box = {
+                    type: "container",
+                    direction: "horizontal",
+                    children: []
+                };
+                for (let i = 0; i < object.length; i++) {
+                    const item = object[i];
+                    const itemBox = getValueDisplay(item, childMap, this.heap, this.textMeasurer);
+                    itemBox.text = " " + itemBox.text + " ";
+                    box.children.push(itemBox);
+                }
+            } else { // it's a dictionary
+                box = {
+                    type: "container",
+                    direction: "vertical",
+                    children: []
+                };
+                const leftColumnWidth = Math.max(...Object.keys(object).map((key) => key.length));
+                const rightColumnWidth = Math.max(...Object.keys(object).map((key) => getValueDisplayLength(object[key])));
+                for (let prop in object) {
+                    const propValue = object[prop];
+                    const propTextBox: TextBox = {
+                        type: "text",
+                        text: prop.padEnd(leftColumnWidth, " "),
+                        color: VARIABLE_DISPLAY_COLOR,
+                        border: { color: VARIABLE_DISPLAY_COLOR }
+                    };
+                    const propValueBox = getValueDisplay(propValue, childMap, this.heap, this.textMeasurer);
+                    propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
+                    propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
+                    const row: Box = {
+                        type: "container",
+                        direction: "horizontal",
+                        children: [
+                            propTextBox,
+                            propValueBox
+                        ]
+                    };
+                    box.children.push(row);
+                }
+            }
+            
+            const bboxMap = fitBox(
+                box, bbox, viewport, 
+                CODE_FONT_FAMILY, "normal", 
+                true, this.textMeasurer, 
+                CODE_LINE_HEIGHT, ctx, VARIABLE_DISPLAY_COLOR
+            );
+            
+            let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
+            for (let [box, renderable] of childMap) {
+                const childBBox = bboxMap.get(box);
+                childRenderables.set(childBBox, renderable);
+            }
+            return childRenderables;
+        }
+        
+        return new Map();
+    }
 }
 
 function findLine(ast, lineNo) {

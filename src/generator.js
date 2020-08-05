@@ -9,6 +9,7 @@ const runtimeCode = fs.readFileSync(path.join(__dirname, "runtime.js")).toString
 const builtInFunctions = getFunctions(runtimeCode);
 
 exports.generateCode = function generateCode(ast, options) {
+    options = options || {};
     const closureProviders = new Map();
     const closureDependencies = new Map();
     gatherClosureInfo(ast, [], 0, closureProviders, closureDependencies);
@@ -48,7 +49,6 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
     } else if (statement.type === "var_assignment") {
         const closureProvider = closureInfo.providers.get(funNode);
         const closureDependencies = closureInfo.dependencies.get(funNode);
-        // return "var " + statement.var_name.value + " = " + generateCodeForExpression(statement.value) + ";";
         const varName = statement.var_name.value;
         const value = generateCodeForExpression(statement.value, funNode, closureInfo);
         let setVarStatement;
@@ -180,7 +180,9 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         return String(expression.value);
     } else if (expression.type === "list_literal") {
         const arrayLiteral = "[" + expression.items
-            .map(generateCodeForExpression).join(", ") + "]";
+            .map((item) => {
+                return generateCodeForExpression(item, funNode, closureInfo);
+            }).join(", ") + "]";
         return `$heapAllocate(${arrayLiteral})`;
     } else if (expression.type === "dictionary_literal") {
         const dictLiteral = "{ " + expression.entries.map(entry => {
@@ -231,6 +233,8 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         return String(expression.value);
     } else if (expression.type === "not_operation") {
         return "!" + generateCodeForExpression(expression.subject, funNode, closureInfo);
+    } else if (expression.type === "null") {
+        return "null";
     } else {
         throw new Error("Unsupported AST node type for expressions: " + expression.type);
     }

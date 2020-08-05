@@ -21,6 +21,10 @@ if ($isBrowser) {
 
 function $initStyles() {
     const stylesText = `
+    * {
+        box-sizing: border-box;
+    }
+    
     canvas {
         border: 1px solid black;
     }
@@ -123,7 +127,7 @@ function $setHeapVariable(varName, value, closureId) {
 }
 
 function $isHeapRef(thing) {
-    return typeof thing === "object" && typeof thing.id === "number";
+    return thing && typeof thing === "object" && typeof thing.id === "number";
 }
 
 function $heapAllocate(value) {

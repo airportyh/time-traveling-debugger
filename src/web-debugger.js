@@ -13,6 +13,8 @@ function createDebugButton() {
 }
 
 function createDebugUI() {
+    let destroyCurrentDebugger;
+    
     document.body.style.pointerEvents = "none";
     document.body.style.userSelect = "none";
     // Debugger UI Container
@@ -27,67 +29,115 @@ function createDebugUI() {
     ui.style.padding = "0.5em";
     ui.style.borderTop = "#888 solid 1px";
     
+    const rightButtons = document.createElement("div");
+    rightButtons.style.position = "absolute";
+    rightButtons.style.right = "5px";
+    rightButtons.style.zIndex = "1";
+    ui.appendChild(rightButtons);
+    
+    let zoomMode = false;
+    // Zoom Button
+    const zoomToggleButton = document.createElement("button");
+    zoomToggleButton.textContent = "Zoom";
+    zoomToggleButton.addEventListener("click", () => {
+        if (zoomMode) {    
+            destroyCurrentDebugger();
+            destroyCurrentDebugger = createStepDebuggerUi(ui);
+            zoomMode = false;
+            zoomToggleButton.textContent = "Zoom";
+        } else {
+            destroyCurrentDebugger();
+            destroyCurrentDebugger = createZoomDebuggerUi(ui);
+            zoomMode = true;
+            zoomToggleButton.textContent = "Step";
+        }
+        
+    });
+    rightButtons.appendChild(zoomToggleButton);
+    
     // Close Button
     const closeButton = document.createElement("button");
     closeButton.textContent = "×";
-    closeButton.style.position = "absolute";
-    closeButton.style.right = "5px";
     closeButton.addEventListener("click", async () => {
-        $historyCursor = $history.length - 1;
-        syncAll();
+        destroyCurrentDebugger();
+        //$historyCursor = $history.length - 1;
+        //syncAll();
         await sleep(100);
         document.documentElement.removeChild(ui);
         createDebugButton();
         document.body.style.pointerEvents = "inherit";
         document.body.style.userSelect = "inherit";
     });
-    ui.appendChild(closeButton);
+    rightButtons.appendChild(closeButton);
+    
+    
+    document.documentElement.appendChild(ui);
+    setTimeout(() => {
+        destroyCurrentDebugger = createStepDebuggerUi(ui);
+    }, 0);
+}
 
-    // Prev Buttons
-    const prevOutButton = document.createElement("button");
-    prevOutButton.textContent = "⇤";
-    prevOutButton.addEventListener("click", () => {
-        const state = $history[$historyCursor];
-        // find next state where the stack height is the same or less
-        let cursor = $historyCursor - 1;
-        while (true) {
-            const prevState = $history[cursor];
-            if (prevState) {
-                if (prevState.stack.length < state.stack.length) {
-                    $historyCursor = cursor;
-                    syncAll();
-                    break;
-                }
-            } else {
-                break;
-            }
-            cursor--;
-        }
-    });
-    ui.appendChild(prevOutButton);
+function createZoomDebuggerUi(ui) {
+    const panel = document.createElement("div");
+    panel.style.height = "100%";
+    panel.style.width = "100%";
+    ui.appendChild(panel);
+    ZoomDebugger.initZoomDebugger(panel, $code, $history);
+    return destroy;
     
-    const prevIntoButton = document.createElement("button");
-    prevIntoButton.textContent = "↖";
-    prevIntoButton.addEventListener("click", () => {
-        if ($historyCursor - 1 >= 0) {
-            $historyCursor = $historyCursor - 1;
-            syncAll();
-        }
-    });
-    ui.appendChild(prevIntoButton);
+    function destroy() {
+        ui.removeChild(panel);
+    }
+}
+
+function createStepDebuggerUi(ui) {
     
-    const prevOverButton = document.createElement("button");
-    prevOverButton.textContent = "←";
-    prevOverButton.addEventListener("click", () => {
-        const state = $history[$historyCursor];
-        const prevState = $history[$historyCursor - 1];
-        if (prevState && prevState.stack.length > state.stack.length) {
+    let buttonBar;
+    let progress;
+    initButtonBar();
+    let timeSlider;
+    initTimeSlider();
+    
+    maybeDisplayErrorMessage();
+    
+    let codePane;
+    initCodePane();
+    
+    let stackFramePane;
+    initStackFramePane();
+    
+    let heapPane;
+    initHeapPane();
+
+    syncAll();
+    
+    return destroy;
+    
+    function destroy() {
+        // Check if these DOM elements are no longer referenced
+        $historyCursor = $history.length - 1;
+        syncAll();
+        ui.removeChild(buttonBar);
+        ui.removeChild(timeSlider);
+        ui.removeChild(codePane);
+        ui.removeChild(stackFramePane);
+        ui.removeChild(heapPane);
+    }
+    
+    function initButtonBar() {
+        buttonBar = document.createElement("div");
+        ui.appendChild(buttonBar);
+        // Prev Buttons
+        const prevOutButton = document.createElement("button");
+        prevOutButton.textContent = "⇤";
+        prevOutButton.addEventListener("click", () => {
+            const state = $history[$historyCursor];
             // find next state where the stack height is the same or less
             let cursor = $historyCursor - 1;
             while (true) {
                 const prevState = $history[cursor];
                 if (prevState) {
-                    if (prevState.stack.length <= state.stack.length && prevState.line !== state.line) {
+                    if (prevState.stack.length < state.stack.length) {
                         $historyCursor = cursor;
                         syncAll();
                         break;
@@ -97,42 +147,102 @@ function createDebugUI() {
                 }
                 cursor--;
             }
-        } else {
+        });
+        buttonBar.appendChild(prevOutButton);
+        
+        const prevIntoButton = document.createElement("button");
+        prevIntoButton.textContent = "↖";
+        prevIntoButton.addEventListener("click", () => {
             if ($historyCursor - 1 >= 0) {
                 $historyCursor = $historyCursor - 1;
                 syncAll();
             }
-        }
-    });
-    ui.appendChild(prevOverButton);
-    ui.appendChild(document.createTextNode(" "));
+        });
+        buttonBar.appendChild(prevIntoButton);
+        
+        const prevOverButton = document.createElement("button");
+        prevOverButton.textContent = "←";
+        prevOverButton.addEventListener("click", () => {
+            const state = $history[$historyCursor];
+            const prevState = $history[$historyCursor - 1];
+            if (prevState && prevState.stack.length > state.stack.length) {
+                // find next state where the stack height is the same or less
+                let cursor = $historyCursor - 1;
+                while (true) {
+                    const prevState = $history[cursor];
+                    if (prevState) {
+                        if (prevState.stack.length <= state.stack.length && prevState.line !== state.line) {
+                            $historyCursor = cursor;
+                            syncAll();
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                    cursor--;
+                }
+            } else {
+                if ($historyCursor - 1 >= 0) {
+                    $historyCursor = $historyCursor - 1;
+                    syncAll();
+                }
+            }
+        });
+        buttonBar.appendChild(prevOverButton);
+        buttonBar.appendChild(document.createTextNode(" "));
 
-    // Progress label
-    const progress = document.createElement("label");
-    progress.style.fontFamily = "Helvetica, sans-serif";
-    syncProgress();
-    function syncProgress() {
-        const total = $history.length;
-        const current = $historyCursor + 1;
-        const labelText = `Step ${current} of ${total}`;
-        progress.textContent = labelText;
-    }
-    ui.appendChild(progress);
-    ui.appendChild(document.createTextNode(" "));
 
-    // Next Buttons
-    const nextOverButton = document.createElement("button");
-    nextOverButton.textContent = "→";
-    nextOverButton.addEventListener("click", () => {
-        const state = $history[$historyCursor];
-        const nextState = $history[$historyCursor + 1];
-        if (nextState && nextState.stack.length > state.stack.length) {
+        // Next Buttons
+        const nextOverButton = document.createElement("button");
+        nextOverButton.textContent = "→";
+        nextOverButton.addEventListener("click", () => {
+            const state = $history[$historyCursor];
+            const nextState = $history[$historyCursor + 1];
+            if (nextState && nextState.stack.length > state.stack.length) {
+                // find next state where the stack height is the same or less
+                let cursor = $historyCursor + 1;
+                while (true) {
+                    const nextState = $history[cursor];
+                    if (nextState) {
+                        if (nextState.stack.length <= state.stack.length && nextState.line !== state.line) {
+                            $historyCursor = cursor;
+                            syncAll();
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                    cursor++;
+                }
+            } else {
+                if ($historyCursor + 1 < $history.length) {
+                    $historyCursor = $historyCursor + 1;
+                    syncAll();
+                }
+            }
+        });
+        buttonBar.appendChild(nextOverButton);
+        
+        const nextIntoButton = document.createElement("button");
+        nextIntoButton.textContent = "↘";
+        nextIntoButton.addEventListener("click", () => {
+            if ($historyCursor + 1 < $history.length) {
+                $historyCursor = $historyCursor + 1;
+                syncAll();
+            }
+        });
+        buttonBar.appendChild(nextIntoButton);
+        
+        const nextOutButton = document.createElement("button");
+        nextOutButton.textContent = "⇥";
+        nextOutButton.addEventListener("click", () => {
+            const state = $history[$historyCursor];
             // find next state where the stack height is the same or less
             let cursor = $historyCursor + 1;
             while (true) {
                 const nextState = $history[cursor];
                 if (nextState) {
-                    if (nextState.stack.length <= state.stack.length && nextState.line !== state.line) {
+                    if (nextState.stack.length < state.stack.length) {
                         $historyCursor = cursor;
                         syncAll();
                         break;
@@ -142,91 +252,74 @@ function createDebugUI() {
                 }
                 cursor++;
             }
-        } else {
-            if ($historyCursor + 1 < $history.length) {
-                $historyCursor = $historyCursor + 1;
-                syncAll();
-            }
-        }
-    });
-    ui.appendChild(nextOverButton);
+        });
+        buttonBar.appendChild(nextOutButton);
+        
+        // Progress label
+        buttonBar.appendChild(document.createTextNode(" "));
+        progress = document.createElement("label");
+        progress.style.fontFamily = "Helvetica, sans-serif";
+        syncProgress();
+        
+        buttonBar.appendChild(progress);
+        buttonBar.appendChild(document.createTextNode(" "));
+    }
     
-    const nextIntoButton = document.createElement("button");
-    nextIntoButton.textContent = "↘";
-    nextIntoButton.addEventListener("click", () => {
-        if ($historyCursor + 1 < $history.length) {
-            $historyCursor = $historyCursor + 1;
+    function syncProgress() {
+        const total = $history.length;
+        const current = $historyCursor + 1;
+        const labelText = `Step ${current} of ${total}`;
+        progress.textContent = labelText;
+    }
+    
+    function initTimeSlider() {
+        timeSlider = document.createElement("input");
+        timeSlider.style.width = "100%";
+        timeSlider.type = "range";
+        timeSlider.min = 1;
+        
+        syncTimeSlider();
+        
+        timeSlider.addEventListener("change", (e) => {
+            $historyCursor = timeSlider.value - 1;
             syncAll();
+        });
+        
+        ui.appendChild(timeSlider);
+    }
+    
+    function maybeDisplayErrorMessage() {
+        // Error Message
+        if ($errorMessage) {
+            const errorLabel = document.createElement("div");
+            errorLabel.className = "error-message";
+            errorLabel.textContent = $errorMessage;
+            ui.appendChild(errorLabel);
         }
-    });
-    ui.appendChild(nextIntoButton);
+    }
     
-    const nextOutButton = document.createElement("button");
-    nextOutButton.textContent = "⇥";
-    nextOutButton.addEventListener("click", () => {
-        const state = $history[$historyCursor];
-        // find next state where the stack height is the same or less
-        let cursor = $historyCursor + 1;
-        while (true) {
-            const nextState = $history[cursor];
-            if (nextState) {
-                if (nextState.stack.length < state.stack.length) {
-                    $historyCursor = cursor;
-                    syncAll();
-                    break;
-                }
-            } else {
-                break;
-            }
-            cursor++;
+    function syncTimeSlider() {
+        if (timeSlider.max !== $history.length) {
+            timeSlider.max = $history.length;
         }
-    });
-    ui.appendChild(nextOutButton);
-    
-    ui.appendChild(document.createElement("br"));
-    
-    
-
-    // Slider "Range" Element
-    const range = document.createElement("input");
-    range.style.width = "100%";
-    range.type = "range";
-    range.min = 1;
-    syncRange();
-    range.addEventListener("change", (e) => {
-        $historyCursor = range.value - 1;
-        syncAll();
-    });
-    function syncRange() {
-        range.max = $history.length;
+        timeSlider.value = $historyCursor + 1;
     }
-    function syncRangeValue() {
-        range.value = $historyCursor + 1;
-    }
-    ui.appendChild(range);
     
-    // Error Message
-    if ($errorMessage) {
-        const errorLabel = document.createElement("div");
-        errorLabel.className = "error-message";
-        errorLabel.textContent = $errorMessage;
-        ui.appendChild(errorLabel);
+    function initCodePane() {
+        codePane = document.createElement("pre");
+        codePane.style.margin = "5px 0px 0px 0px";
+        codePane.style.position = "relative";
+        codePane.style.height = "30%";
+        codePane.style.overflow = "auto";
+        codePane.style.padding = "1em 0px";
+        codePane.style.backgroundColor = "#444";
+        codePane.style.color = "#ffffff";
+        codePane.style.fontFamily = "Inconsolata, Monaco, monospace";
+        
+        initCodeDisplay();
+        ui.appendChild(codePane);
+        setTimeout(syncCodeDisplay, 0);
     }
-
-    // The 3-pane state display which includes the code pane, the
-    // stack frame pane, and the heap pane
-    const stateDisplay = document.createElement("div");
-    stateDisplay.style.marginTop = "5px";
-    stateDisplay.style.height = "90%";
-    const codePane = document.createElement("pre");
-    codePane.style.position = "relative";
-    codePane.style.height = "30%";
-    codePane.style.overflow = "auto";
-    codePane.style.padding = "1em 0px";
-    codePane.style.backgroundColor = "#444";
-    codePane.style.margin = "0px";
-    codePane.style.color = "#ffffff";
-    codePane.style.fontFamily = "Inconsolata, Monaco, monospace";
 
     function initCodeDisplay() {
         const lines = $code.split("\n");
@@ -254,16 +347,18 @@ function createDebugUI() {
             codePane.scrollTop = top - parentHeight / 2 + height / 2;
         }
     }
-    initCodeDisplay();
-    stateDisplay.appendChild(codePane);
-    setTimeout(syncCodeDisplay, 0);
     
-    const stackFramePane = document.createElement("div");
-    stackFramePane.style.overflow = "auto";
-    stackFramePane.style.height = "30%";
-    stackFramePane.style.borderTop = "1px solid #eee";
-    stackFramePane.style.backgroundColor = "#d1ebeb";
-    stackFramePane.style.fontFamily = "Inconsolata, Monaco, monospace";
+    function initStackFramePane() {
+        stackFramePane = document.createElement("div");
+        stackFramePane.style.overflow = "auto";
+        stackFramePane.style.height = "30%";
+        stackFramePane.style.borderTop = "1px solid #eee";
+        stackFramePane.style.backgroundColor = "#d1ebeb";
+        stackFramePane.style.fontFamily = "Inconsolata, Monaco, monospace";
+        
+        ui.appendChild(stackFramePane);
+    }
+    
     function syncStackFrameDisplay() {
         const state = $history[$historyCursor];
         const html = state.stack.slice().reverse().map((frame) => {
@@ -296,17 +391,18 @@ function createDebugUI() {
     function escapeVarName(varName) {
         return varName.replace(/>/g, "&gt;").replace(/</g, "&lt;");
     }
-
-    stateDisplay.appendChild(stackFramePane);
-    const heapPane = document.createElement("div");
-    heapPane.style.height = "30%";
-    heapPane.style.padding = "1em";
-    heapPane.style.overflow = "auto";
-    heapPane.style.backgroundColor = "#fdffe5";
-    heapPane.style.display = "flex";
-    heapPane.style.flexWrap = "wrap";
-    heapPane.style.fontFamily = "Inconsolata, Monaco, monospace";
-    stateDisplay.appendChild(heapPane);
+    
+    function initHeapPane() {
+        heapPane = document.createElement("div");
+        heapPane.style.height = "30%";
+        heapPane.style.padding = "1em";
+        heapPane.style.overflow = "auto";
+        heapPane.style.backgroundColor = "#fdffe5";
+        heapPane.style.display = "flex";
+        heapPane.style.flexWrap = "wrap";
+        heapPane.style.fontFamily = "Inconsolata, Monaco, monospace";
+        ui.appendChild(heapPane);
+    }
 
     function syncHeapDisplay() {
         const state = $history[$historyCursor];
@@ -399,11 +495,6 @@ function createDebugUI() {
         return `<div class="heap-object"><label><span class="heap-id">${id}</span>: <label>${table}</div>`;
     }
 
-    ui.appendChild(stateDisplay);
-
-    syncAll();
-    document.documentElement.appendChild(ui);
-
     function syncProgramState() {
         let state = $history[$historyCursor];
         $stack = state.stack;
@@ -445,7 +536,7 @@ function createDebugUI() {
     }
 
     function syncAll() {
-        syncRangeValue();
+        syncTimeSlider();
         syncProgramState();
         syncStackFrameDisplay();
         syncCodeDisplay();
@@ -468,5 +559,4 @@ function createDebugUI() {
     function quote(str) {
         return '"' + str.replace(/\"/g, '\\"') + '"';
     }
-
 }

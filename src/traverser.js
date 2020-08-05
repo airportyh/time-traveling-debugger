@@ -105,6 +105,8 @@ function traverse(node, visit) {
             break;
         case "break":
             break;
+        case "null":
+            break;
         default:
             throw new Error("Unhandled node type: " + node.type);
     }
