@@ -743,6 +743,31 @@ function fillRect(x, y, width, height) {
 }
 fillRect = $interop(fillRect);
 
+function fillCircle(x, y, radius) {
+    $canvasContext.beginPath();
+    $canvasContext.arc(x, y, radius, 0, 2 * Math.PI);
+    $canvasContext.fill();
+}
+fillCircle = $interop(fillCircle);
+
+function drawLine(x1, y1, x2, y2) {
+    $canvasContext.beginPath();
+    $canvasContext.moveTo(x1, y1);
+    $canvasContext.lineTo(x2, y2);
+    $canvasContext.stroke(); 
+}
+drawLine = $interop(drawLine);
+
+function setLineWidth(width) {
+    $canvasContext.lineWidth = width;
+}
+setLineWidth = $interop(setLineWidth);
+
+function setLineColor(color) {
+    $canvasContext.strokeStyle = color;
+}
+setLineColor = $interop(setLineColor);
+
 function clear() {
     $canvasContext.clearRect(0, 0, $canvas.width, $canvas.height);
 }
