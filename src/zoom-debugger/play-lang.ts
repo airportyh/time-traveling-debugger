@@ -5,6 +5,7 @@ export type StackFrame = {
 };
 
 export type HistoryEntry = {
+    idx: number,
     line: number,
     stack: StackFrame[],
     heap: { [id: number]: any }

@@ -91,17 +91,20 @@ def humanMove(board, currentPlayer) [
 ]
 
 def naiveComputer(board, currentPlayer) [
+    # choose a random open square
+
+    openSquares = []
     for square in board [
-        sx = square["x"]
-        sy = square["y"]
-        state = square["state"]
-        # Use the first available square
-        if state == "" [
-            square["state"] = currentPlayer
-            drawText(currentPlayer, sx + 5, sy)
-            break
+        if square["state"] == "" [
+            push(openSquares, square)
         ]
     ]
+    idx = floor(random() * length(openSquares))
+    square = openSquares[idx]
+    sx = square["x"]
+    sy = square["y"]
+    square["state"] = currentPlayer
+    drawText(currentPlayer, sx + 5, sy)
 ]
 
 def notDumbComputer(board, me) [

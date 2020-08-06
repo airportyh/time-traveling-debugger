@@ -4,7 +4,7 @@ const path = require("path");
 module.exports = {
   mode: "development",
   devtool: "source-map",
-  entry: "./src/zoom-debugger/index.ts",
+  entry: "./src/zoom-debugger/zoom-debugger.ts",
   output: {
       library: 'ZoomDebugger',
       libraryTarget: 'umd',

@@ -7,6 +7,13 @@ export type BoundingBox = {
 };
 
 export type ZoomRenderable = {
-    render(ctx: CanvasRenderingContext2D, boundingBox: BoundingBox, viewport: BoundingBox): 
-        Map<BoundingBox, ZoomRenderable>;
+    id(): string;
+    
+    render(
+        ctx: CanvasRenderingContext2D, 
+        boundingBox: BoundingBox, 
+        viewport: BoundingBox,
+        mouseX: number,
+        mouseY: number
+    ): Map<BoundingBox, ZoomRenderable>;
 };

@@ -287,7 +287,7 @@ function reduce(fn, initValue, thing) {
     }
 }
 
-function count(thing) {
+function length(thing) {
     return $heapAccess(thing).length;
 }
 
@@ -794,4 +794,8 @@ async function waitForEvent(eventName) {
         };
         $canvas.addEventListener(eventName, callback);
     });
+}
+
+function random() {
+    return Math.random();
 }

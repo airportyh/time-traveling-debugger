@@ -12,9 +12,12 @@ type Scope = {
 export function initZoomDebugger(element: HTMLElement, code: string, history: HistoryEntry[]) {
     const canvasWidth = element.offsetWidth * 2;
     const canvasHeight = element.offsetHeight * 2;
+    const hoveredMap: Map<string, boolean> = new Map();
     if (canvasWidth === 0 || canvasHeight === 0) {
         throw new Error(`Container element has 0 dimension.`);
     }
+    let mouseX: number;
+    let mouseY: number;
     let dragging = false;
     let dragStartX: number;
     let dragStartY: number;
@@ -25,7 +28,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     canvas.style.backgroundColor = "white";
     canvas.style.border = "1px solid black";
     canvas.style.transform = `scale(0.5) translate(-${canvas.width / 2}px, -${canvas.height / 2}px)`;
-
+    canvas.style.cursor = "crosshair";
     let viewport = {
         top: - canvas.height / 2,
         left: - canvas.width / 2,
@@ -45,7 +48,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
             width: canvas.width,
             height: canvas.height
         },
-        renderable: new CodeScopeRenderer(history, "main()", ast, code, textMeasurer)
+        renderable: new CodeScopeRenderer(history, ast, "main()", ast, code, textMeasurer)
     };
     
     let currentScopeChain: Scope[] = [mainScope];
@@ -55,7 +58,8 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     
     element.addEventListener("mousedown", (e: MouseEvent) => {
         dragging = true;
-        [dragStartX, dragStartY] = pointScreenToCanvas(e);
+        dragStartX = e.offsetX;
+        dragStartY = e.offsetY;
     });
 
     element.addEventListener("mouseup", () => {
@@ -63,8 +67,11 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     });
 
     element.addEventListener("mousemove", (e: MouseEvent) => {
+        mouseX = e.offsetX;
+        mouseY = e.offsetY; 
         if (dragging) {
-            const [pointerX, pointerY] = pointScreenToCanvas(e);
+            const pointerX = e.offsetX;
+            const pointerY = e.offsetY;
             const [worldPointerX, worldPointerY] = pointCanvasToWorld(pointerX, pointerY);
             const [worldDragStartX, worldDragStartY] = pointCanvasToWorld(dragStartX, dragStartY);
             viewport.left -= worldPointerX - worldDragStartX;
@@ -73,12 +80,14 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
             dragStartY = pointerY;
             requestRender();
         }
+        requestRender();
     });
     
     element.addEventListener("wheel", function (e: any) {
         e.preventDefault();
         const delta = e.deltaY;
-        const [pointerX, pointerY] = pointScreenToCanvas(e);
+        const pointerX = e.offsetX;
+        const pointerY = e.offsetY;
         const newZoom = Math.max(0.5, viewport.zoom * (1 - delta * 0.01));
 
         const [worldPointerX, worldPointerY] = pointCanvasToWorld(pointerX, pointerY);
@@ -98,26 +107,64 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
         requestAnimationFrame(render);
     }
     
-    function entirelyContainsViewport(bbox) {
+    function entirelyContainsViewport(bbox: BoundingBox) {
         return bbox.x <= 0 && bbox.y <= 0 &&
             (bbox.x + bbox.width > canvasWidth) && 
             (bbox.y + bbox.height > canvasHeight);
     }
     
+    function bboxContains(bbox: BoundingBox, x: number, y: number) {
+        return x >= bbox.x && y >= bbox.y && x <= bbox.x + bbox.width && y <= bbox.y + bbox.height;
+    }
+    
     function renderZoomRenderable(renderable: ZoomRenderable, bbox: BoundingBox, ancestry: Scope[]): Scope[] | null {
         const viewportBBox = { x: 0, y: 0, width: canvas.width, height: canvas.height };
-        const childRenderables = renderable.render(ctx, bbox, viewportBBox);
+        const childRenderables = renderable.render(ctx, bbox, viewportBBox, mouseX, mouseY);
         let childEnclosingRenderable: Scope[] | null = null;
         const myScope = {
             bbox: boxCanvasToWorld(bbox),
             renderable
         };
+        let hoveredElement: ZoomRenderable;
+        let hoveredElementBBox: BoundingBox;
         for (let [childBBox, renderable] of childRenderables.entries()) {
-            const result = renderZoomRenderable(renderable, childBBox, [myScope, ...ancestry]);
+            const childArea = childBBox.width * childBBox.height;
+            const childAreaRatio = childArea / (viewportBBox.width * viewportBBox.height);
+            if (hoveredMap.get(renderable.id())) {
+                const hoveredBBox = getBBoxForHovered(childBBox);
+                if (bboxContains(hoveredBBox, mouseX, mouseY)) {
+                    hoveredElement = renderable;
+                    hoveredElementBBox = hoveredBBox;
+                } else {
+                    hoveredMap.delete(renderable.id());
+                    console.log(`deleting ${renderable.id()}`);
+                    printHoverMap(hoveredMap);
+                    const result = renderZoomRenderable(renderable, childBBox, [myScope, ...ancestry]);
+                    if (result) {
+                        childEnclosingRenderable = result;
+                    }
+                }
+            } else if (bboxContains(childBBox, mouseX, mouseY)) {
+                hoveredMap.set(renderable.id(), true);
+                console.log(`adding ${renderable.id()}`);
+                printHoverMap(hoveredMap);
+                hoveredElement = renderable;
+                hoveredElementBBox = getBBoxForHovered(childBBox);
+            } else {
+                const result = renderZoomRenderable(renderable, childBBox, [myScope, ...ancestry]);
+                if (result) {
+                    childEnclosingRenderable = result;
+                }
+            }
+        }
+        
+        if (hoveredElement) {
+            const result = renderZoomRenderable(hoveredElement, hoveredElementBBox, [myScope, ...ancestry]);
             if (result) {
                 childEnclosingRenderable = result;
             }
         }
+        
         if (childEnclosingRenderable) {
             return childEnclosingRenderable;
         } else {
@@ -127,6 +174,25 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
                 return null;
             }
         }
+    }
+    
+    function printHoverMap(map: Map<string, boolean>) {
+        console.log("Hover map:");
+        for (let entry of map.entries()) {
+            console.log(`    ${entry[0]} - ${entry[1]}`);
+        }
+    }
+    
+    function getBBoxForHovered(bbox: BoundingBox): BoundingBox {
+        const width = bbox.width * 2;
+        const height = bbox.height * 2;
+        const biggerBBox = {
+            x: bbox.x - (width - bbox.width) / 2,
+            y: bbox.y - (height - bbox.height) / 2,
+            width: width,
+            height: height
+        };
+        return biggerBBox;
     }
     
     function render() {
@@ -143,13 +209,6 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
                 currentScopeChain = [mainScope];
             }
         }
-    }
-    
-    function pointScreenToCanvas(e: MouseEvent): [number, number] {
-        return [
-            e.offsetX,
-            e.offsetY
-        ];
     }
     
     function pointCanvasToWorld(x: number, y: number): [number, number] {

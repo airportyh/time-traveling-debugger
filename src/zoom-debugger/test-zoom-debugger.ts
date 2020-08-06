@@ -1,6 +1,6 @@
 import * as jsonr from "@airportyh/jsonr";
 import { HistoryEntry } from "./play-lang";
-import { initZoomDebugger } from "./index";
+import { initZoomDebugger } from "./zoom-debugger";
 
 main().catch(err => console.log(err.stack));
 

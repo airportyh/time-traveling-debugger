@@ -58,6 +58,7 @@ function hasHeapValueChanged(id: number, heapOne: any, heapTwo) {
 }
 
 function getValueDisplay(
+    entryIdx: number,
     value: any, 
     childMap: Map<Box, ZoomRenderable>, 
     heap: any,
@@ -72,7 +73,7 @@ function getValueDisplay(
             }
         };
         
-        childMap.set(textBox, new HeapObjectRenderer(value, textMeasurer, heap));
+        childMap.set(textBox, new HeapObjectRenderer(entryIdx, value, textMeasurer, heap));
         return textBox;
     }
     return {
@@ -90,24 +91,33 @@ function getValueDisplayLength(value: any): number {
 }
 
 export class CodeScopeRenderer implements ZoomRenderable {
+    entryIdx: number;
     entries: HistoryEntry[];
     ast: any;
+    callExpr: any;
     callExprCode: string;
     code: string;
     textMeasurer: TextMeasurer;
     
-    constructor(entries: HistoryEntry[], callExprCode: string, ast: any, code: string, textMeasurer: TextMeasurer) {
+    constructor(entries: HistoryEntry[], callExpr: any, callExprCode: string, ast: any, code: string, textMeasurer: TextMeasurer) {
         this.entries = entries;
+        this.callExpr = callExpr;
         this.callExprCode = callExprCode;
         this.ast = ast;
         this.code = code;
         this.textMeasurer = textMeasurer;
     }
     
+    id(): string {
+        return `scope[${this.entries[0].idx},${this.callExpr.start.offset},${this.callExpr.end.offset}]`;
+    }
+    
     render(
         ctx: CanvasRenderingContext2D,
         bbox: BoundingBox,
-        viewport: BoundingBox
+        viewport: BoundingBox,
+        mouseX: number,
+        mouseY: number
     ): Map<BoundingBox, ZoomRenderable> {
         // TODO: move this logic to container
         if (bbox.x + bbox.width < viewport.x ||
@@ -148,6 +158,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 codeBox, bbox, viewport, CODE_FONT_FAMILY, 
                 "normal", true, this.textMeasurer, CODE_LINE_HEIGHT, ctx);
     
+            // generate map from bounding box to child zoom-renderable
             let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
             for (let [box, renderable] of childMap) {
                 const childBBox = bboxMap.get(box);
@@ -348,7 +359,8 @@ export class CodeScopeRenderer implements ZoomRenderable {
             childMap.set(
                 callExprTextBox, 
                 new CodeScopeRenderer(
-                    subEntryGroup.entries, 
+                    subEntryGroup.entries,
+                    callExprNode,
                     callExprCode,
                     this.ast,
                     this.code,
@@ -376,7 +388,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             if (nextEntry) {
                 const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
                 let varValue = nextStackFrame.variables[varName];
-                const varValueDisplay = this.getVarValueDisplay(varValue, childMap, nextEntry.heap);
+                const varValueDisplay = this.getVarValueDisplay(entry.idx, varValue, childMap, nextEntry.heap);
                 const prefix = `${varName} = `;
                 const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
                     if (idx === 0) {
@@ -419,7 +431,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                         (isHeapRef(value) && (
                         (value.id !== nextValue.id) || headValueChanged))) {
                         //console.log(varName, "heap value changed on line", entry.line);
-                        const varValueDisplay = this.getVarValueDisplay(value, childMap, nextEntry.heap);
+                        const varValueDisplay = this.getVarValueDisplay(entry.idx, value, childMap, nextEntry.heap);
                         //console.log("adding valueDisplayStrings", valueDisplayStrings);
                         const taggedVarValueDisplay: Box[][] = varValueDisplay.map((line, idx) => {
                             if (idx === 0) {
@@ -490,10 +502,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
         for (let param of funNode.parameters) {
             const paramName = param.value;
             let value = stackFrame.variables[paramName];
-            if (isHeapRef(value)) {
-                value = heap[value.id];
-            }
-            const rows = this.getVarValueDisplay(value, childMap, heap);
+            const rows = this.getVarValueDisplay(this.entries[0].idx, value, childMap, heap);
             funSigBox.children.push({
                 type: "text",
                 text: `  ${paramName} = `,
@@ -513,14 +522,14 @@ export class CodeScopeRenderer implements ZoomRenderable {
         return funSigBox;
     }
     
-    getVarValueDisplay(value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
+    getVarValueDisplay(entryIdx: number, value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
         if (isHeapRef(value)) {
             const object = heap[value.id];
             if (Array.isArray(object)) {
                 const row: Box[] = [];
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
-                    const itemBox = getValueDisplay(item, childMap, heap, this.textMeasurer);
+                    const itemBox = getValueDisplay(entryIdx, item, childMap, heap, this.textMeasurer);
                     itemBox.text = " " + itemBox.text + " ";
                     row.push(itemBox);
                 }
@@ -537,7 +546,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                         color: VARIABLE_DISPLAY_COLOR,
                         border: { color: VARIABLE_DISPLAY_COLOR }
                     };
-                    const propValueBox = getValueDisplay(propValue, childMap, heap, this.textMeasurer);
+                    const propValueBox = getValueDisplay(entryIdx, propValue, childMap, heap, this.textMeasurer);
                     propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
                     propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
                     table.push([propTextBox, propValueBox]);
@@ -545,9 +554,9 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 return table;
             }
         }
-        return [[getValueDisplay(value, childMap, heap, this.textMeasurer)]];
+        return [[getValueDisplay(entryIdx, value, childMap, heap, this.textMeasurer)]];
     }
-
+    /*
     getVarValueDisplay_(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
         if (isHeapRef(varValue)) {
             varValue = heap[varValue.id];
@@ -638,6 +647,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             ]]
         }
     }
+    */
 
     toString() {
         return this.callExprCode;
@@ -666,6 +676,9 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
                 state = "collecting";
                 callExprs = findNodesOfTypeOnLine(funNode, "call_expression", currentParentEntry.line)
                     .filter(expr => userDefinedFunctionNames.includes(expr.fun_name.value));
+                if (callExprs.length === 0) {
+                    debugger;
+                }
                 callExprsIdx = 0;
                 subEntryGroups = [];
                 currentChildLevelEntries = [entry];
@@ -679,6 +692,9 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
             } else {
                 // we are back
                 const callExpr = callExprs[callExprsIdx];
+                if (!callExpr) {
+                    debugger;
+                }
                 const newGroup = {
                     callExpr,
                     entries: currentChildLevelEntries
@@ -726,13 +742,24 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
 }
 
 class HeapObjectRenderer implements ZoomRenderable {
-    constructor(private value: any, private textMeasurer: TextMeasurer, private heap: any) {
+    constructor(
+        public entryIdx: number,
+        public value: HeapRef, 
+        public textMeasurer: TextMeasurer, 
+        public heap: any) {
+    }
+    
+    id(): string {
+        return `heapObject[${this.entryIdx},${this.value.id}]`;
     }
     
     render(
         ctx: CanvasRenderingContext2D,
         bbox: BoundingBox,
-        viewport: BoundingBox): Map<BoundingBox, ZoomRenderable> {
+        viewport: BoundingBox,
+        mouseX: number,
+        mouseY: number
+    ): Map<BoundingBox, ZoomRenderable> {
         const childMap: Map<Box, ZoomRenderable> = new Map();
         const myArea = bbox.width * bbox.height;
         const myAreaRatio = myArea / (viewport.width * viewport.height);
@@ -748,7 +775,7 @@ class HeapObjectRenderer implements ZoomRenderable {
                 };
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
-                    const itemBox = getValueDisplay(item, childMap, this.heap, this.textMeasurer);
+                    const itemBox = getValueDisplay(this.entryIdx, item, childMap, this.heap, this.textMeasurer);
                     itemBox.text = " " + itemBox.text + " ";
                     box.children.push(itemBox);
                 }
@@ -768,7 +795,7 @@ class HeapObjectRenderer implements ZoomRenderable {
                         color: VARIABLE_DISPLAY_COLOR,
                         border: { color: VARIABLE_DISPLAY_COLOR }
                     };
-                    const propValueBox = getValueDisplay(propValue, childMap, this.heap, this.textMeasurer);
+                    const propValueBox = getValueDisplay(this.entryIdx, propValue, childMap, this.heap, this.textMeasurer);
                     propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
                     propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
                     const row: Box = {
