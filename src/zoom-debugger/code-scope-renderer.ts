@@ -109,7 +109,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
     }
     
     id(): string {
-        return `scope[${this.entries[0].idx},${this.callExpr.start.offset},${this.callExpr.end.offset}]`;
+        return `scope[${this.entries[0].idx},${this.callExpr.start && this.callExpr.start.offset},${this.callExpr.end && this.callExpr.end.offset}]`;
     }
     
     render(
@@ -221,7 +221,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             
             this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
             this.renderUpdatedHeapObjects(entry, nextEntry, childMap, valueDisplayStrings);
-            this.renderReturnValues(funNode, entry, nextEntry, valueDisplayStrings);
+            this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             
             /*
             
@@ -461,24 +461,41 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }    
     }
     
-    renderReturnValues(funNode: any, entry: HistoryEntry, nextEntry: HistoryEntry, valueDisplayStrings: TextBox[][]) {
+    renderReturnValues(
+        funNode: any, 
+        entry: HistoryEntry, 
+        nextEntry: HistoryEntry, 
+        childMap: Map<Box, ZoomRenderable>,
+        valueDisplayStrings: Box[][]
+    ) {
         // Display variable values for return statements
         const returnStatement = findNodesOfTypeOnLine(funNode, "return_statement", entry.line)[0];
         if (returnStatement) {
             const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
-            const varValue = String(nextStackFrame.variables["<ret val>"]);
-            valueDisplayStrings.push([
-                {
-                    type: "text",
-                    text: `<ret val> = `,
-                    color: VARIABLE_DISPLAY_COLOR
-                },
-                {
-                    type: "text",
-                    text: varValue,
-                    color: VARIABLE_DISPLAY_COLOR
+            const varValue = nextStackFrame.variables["<ret val>"];
+            const valueDisplay = this.getVarValueDisplay(entry.idx, varValue, childMap, nextEntry.heap);
+            const tagged: Box[][] = valueDisplay.map((line, idx) => {
+                if (idx === 0) {
+                    return [
+                        {
+                            type: "text",
+                            text: `<ret val> = `,
+                            color: VARIABLE_DISPLAY_COLOR
+                        },
+                        ...line
+                    ];
+                } else {
+                    return [
+                        {
+                            type: "text",
+                            text: Array(`<ret val> = `.length + 1).join(" "),
+                            color: VARIABLE_DISPLAY_COLOR
+                        } as TextBox,
+                        ...line
+                    ]
                 }
-            ]);
+            });
+            valueDisplayStrings.push(...tagged);
         }
     }
 
@@ -676,9 +693,6 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
                 state = "collecting";
                 callExprs = findNodesOfTypeOnLine(funNode, "call_expression", currentParentEntry.line)
                     .filter(expr => userDefinedFunctionNames.includes(expr.fun_name.value));
-                if (callExprs.length === 0) {
-                    debugger;
-                }
                 callExprsIdx = 0;
                 subEntryGroups = [];
                 currentChildLevelEntries = [entry];
@@ -692,9 +706,6 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
             } else {
                 // we are back
                 const callExpr = callExprs[callExprsIdx];
-                if (!callExpr) {
-                    debugger;
-                }
                 const newGroup = {
                     callExpr,
                     entries: currentChildLevelEntries

@@ -9,10 +9,14 @@ type Scope = {
     renderable: ZoomRenderable
 };
 
+type HoverStateEntry = {
+    renderableId: string,
+    bbox: BoundingBox
+};
+
 export function initZoomDebugger(element: HTMLElement, code: string, history: HistoryEntry[]) {
     const canvasWidth = element.offsetWidth * 2;
     const canvasHeight = element.offsetHeight * 2;
-    const hoveredMap: Map<string, boolean> = new Map();
     if (canvasWidth === 0 || canvasHeight === 0) {
         throw new Error(`Container element has 0 dimension.`);
     }
@@ -21,6 +25,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     let dragging = false;
     let dragStartX: number;
     let dragStartY: number;
+    let rootHoverState: HoverStateEntry[] = [];
     const ast = parse(code);
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth;
@@ -117,49 +122,68 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
         return x >= bbox.x && y >= bbox.y && x <= bbox.x + bbox.width && y <= bbox.y + bbox.height;
     }
     
-    function renderZoomRenderable(renderable: ZoomRenderable, bbox: BoundingBox, ancestry: Scope[]): Scope[] | null {
+    function renderZoomRenderable(
+        renderable: ZoomRenderable, 
+        bbox: BoundingBox,
+        hoverState: HoverStateEntry[],
+        ancestry: Scope[]
+    ): Scope[] | null {
         const viewportBBox = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+        // QUESTIONABLE CODE: update bbox
+        for (let hoverEntry of rootHoverState) {
+            if (hoverEntry.renderableId === renderable.id()) {
+                hoverEntry.bbox = bbox;
+            }
+        }
         const childRenderables = renderable.render(ctx, bbox, viewportBBox, mouseX, mouseY);
         let childEnclosingRenderable: Scope[] | null = null;
         const myScope = {
             bbox: boxCanvasToWorld(bbox),
             renderable
         };
-        let hoveredElement: ZoomRenderable;
-        let hoveredElementBBox: BoundingBox;
+        
+        let hoveredChild: ZoomRenderable;
+        let hoveredChildBBox: BoundingBox;
+        let nextHoverState: HoverStateEntry[];
+        
         for (let [childBBox, renderable] of childRenderables.entries()) {
-            const childArea = childBBox.width * childBBox.height;
-            const childAreaRatio = childArea / (viewportBBox.width * viewportBBox.height);
-            if (hoveredMap.get(renderable.id())) {
-                const hoveredBBox = getBBoxForHovered(childBBox);
-                if (bboxContains(hoveredBBox, mouseX, mouseY)) {
-                    hoveredElement = renderable;
-                    hoveredElementBBox = hoveredBBox;
-                } else {
-                    hoveredMap.delete(renderable.id());
-                    console.log(`deleting ${renderable.id()}`);
-                    printHoverMap(hoveredMap);
-                    const result = renderZoomRenderable(renderable, childBBox, [myScope, ...ancestry]);
-                    if (result) {
-                        childEnclosingRenderable = result;
-                    }
+            let debug = renderable.id() === "scope[4,82,92]";
+            if (debug) {
+                console.log("scan child scope[4,82,92]");
+            }
+            if (isHovered(hoverState, renderable)) {
+                if (debug) {
+                    console.log("isHovered", renderable.id());
                 }
-            } else if (bboxContains(childBBox, mouseX, mouseY)) {
-                hoveredMap.set(renderable.id(), true);
-                console.log(`adding ${renderable.id()}`);
-                printHoverMap(hoveredMap);
-                hoveredElement = renderable;
-                hoveredElementBBox = getBBoxForHovered(childBBox);
+                
+                hoveredChild = renderable;
+                hoveredChildBBox = getBBoxForHovered(childBBox);
+                nextHoverState = hoverState.slice(1);
+            } else if (hoverState.length === 0 && bboxContains(childBBox, mouseX, mouseY)) {
+                if (debug) {
+                    console.log(`Adding ${renderable.id()} to hover state`);
+                }
+                hoveredChild = renderable;
+                hoveredChildBBox = getBBoxForHovered(childBBox);
+                const hse = {
+                    renderableId: renderable.id(),
+                    bbox: hoveredChildBBox
+                };
+                nextHoverState = [];
+                rootHoverState.push(hse);
             } else {
-                const result = renderZoomRenderable(renderable, childBBox, [myScope, ...ancestry]);
+                if (debug) {
+                    console.log("else");
+                }
+                const result = renderZoomRenderable(renderable, childBBox, hoverState, [myScope, ...ancestry]);
                 if (result) {
                     childEnclosingRenderable = result;
                 }
             }
         }
         
-        if (hoveredElement) {
-            const result = renderZoomRenderable(hoveredElement, hoveredElementBBox, [myScope, ...ancestry]);
+        if (hoveredChild) {
+            const result = renderZoomRenderable(hoveredChild, hoveredChildBBox, nextHoverState, [myScope, ...ancestry]);
             if (result) {
                 childEnclosingRenderable = result;
             }
@@ -176,11 +200,12 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
         }
     }
     
-    function printHoverMap(map: Map<string, boolean>) {
-        console.log("Hover map:");
-        for (let entry of map.entries()) {
-            console.log(`    ${entry[0]} - ${entry[1]}`);
-        }
+    function isHovered(hoverState: HoverStateEntry[], renderable: ZoomRenderable): boolean {
+        return hoverState.length > 0 && hoverState[0].renderableId === renderable.id();
+    }
+    
+    function isMouseOnHovered(hoverState: HoverStateEntry[], mouseX: number, mouseY: number): boolean {
+        return !!hoverState.find(entry => bboxContains(entry.bbox, mouseX, mouseY));
     }
     
     function getBBoxForHovered(bbox: BoundingBox): BoundingBox {
@@ -199,7 +224,18 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const currentScope = currentScopeChain[0];
         const bBox = boxWorldToCanvas(currentScope.bbox);
-        const enclosingScopeChain = renderZoomRenderable(currentScope.renderable, bBox, currentScopeChain.slice(1));
+        for (let i = rootHoverState.length - 1; i >= 0; i--) {
+            const entry = rootHoverState[i];
+            if (bboxContains(entry.bbox, mouseX, mouseY)) {
+                break;
+            } else {
+                //console.log("pop rootHoverState");
+                rootHoverState.pop();
+            }
+        }
+        let hoverState = rootHoverState;
+        console.log("rootHoverState", rootHoverState, "currentScope", currentScope.renderable.id());
+        const enclosingScopeChain = renderZoomRenderable(currentScope.renderable, bBox, hoverState, currentScopeChain.slice(1));
         if (enclosingScopeChain) {
             currentScopeChain = enclosingScopeChain;
         } else {

@@ -4,13 +4,13 @@ def main() [
     j = { name: name, age: age }
     name = "Bret"
     age = 27
-    b = { name: name, age: age }
+    br = { name: name, age: age }
     name = "Shawn"
     age = 33
     s = { name: name, age: age }
-    players = [j, b, s]
+    players = [j, br, s]
     b = tree(j, null, null)
-    c = tree(b, null, null)
+    c = tree(br, null, null)
     root = tree(s, b, c)
     
 ]

@@ -14,8 +14,8 @@ async function main() {
     element.style.height = "100%";
     document.body.appendChild(element);
     
-    const code = await fetchText("ex/tree.play");
-    const historyText = await fetchText("ex/tree/tree.history");
+    const code = await fetchText("ex/tic-tac-toe.play");
+    const historyText = await fetchText("ex/tic-tac-toe2.history");
     const history: HistoryEntry[] = jsonr.parse(historyText);
     
     initZoomDebugger(element, code, history);
