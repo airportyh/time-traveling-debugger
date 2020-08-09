@@ -14,6 +14,7 @@ let $errorMessage = null;
 let $heapOfLastDomSync = $heap;
 let $canvas;
 let $canvasContext;
+let $canvasXY;
 if ($isBrowser) {
     $initStyles();
     $initCanvas();
@@ -25,8 +26,12 @@ function $initStyles() {
         box-sizing: border-box;
     }
     
-    canvas {
+    #canvas {
         border: 1px solid black;
+    }
+    
+    #canvas-xy {
+        font-family: Helvetica, sans-serif;
     }
     
     .current-line {
@@ -76,6 +81,11 @@ function $initCanvas() {
     if ($canvas) {
         $canvasContext = $canvas.getContext("2d");
         $canvasContext.textBaseline = "top";
+        $canvasXY = document.getElementById("canvas-xy");
+        $canvas.addEventListener("mousemove", (e) => {
+            $canvasXY.textContent = 
+                `x = ${e.offsetX.toFixed(0)}   y = ${e.offsetY.toFixed(0)}`;
+        });
     }
 }
 

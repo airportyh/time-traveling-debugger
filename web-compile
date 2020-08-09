@@ -6,6 +6,8 @@ const mkdirp = require("mkdirp");
 const util = require('util');
 const { parse } = require("./src/parser");
 const { generateCode } = require("./src/generator");
+const { sleep } = require("simple-sleep");
+const chokidar = require('chokidar');
 
 async function main() {
     const filepath = process.argv[2];
@@ -13,38 +15,65 @@ async function main() {
         console.log("Please provide a .play file.");
         return;
     }
+    await compile(filepath, true);
+    watch(filepath);
+}
+
+async function compile(filepath, verbose) {
     const outputDir = filepath.replace(".play", "");
-    await mkdirp(outputDir);
-    console.log(`Created directory ${outputDir}`);
-    await compileFile(filepath, outputDir);
-    await copyFile(
-        path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js`), 
-        path.join(outputDir, "zoom-debugger.js")
-    );
-    await copyFile(
-        path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js.map`), 
-        path.join(outputDir, "zoom-debugger.js.map")
-    );
-    await copyFile(
-        path.join(__dirname, `src`, `web-debugger.js`), 
-        path.join(outputDir, `web-debugger.js`)
-    );
-    await copyFile(
-        path.join(__dirname, `src`, `jsonr.js`), 
-        path.join(outputDir, `jsonr.js`)
-    );
-    await createHtml(filepath, outputDir);
+    try {
+        await mkdirp(outputDir);
+        if (verbose) console.log(`Created directory ${outputDir}`);
+        await compileFile(filepath, outputDir, verbose);
+        await copyFile(
+            path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js`), 
+            path.join(outputDir, "zoom-debugger.js"),
+            verbose
+        );
+        await copyFile(
+            path.join(__dirname, `zoom-debugger-build`, `zoom-debugger.js.map`), 
+            path.join(outputDir, "zoom-debugger.js.map"),
+            verbose
+        );
+        await copyFile(
+            path.join(__dirname, `src`, `web-debugger.js`), 
+            path.join(outputDir, `web-debugger.js`),
+            verbose
+        );
+        await copyFile(
+            path.join(__dirname, `src`, `jsonr.js`), 
+            path.join(outputDir, `jsonr.js`),
+            verbose
+        );
+        await createHtml(filepath, outputDir, verbose);
+    } catch (e) {
+        await createErrorHtml(filepath, outputDir, e, verbose);
+    }
+    if (verbose) {
+        console.log();
+        console.log("Type this to get started:");
+        console.log(`    open ${outputDir}/index.html`);
+    }
+}
+
+function watch(filepath) {
     console.log();
-    console.log("Type this to get started:");
-    console.log(`    open ${outputDir}/index.html`);
+    process.stdout.write("\rWatching......");
+    chokidar.watch(filepath).on("change", async (event) => {
+        process.stdout.write("\rRecompiling...");
+        await compile(filepath, false);
+        process.stdout.write("\rRecompiled!!!!");
+        await sleep(1000);
+        process.stdout.write("\rWatching......");
+    });
 }
 
-async function copyFile(source, destination) {
+async function copyFile(source, destination, verbose) {
     await fs.copyFile(source, destination);
-    console.log(`Wrote ${destination}`);
+    if (verbose) console.log(`Wrote ${destination}`);
 }
 
-async function createHtml(filepath, outputDir) {
+async function createHtml(filepath, outputDir, verbose) {
     const title = path.basename(filepath).replace(".play", "").replace(/-/g, " ");
     const jsFilePath = path.basename(filepath).replace(".play", ".js");
     const htmlFilePath = path.join(outputDir, "index.html");
@@ -56,7 +85,8 @@ async function createHtml(filepath, outputDir) {
     <meta charset="utf-8"/>
 </head>
 <body>
-    <canvas id="canvas" width="500" height="500"></canvas>
+    <canvas id="canvas" width="500" height="500"></canvas><br>
+    <label id="canvas-xy"></label>
     <script src="jsonr.js"></script>
     <script src="web-debugger.js"></script>
     <script src="zoom-debugger.js"></script>
@@ -64,10 +94,30 @@ async function createHtml(filepath, outputDir) {
 </body>
 </html>`;
     await fs.writeFile(htmlFilePath, html);
-    console.log(`Wrote ${htmlFilePath}`);
+    if (verbose) console.log(`Wrote ${htmlFilePath}`);
 }
 
-async function compileFile(filepath, outputDir) {
+async function createErrorHtml(filepath, outputDir, error, verbose) {
+    const title = path.basename(filepath).replace(".play", "").replace(/-/g, " ");
+    const jsFilePath = path.basename(filepath).replace(".play", ".js");
+    const htmlFilePath = path.join(outputDir, "index.html");
+    const html = 
+`<!doctype html>
+<html lang="en">
+<head>
+    <title>${title} Error</title>
+    <meta charset="utf-8"/>
+</head>
+<body>
+<h1>I don't understand:</h1>
+<pre>${error.message}</pre>
+</body>
+</html>`;
+    await fs.writeFile(htmlFilePath, html);
+    if (verbose) console.log(`Wrote ${htmlFilePath}`);
+}
+
+async function compileFile(filepath, outputDir, verbose) {
     const code = (await fs.readFile(filepath)).toString();
     const ast = parse(code);
     const js = generateCode(ast, {
@@ -77,7 +127,7 @@ async function compileFile(filepath, outputDir) {
         outputDir, 
         path.basename(filepath).replace(".play", ".js"));
     await fs.writeFile(jsFile, js);
-    console.log(`Wrote ${jsFile}`);
+    if (verbose) console.log(`Wrote ${jsFile}`);
 }
 
 main().catch(err => console.log(err.stack));
