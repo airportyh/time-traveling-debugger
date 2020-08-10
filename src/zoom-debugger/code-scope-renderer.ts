@@ -106,10 +106,17 @@ export class CodeScopeRenderer implements ZoomRenderable {
         this.ast = ast;
         this.code = code;
         this.textMeasurer = textMeasurer;
+        if (this.id() === "scope[0,5:8,5:18]") {
+            throw new Error("BLARGH");
+        }
     }
     
     id(): string {
-        return `scope[${this.entries[0].idx},${this.callExpr.start && this.callExpr.start.offset},${this.callExpr.end && this.callExpr.end.offset}]`;
+        return `scope[${this.entries[0].idx},${this.callExpr.start && this.callExpr.start.line + ":" + this.callExpr.start.col},${this.callExpr.end && this.callExpr.end.line + ":" + this.callExpr.end.col}]`;
+    }
+    
+    hoverable(): boolean {
+        return false;
     }
     
     render(
@@ -687,7 +694,6 @@ function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedF
     let state = "open";
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
-        entry["idx"] = i;
         if (state === "open") {
             if (entry.stack.length > currentStackHeight) {
                 state = "collecting";
@@ -762,6 +768,10 @@ class HeapObjectRenderer implements ZoomRenderable {
     
     id(): string {
         return `heapObject[${this.entryIdx},${this.value.id}]`;
+    }
+    
+    hoverable(): boolean {
+        return true;
     }
     
     render(

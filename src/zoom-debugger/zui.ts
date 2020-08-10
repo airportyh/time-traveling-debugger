@@ -9,6 +9,8 @@ export type BoundingBox = {
 export type ZoomRenderable = {
     id(): string;
     
+    hoverable(): boolean;
+    
     render(
         ctx: CanvasRenderingContext2D, 
         boundingBox: BoundingBox, 
