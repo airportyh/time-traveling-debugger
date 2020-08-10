@@ -8,6 +8,7 @@ const { parse } = require("./src/parser");
 const { generateCode } = require("./src/generator");
 const { sleep } = require("simple-sleep");
 const chokidar = require('chokidar');
+const exec = util.promisify(require('child_process').exec);
 
 async function main() {
     const filepath = process.argv[2];
@@ -15,12 +16,14 @@ async function main() {
         console.log("Please provide a .play file.");
         return;
     }
-    await compile(filepath, true);
-    watch(filepath);
+    const outputDir = filepath.replace(".play", "");
+    await compile(filepath, outputDir, true);
+    await exec(`open ${outputDir}/index.html`);
+    watch(filepath, outputDir);
 }
 
-async function compile(filepath, verbose) {
-    const outputDir = filepath.replace(".play", "");
+async function compile(filepath, outputDir, verbose) {
+    
     try {
         await mkdirp(outputDir);
         if (verbose) console.log(`Created directory ${outputDir}`);
@@ -49,19 +52,14 @@ async function compile(filepath, verbose) {
     } catch (e) {
         await createErrorHtml(filepath, outputDir, e, verbose);
     }
-    if (verbose) {
-        console.log();
-        console.log("Type this to get started:");
-        console.log(`    open ${outputDir}/index.html`);
-    }
 }
 
-function watch(filepath) {
+function watch(filepath, outputDir) {
     console.log();
     process.stdout.write("\rWatching......");
     chokidar.watch(filepath).on("change", async (event) => {
         process.stdout.write("\rRecompiling...");
-        await compile(filepath, false);
+        await compile(filepath, outputDir, false);
         process.stdout.write("\rRecompiled!!!!");
         await sleep(1000);
         process.stdout.write("\rWatching......");
@@ -98,24 +96,62 @@ async function createHtml(filepath, outputDir, verbose) {
 }
 
 async function createErrorHtml(filepath, outputDir, error, verbose) {
-    const title = path.basename(filepath).replace(".play", "").replace(/-/g, " ");
+    let body = error.message;
+    let title = "I am confused";
+    if (error.token) {
+        title = "I don't understand your code :(";
+        body = await htmlBodyForSyntaxError(filepath, error);
+    }
     const jsFilePath = path.basename(filepath).replace(".play", ".js");
     const htmlFilePath = path.join(outputDir, "index.html");
     const html = 
 `<!doctype html>
 <html lang="en">
 <head>
-    <title>${title} Error</title>
+    <title>${title}</title>
     <meta charset="utf-8"/>
+    <style>
+    * { font-family: Inconsolata, Monaco, monospace }
+    .error-token { background-color: red; color: white; }
+    .diagnostics { border: 2px solid #444; height: 400px; overflow: auto; padding: 0 2em; }
+    </style>
 </head>
 <body>
-<h1>I don't understand:</h1>
-<pre>${error.message}</pre>
+<h1>${title}</h1>
+<pre>${body}</pre>
 </body>
 </html>`;
     await fs.writeFile(htmlFilePath, html);
     if (verbose) console.log(`Wrote ${htmlFilePath}`);
 }
+
+async function htmlBodyForSyntaxError(filepath, error) {
+    const tokenText = error.token.text;
+    const code = (await fs.readFile(filepath)).toString();
+    const lineNo = error.token.line;
+    const lines = code.split("\n").slice(lineNo - 3, lineNo + 2);
+    const caretIdx = error.message.indexOf("Instead");
+    const restMessage = error.message.slice(caretIdx);
+    const diagnosticsIdx = restMessage.indexOf("following:");
+    const diagnostics = restMessage.substring(diagnosticsIdx + 10);
+    const insteadMessage = restMessage.substring(0, diagnosticsIdx + 10);
+    const html = 
+        `I got confused when I saw the <code>${error.token.type}</code> <span class="error-token">${tokenText}</span> here:<br>` +
+        "<pre>" + lines.map((line, idx) => {
+            const lineNoDisplay = `<span>${lineNo + idx - 2}</span>`;
+            if (idx === 2) {
+                const partBefore = line.substring(0, error.token.col - 1);
+                const partAfter = line.substr(error.token.col + error.token.text.length - 1);
+                
+                return `${lineNoDisplay}<span>${partBefore}<span class="error-token">${tokenText}</span>${partAfter}</span>`;
+            } else {
+                return `${lineNoDisplay}<span>${line}</span>`;
+            }
+        }).join("\n") + "</pre>" + 
+        insteadMessage + 
+        `<div class="diagnostics">${diagnostics}</div>`;
+    return html;
+}    
 
 async function compileFile(filepath, outputDir, verbose) {
     const code = (await fs.readFile(filepath)).toString();
