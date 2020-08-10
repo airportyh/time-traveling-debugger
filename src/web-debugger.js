@@ -282,6 +282,7 @@ function createStepDebuggerUi(ui) {
         
         timeSlider.addEventListener("change", (e) => {
             $historyCursor = timeSlider.value - 1;
+            console.log("Slider changing history cursor to", $historyCursor);
             syncAll();
         });
         
@@ -503,6 +504,10 @@ function createStepDebuggerUi(ui) {
     }
     
     function syncCanvas() {
+        if ($historyCursor === 0) {
+            clear.original();
+            return;
+        }
         let state = $history[$historyCursor];
         
         // redo interops starting from the beginning or
