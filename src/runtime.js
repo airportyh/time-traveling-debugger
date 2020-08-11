@@ -81,6 +81,7 @@ function $initCanvas() {
     if ($canvas) {
         $canvasContext = $canvas.getContext("2d");
         $canvasContext.textBaseline = "top";
+        $canvasContext.textBaseLine = "top";
         $canvasXY = document.getElementById("canvas-xy");
         $canvas.addEventListener("mousemove", (e) => {
             $canvasXY.textContent = 
@@ -807,6 +808,11 @@ function setColor(color) {
     $canvasContext.fillStyle = color;
 }
 setColor = $interop(setColor);
+
+function setLineCap(lineCap) {
+    $canvasContext.lineCap = lineCap;
+}
+setLineCap = $interop(setLineCap);
 
 function $interop(fun, reset) {
     const ret = function(...args) {
