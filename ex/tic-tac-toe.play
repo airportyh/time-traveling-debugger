@@ -6,7 +6,6 @@ def main() [
         drawText("Click to play again", 0, 400)
         waitForEvent("click")
     ]
-    
 ]
 
 def playGame() [
@@ -14,15 +13,9 @@ def playGame() [
     currentPlayer = "O"
     gameOver = false
     board = [
-        { x: 100, y: 100, state: "" },
-        { x: 200, y: 100, state: "" },
-        { x: 300, y: 100, state: "" },
-        { x: 100, y: 200, state: "" },
-        { x: 200, y: 200, state: "" },
-        { x: 300, y: 200, state: "" },
-        { x: 100, y: 300, state: "" },
-        { x: 200, y: 300, state: "" },
-        { x: 300, y: 300, state: "" }
+        "", "", "", 
+        "", "", "",
+        "", "", ""
     ]
     drawBoard(board)
 
@@ -72,20 +65,22 @@ def humanMove(board, currentPlayer) [
         click = waitForEvent("click")
         x = click["x"]
         y = click["y"]
-
-        for square in board [
-            sx = square["x"]
-            sy = square["y"]
-            state = square["state"]
+        
+        i = 0
+        while i < 9 [
+            sx = 100 + floor(i / 3) * 100
+            sy = 100 + (i % 3) * 100
+            state = board[i]
             if x > sx and x < sx + 90 and y > sy and y < sy + 90 [
                 if state == "" [
-                    square["state"] = currentPlayer
+                    board[i] = currentPlayer
                     setFont("100px sans-serif")
                     setColor("black")
                     drawText(currentPlayer, sx + 5, sy)
                     return
                 ]
             ]
+            i = i + 1
         ]
     ]
 ]
@@ -94,65 +89,153 @@ def naiveComputer(board, currentPlayer) [
     # choose a random open square
 
     openSquares = []
-    for square in board [
-        if square["state"] == "" [
-            push(openSquares, square)
+    i = 0
+    while i < 9 [
+        state = board[i]
+        if state == "" [
+            push(openSquares, i)
         ]
+        i = i + 1
     ]
     idx = floor(random() * length(openSquares))
-    square = openSquares[idx]
-    sx = square["x"]
-    sy = square["y"]
-    square["state"] = currentPlayer
+    choice = openSquares[idx]
+    board[choice] = currentPlayer
+    sx = 100 + floor(choice / 3) * 100
+    sy = 100 + (choice % 3) * 100
     drawText(currentPlayer, sx + 5, sy)
 ]
 
 def notDumbComputer(board, me) [
     # If I can win, win it
-    for square in board [
-        sx = square["x"]
-        sy = square["y"]
-        state = square["state"]
+    i = 0
+    while i < 9 [
+        sx = 100 + floor(i / 3) * 100
+        sy = 100 + (i % 3) * 100
+        state = board[i]
         if state == "" [
             # try taking this square and see if I win
-            square["state"] = me
+            board[i] = me
             if isWinner(board, me) [
                 drawText(me, sx + 5, sy)
                 return
             ] else [
                 # Revert the move
-                square["state"] = ""
+                board[i] = ""
             ]
         ]
+        i = i + 1
     ]
     
     # If they can win, block it
-    for square in board [
-        sx = square["x"]
-        sy = square["y"]
-        state = square["state"]
+    i = 0
+    while i < 9 [
+        sx = 100 + floor(i / 3) * 100
+        sy = 100 + (i % 3) * 100
+        state = board[i]
         if state == "" [
             # try letting them take this square
             opponent = switchPlayer(me)
-            square["state"] = opponent
+            board[i] = opponent
             if isWinner(board, opponent) [
-                square["state"] = me
+                board[i] = me
                 drawText(me, sx + 5, sy)
                 return
             ] else [
                 # Revert the move
-                square["state"] = ""
+                board[i] = ""
             ]
         ]
+        i = i + 1
     ]
     
     # Default to naive completer
     naiveComputer(board, me)
 ]
 
+def smartComputer(board, me) [
+    maxScore = 0
+    maxScoreMove = null
+    i = 0
+    while i < 9 [
+        if board[i] == "" [
+            board2 = imagineMove(board, i, me)
+            score = smartComputerEvaluateMin(board2, me)
+            if score > maxScore [
+                maxScore = score
+                maxScoreMove = i
+            ]
+        ]
+        i = i + 1
+    ]
+    board[maxScoreMove] = me
+    sx = getX(i)
+    sy = getY(i)
+    drawText(me, sx + 5, sy)
+]
+
+def smartComputerEvaluateMin(board, me) [
+    minScore = 1000000
+    minScoreMove = null
+    opponent = switchPlayer(me)
+    i = 0
+    while i < 9 [
+        if board[i] == "" [
+            board2 = imagineMove(board, i, opponent)
+            score = smartComputerEvaluateMax(board2, opponent)
+            if score < minScore [
+                minScore = score
+                minScoreMove = i
+            ]
+        ]
+        i = i + 1
+    ]
+    return minScore
+]
+
+def smartComputerEvaluateMax(board, me) [
+    minScore = 1000000
+    minScoreMove = null
+    opponent = switchPlayer(me)
+    i = 0
+    while i < 9 [
+        if board[i] == "" [
+            board2 = imagineMove(board, i, opponent)
+            score = smartComputerEvaluateMin(board2, opponent)
+            if score < minScore [
+                minScore = score
+                minScoreMove = i
+            ]
+        ]
+        i = i + 1
+    ]
+    return minScore
+]
+
+def imagineMove(board, move, player) [
+    newBoard = []
+    i = 0
+    while i < 9 [
+        if i == move [
+            push(newBoard, player)
+        ] else [
+            push(newBoard, board[i])
+        ]
+        i = i + 1
+    ]
+    return newBoard
+]
+
+def getX(i) [
+    return 100 + floor(i / 3) * 100
+]
+
+def getY(i) [
+    return 100 + (i % 3) * 100
+]
+
 def isDraw(board) [
-    for square in board [
-        if square["state"] == "" [
+    for state in board [
+        if state == "" [
             return false
         ]
     ]
@@ -160,15 +243,15 @@ def isDraw(board) [
 ]
 
 def isWinner(board, player) [
-    zero = board[0]["state"] == player
-    one = board[1]["state"] == player
-    two = board[2]["state"] == player
-    three = board[3]["state"] == player
-    four = board[4]["state"] == player
-    five = board[5]["state"] == player
-    six = board[6]["state"] == player
-    seven = board[7]["state"] == player
-    eight = board[8]["state"] == player
+    zero = board[0] == player
+    one = board[1] == player
+    two = board[2] == player
+    three = board[3] == player
+    four = board[4] == player
+    five = board[5] == player
+    six = board[6] == player
+    seven = board[7] == player
+    eight = board[8] == player
     a = zero and one and two
     b = three and four and five
     c = six and seven and eight
@@ -191,9 +274,11 @@ def switchPlayer(player) [
 def drawBoard(board) [
     setColor("#dddddd")
 
-    for square in board [
-        x = square["x"]
-        y = square["y"]
+    i = 0
+    while i < 9 [
+        x = 100 + floor(i / 3) * 100
+        y = 100 + (i % 3) * 100
         fillRect(x, y, 90, 90)
+        i = i + 1
     ]
 ]

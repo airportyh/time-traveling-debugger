@@ -768,6 +768,16 @@ function drawLine(x1, y1, x2, y2) {
 }
 drawLine = $interop(drawLine);
 
+function setFont(font) {
+    $canvasContext.font = font;
+}
+setFont = $interop(setFont);
+
+function fillText(text, x, y) {
+    $canvasContext.fillText(text, x, y);
+}
+fillText = $interop(fillText);
+
 function setLineWidth(width) {
     $canvasContext.lineWidth = width;
 }

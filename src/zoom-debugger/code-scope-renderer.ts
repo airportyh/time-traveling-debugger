@@ -555,6 +555,9 @@ export class CodeScopeRenderer implements ZoomRenderable {
                     const item = object[i];
                     const itemBox = getValueDisplay(entryIdx, item, childMap, heap, this.textMeasurer);
                     itemBox.text = " " + itemBox.text + " ";
+                    if (!itemBox.border) {
+                        itemBox.border = { color: VARIABLE_DISPLAY_COLOR };
+                    }
                     row.push(itemBox);
                 }
                 return [row];
@@ -848,19 +851,6 @@ class HeapObjectRenderer implements ZoomRenderable {
         
         return new Map();
     }
-}
-
-function findLine(ast, lineNo) {
-    let found;
-    traverse(ast, (node) => {
-        if (node.start && node.start.line === lineNo) {
-            found = node;
-            return false;
-        } else {
-            return undefined;
-        }
-    });
-    return found;
 }
 
 function findFunction(ast, name) {
