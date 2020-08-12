@@ -799,11 +799,6 @@ function drawText(text, x, y) {
 }
 drawText = $interop(drawText);
 
-function setFont(font) {
-    $canvasContext.font = font;
-}
-setFont = $interop(setFont);
-
 function setColor(color) {
     $canvasContext.fillStyle = color;
 }

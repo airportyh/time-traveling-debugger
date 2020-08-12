@@ -40,13 +40,17 @@ function createDebugUI() {
     const zoomToggleButton = document.createElement("button");
     zoomToggleButton.textContent = "Zoom";
     zoomToggleButton.addEventListener("click", () => {
-        if (zoomMode) {    
-            destroyCurrentDebugger();
+        if (zoomMode) { 
+            if (destroyCurrentDebugger) {   
+                destroyCurrentDebugger();
+            }
             destroyCurrentDebugger = createStepDebuggerUi(ui);
             zoomMode = false;
             zoomToggleButton.textContent = "Zoom";
         } else {
-            destroyCurrentDebugger();
+            if (destroyCurrentDebugger) {
+                destroyCurrentDebugger();
+            }
             destroyCurrentDebugger = createZoomDebuggerUi(ui);
             zoomMode = true;
             zoomToggleButton.textContent = "Step";
@@ -59,7 +63,9 @@ function createDebugUI() {
     const closeButton = document.createElement("button");
     closeButton.textContent = "×";
     closeButton.addEventListener("click", async () => {
-        destroyCurrentDebugger();
+        if (destroyCurrentDebugger) {
+            destroyCurrentDebugger();
+        }
         //$historyCursor = $history.length - 1;
         //syncAll();
         await sleep(100);
@@ -535,6 +541,9 @@ function createStepDebuggerUi(ui) {
             }
         }
         for (let interop of interops) {
+            if (!window[interop.fun]) {
+                throw new Error(`Could not find function ${interop.fun}`);
+            }
             const fun = window[interop.fun].original;
             fun(...interop.arguments);
         }
