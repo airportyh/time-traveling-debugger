@@ -1,0 +1,3 @@
+rm database.db
+node migrate.js
+node load.js
