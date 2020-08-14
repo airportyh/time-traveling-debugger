@@ -18,6 +18,10 @@ const lexer = moo.compile({
     lbrace: "{",
     rbrace: "}",
     assignment: "=",
+    number_literal: {
+        match: /\-?[0-9]+(?:\.[0-9]+)?/,
+        value: s => Number(s)
+    },
     plus: "+",
     minus: "-",
     multiply: "*",
@@ -31,10 +35,6 @@ const lexer = moo.compile({
     string_literal: {
         match: /"(?:[^\n\\"]|\\["\\ntbfr])*"/,
         value: s => JSON.parse(s)
-    },
-    number_literal: {
-        match: /[0-9]+(?:\.[0-9]+)?/,
-        value: s => Number(s)
     },
     identifier: {
         match: /[a-z_][a-zA-Z_0-9]*/,

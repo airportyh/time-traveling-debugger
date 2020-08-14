@@ -26,8 +26,14 @@ function $initStyles() {
         box-sizing: border-box;
     }
     
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
     #canvas {
         border: 1px solid black;
+        margin: 0;
     }
     
     #canvas-xy {
@@ -152,6 +158,7 @@ function $heapAllocate(value) {
 }
 
 function $save(line) {
+    return;
     const entry = {
         line, 
         stack: $stack, 
@@ -233,6 +240,14 @@ function range(...args) {
 
 function split(string, separator) {
     return $heapAllocate(string.split(separator));
+}
+
+function repeat(str, times) {
+    let output = "";
+    for (let i = 0; i < times; i++) {
+        output += str;
+    }
+    return output;
 }
 
 function print(...args) {
@@ -808,6 +823,15 @@ function setLineCap(lineCap) {
     $canvasContext.lineCap = lineCap;
 }
 setLineCap = $interop(setLineCap);
+
+function drawArc(x, y, radius, startDegree, endDegree) {
+    $canvasContext.beginPath();
+    startRadian = (startDegree - 90) / 180 * Math.PI;
+    endRadian = (endDegree - 90) / 180 * Math.PI;
+    $canvasContext.arc(x, y, radius, startRadian, endRadian);
+    $canvasContext.stroke();
+}
+drawArc = $interop(drawArc);
 
 function $interop(fun, reset) {
     const ret = function(...args) {

@@ -227,7 +227,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             const valueDisplayStrings: TextBox[][] = [];
             
             this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
-            this.renderUpdatedHeapObjects(entry, nextEntry, childMap, valueDisplayStrings);
+            this.renderUpdatedHeapObjects(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             
             /*
@@ -423,23 +423,27 @@ export class CodeScopeRenderer implements ZoomRenderable {
         
     }
     
-    renderUpdatedHeapObjects(entry: HistoryEntry, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    renderUpdatedHeapObjects(funNode: any, entry: HistoryEntry, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+        let varNameAssigned;
+        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line)[0];
+        if (assignmentNode) {
+            varNameAssigned = assignmentNode.var_name.value;
+        }
         if (nextEntry) {
             const nextFrame = nextEntry.stack[nextEntry.stack.length - 1];
             const currentFrame = entry.stack[entry.stack.length - 1];
             for (let varName in currentFrame.variables) {
+                if (varName === varNameAssigned) {
+                    continue;
+                }
                 const value = currentFrame.variables[varName];
                 if (isHeapRef(value)) {
                     const nextValue = nextFrame.variables[varName];
                     const headValueChanged = hasHeapValueChanged(value.id, entry.heap, nextEntry.heap);
-                    //console.log("line", entry.line, "value", value, "prevValue", nextValue, "entry.heap[value.id]", value && entry.heap[value.id],
-                    //    "prevEntry.heap[prevValue.id]", nextValue && nextEntry.heap[nextValue.id], headValueChanged);
                     if (!nextValue || 
                         (isHeapRef(value) && (
                         (value.id !== nextValue.id) || headValueChanged))) {
-                        //console.log(varName, "heap value changed on line", entry.line);
-                        const varValueDisplay = this.getVarValueDisplay(entry.idx, value, childMap, nextEntry.heap);
-                        //console.log("adding valueDisplayStrings", valueDisplayStrings);
+                        const varValueDisplay = this.getVarValueDisplay(entry.idx, nextValue, childMap, nextEntry.heap);
                         const taggedVarValueDisplay: Box[][] = varValueDisplay.map((line, idx) => {
                             if (idx === 0) {
                                 return [

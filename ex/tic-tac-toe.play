@@ -41,10 +41,10 @@ def playGame() [
             break
         ]
         
-        sleep(1000)
+        sleep(1)
         
         # Computer moves
-        notDumbComputer(board, currentPlayer)
+        smartComputer(board, currentPlayer)
         if isWinner(board, currentPlayer) [
             setFont("60px sans-serif")
             drawText("The winner is " + currentPlayer, 0, 0)
@@ -68,8 +68,8 @@ def humanMove(board, currentPlayer) [
         
         i = 0
         while i < 9 [
-            sx = 100 + floor(i / 3) * 100
-            sy = 100 + (i % 3) * 100
+            sx = getX(i)
+            sy = getY(i)
             state = board[i]
             if x > sx and x < sx + 90 and y > sy and y < sy + 90 [
                 if state == "" [
@@ -109,8 +109,8 @@ def notDumbComputer(board, me) [
     # If I can win, win it
     i = 0
     while i < 9 [
-        sx = 100 + floor(i / 3) * 100
-        sy = 100 + (i % 3) * 100
+        sx = getX(i)
+        sy = getY(i)
         state = board[i]
         if state == "" [
             # try taking this square and see if I win
@@ -129,8 +129,8 @@ def notDumbComputer(board, me) [
     # If they can win, block it
     i = 0
     while i < 9 [
-        sx = 100 + floor(i / 3) * 100
-        sy = 100 + (i % 3) * 100
+        sx = getX(i)
+        sy = getY(i)
         state = board[i]
         if state == "" [
             # try letting them take this square
@@ -153,62 +153,74 @@ def notDumbComputer(board, me) [
 ]
 
 def smartComputer(board, me) [
-    maxScore = 0
-    maxScoreMove = null
-    i = 0
-    while i < 9 [
-        if board[i] == "" [
-            board2 = imagineMove(board, i, me)
-            score = smartComputerEvaluateMin(board2, me)
-            if score > maxScore [
-                maxScore = score
-                maxScoreMove = i
-            ]
-        ]
-        i = i + 1
-    ]
-    board[maxScoreMove] = me
-    sx = getX(i)
-    sy = getY(i)
+    result = smartComputerCalculateMove(board, me, 6, false)
+    move = result["move"]
+    board[move] = me
+    sx = getX(move)
+    sy = getY(move)
     drawText(me, sx + 5, sy)
 ]
 
-def smartComputerEvaluateMin(board, me) [
-    minScore = 1000000
-    minScoreMove = null
+# Score is either 0 - losing, 1 - even, or 2 - winning
+def smartComputerCalculateMove(board, me, depth, min) [
+    if isWinner(board, "X") [
+        return { move: null, score: 2 }
+    ]
+    if isWinner(board, "O") [
+        return { move: null, score: 0 }
+    ]
+    if depth == 0 [
+        return smartComputerRandomMove(board, me)
+    ]
+    
+    bestScore = null
+    if min [
+        bestScore = 3
+    ] else [
+        bestScore = -1
+    ]
+    bestMove = null
     opponent = switchPlayer(me)
     i = 0
     while i < 9 [
         if board[i] == "" [
-            board2 = imagineMove(board, i, opponent)
-            score = smartComputerEvaluateMax(board2, opponent)
-            if score < minScore [
-                minScore = score
-                minScoreMove = i
+            newBoard = imagineMove(board, i, me)
+            result = smartComputerCalculateMove(newBoard, opponent, depth - 1, !min)
+            
+            if min [
+                if result["score"] < bestScore [
+                    bestScore = result["score"]
+                    bestMove = i
+                ]
+            ] else [
+                if result["score"] > bestScore [
+                    bestScore = result["score"]
+                    bestMove = i
+                ]
             ]
         ]
         i = i + 1
     ]
-    return minScore
+    
+    if bestScore == -1 [
+        return smartComputerRandomMove(board, me)
+    ] else [
+        return { move: bestMove, score: bestScore }
+    ]
 ]
 
-def smartComputerEvaluateMax(board, me) [
-    minScore = 1000000
-    minScoreMove = null
-    opponent = switchPlayer(me)
+def smartComputerRandomMove(board, me) [
+    openSquares = []
     i = 0
     while i < 9 [
-        if board[i] == "" [
-            board2 = imagineMove(board, i, opponent)
-            score = smartComputerEvaluateMin(board2, opponent)
-            if score < minScore [
-                minScore = score
-                minScoreMove = i
-            ]
+        state = board[i]
+        if state == "" [
+            push(openSquares, i)
         ]
         i = i + 1
     ]
-    return minScore
+    idx = floor(random() * length(openSquares))
+    return { move: openSquares[idx], score: 1 }
 ]
 
 def imagineMove(board, move, player) [
@@ -226,11 +238,11 @@ def imagineMove(board, move, player) [
 ]
 
 def getX(i) [
-    return 100 + floor(i / 3) * 100
+    return 100 + (i % 3) * 100
 ]
 
 def getY(i) [
-    return 100 + (i % 3) * 100
+    return 100 + floor(i / 3) * 100
 ]
 
 def isDraw(board) [
@@ -276,8 +288,8 @@ def drawBoard(board) [
 
     i = 0
     while i < 9 [
-        x = 100 + floor(i / 3) * 100
-        y = 100 + (i % 3) * 100
+        x = getX(i)
+        y = getY(i)
         fillRect(x, y, 90, 90)
         i = i + 1
     ]
