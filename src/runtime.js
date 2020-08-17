@@ -1,23 +1,96 @@
 // Runtime functions
-const $nativeToVirtualDomMap = new WeakMap();
-const $virtualDomToNativeMap = new Map();
+
+// VDOM functionality temporarily disabled
+//const $nativeToVirtualDomMap = new WeakMap();
+//const $virtualDomToNativeMap = new Map();
+
+// HISTORY_FILE_PATH should be predefined by the emitted code
+
+// Inspector used for profiler
+const inspector = require("inspector");
+const $inspectorSession = new inspector.Session();
+$inspectorSession.connect();
+
+const readline = require('readline');
+const fs = require('fs');
+const $sqlite3 = require('better-sqlite3');
+let $insertObjectStatement;
+let $insertFunCallStatement;
+let $insertSnapshotStatement;
+let $logDB;
+
 const $isBrowser = typeof document !== "undefined";
-const $history = [];
-let $historyCursor = -1;
-let $stack = [];
+//const $history = [];
+//let $historyCursor = -1;
+const $objectToIdMap = new WeakMap();
+let $stack = null;
+let $nextObjectId = 1;
 let $nextHeapId = 1;
-let $heap = {};
+let $nextFunCallId = 1;
+let $nextEntryId = 1;
+const $emptyObject = {};
+let $heap = $emptyObject;
 let $interops = [];
 let $halted = false;
 let $errorMessage = null;
+const $emptyArray = [];
 // let $body = $isBrowser && $nativeDomToVDom(document.body);
-let $heapOfLastDomSync = $heap;
+// let $heapOfLastDomSync = $heap;
 let $canvas;
 let $canvasContext;
 let $canvasXY;
+
 if ($isBrowser) {
     $initStyles();
     $initCanvas();
+}
+
+if (!$isBrowser) {
+    $initLogDB();
+}
+
+function $initLogDB() {
+    try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
+    $logDB = $sqlite3(HISTORY_FILE_PATH);
+    $logDB.exec("PRAGMA journal_mode=WAL");
+    $logDB.exec("PRAGMA cache_size=10000");
+    $logDB.exec("PRAGMA synchronous = OFF");
+    
+    const schema = `
+    create table Snapshot (
+        id integer primary key,
+        fun_call_id integer not null,
+        stack integer,
+        heap integer,
+        interop integer,
+        line_no integer,
+        constraint Snapshot_fk_fun_call_id foreign key (fun_call_id)
+            references FunCall(id)
+    );
+
+    create table Object (
+        id integer primary key,
+        data text  -- JSONR format
+    );
+
+    create table FunCall (
+        id integer primary key,
+        fun_name text,
+        parameters integer,
+        parent_id integer,
+        
+        constraint FunCall_fk_parent_id foreign key (parent_id)
+            references FunCall(id)
+    );
+    `;
+    $logDB.exec(schema);
+
+    $insertObjectStatement = $logDB.prepare(`insert into Object values (?, ?)`);
+    $insertFunCallStatement = $logDB.prepare(`insert into FunCall values (?, ?, ?, ?)`);
+    $insertSnapshotStatement = $logDB.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
+    $heapObjectIds = new WeakMap();
+
+    $logDB.exec("begin transaction");
 }
 
 function $initStyles() {
@@ -97,19 +170,30 @@ function $initCanvas() {
 }
 
 function $pushFrame(funName, variables, closures) {
-    const newFrame = { funName, parameters: variables, variables };
+    const id = $nextFunCallId++;
+    const funCall = {
+        id,
+        funName, 
+        parameters: variables,
+        parentId: $stack && $stack[0] && $stack[0].funCall || null
+    };
+    $sendFunCall(funCall);
+    const newFrame = {
+        funCall: id,
+        variables
+    };
     if (closures) {
         newFrame.closures = closures;
     }
-    $stack = [...$stack, newFrame];
+    $stack = [newFrame, $stack];
 }
 
 function $popFrame() {
-    $stack = $stack.slice(0, $stack.length - 1);
+    $stack = $stack[1];
 }
 
 function $getVariable(varName) {
-    const variables = $stack[$stack.length - 1].variables;
+    const variables = $stack[0].variables;
     if (varName in variables) {
         return variables[varName];
     } else {
@@ -121,12 +205,12 @@ function $getVariable(varName) {
 }
 
 function $setVariable(varName, value) {
-    const frame = $stack[$stack.length - 1];
+    const frame = $stack[0];
     const newFrame = {
         ...frame,
         variables: { ...frame.variables, [varName]: value }
     };
-    $stack = [...$stack.slice(0, $stack.length - 1), newFrame];
+    $stack = [newFrame, $stack[1]];
 }
 
 function $getHeapVariable(varName, closureId) {
@@ -158,18 +242,103 @@ function $heapAllocate(value) {
 }
 
 function $save(line) {
-    return;
-    const entry = {
-        line, 
-        stack: $stack, 
-        heap: $heap
-    };
-    if ($interops.length > 0) {
-        entry.interops = $interops;
+    const id = $nextEntryId++;
+    $sendSnapshot(id, line);
+    $interops = $emptyArray;
+    //$history.push(entry);
+    //$historyCursor++;
+}
+
+function $sendObjects(objects) {
+    for (let newObject of objects) {
+        const id = $objectToIdMap.get(newObject);
+        $insertObjectStatement.run(id, $stringify(newObject, true));
     }
-    $history.push(entry);
-    $interops = [];
-    $historyCursor++;
+}
+
+function $stringify(object, firstLevel) {
+    if (!firstLevel && $objectToIdMap.has(object)) {
+        return "*" + $objectToIdMap.get(object);
+    }
+    if (Array.isArray(object)) {
+        let arrayString = "[";
+        const parts = [];
+        for (let i = 0; i < object.length; i++) {
+            arrayString += $stringify(object[i], false);
+        }
+        arrayString += "]";
+        return arrayString;
+    } else if (typeof object === "object") {
+        let objectString = "{";
+        for (let key in object) {
+            objectString += '"' + key + '": ' + $stringify(object[key], false);
+        }
+        objectString += "}";
+        return objectString;
+    } else {
+        return JSON.stringify(object);
+    }
+}
+
+function $sendFunCall(call) {
+    const newObjects = [];
+    $registerNewObjects(call.parameters, newObjects);
+    $sendObjects(newObjects);
+    $insertFunCallStatement.run(
+        call.id, 
+        call.funName, 
+        $objectToIdMap.get(call.parameters), 
+        call.parentId
+    );
+}
+
+function $sendSnapshot(id, line) {
+    const newObjects = [];
+    $registerNewObjects($stack, newObjects);
+    $registerNewObjects($heap, newObjects);
+    let interops = null;
+    if ($interops && $interops.length) {
+        $registerNewObjects($interops, newObjects);
+        interops = $objectToIdMap.get($interops);
+    }
+    $sendObjects(newObjects);
+    const funCall = $stack ? $stack[0].funCall : null;
+    $insertSnapshotStatement.run(
+        id, 
+        funCall, 
+        $objectToIdMap.get($stack), 
+        $objectToIdMap.get($heap), 
+        interops,
+        line
+    );
+    if (id % 1000 === 0) {
+        $logDB.exec("end transaction; begin transaction");
+    }
+}
+
+
+function $registerNewObjects(object, newObjects) {
+    if (object == null) {
+        return;
+    }
+    if ($objectToIdMap.has(object)) {
+        return;
+    }
+    if (Array.isArray(object)) {
+        const id = $nextObjectId++;
+        $objectToIdMap.set(object, id);
+        newObjects.push(object);
+        for (let i = 0; i < object.length; i++) {
+            $registerNewObjects(object[i], newObjects);
+        }
+    } else if (typeof object === "object") {
+        const id = $nextObjectId++;
+        $objectToIdMap.set(object, id);
+        newObjects.push(object);
+        for (let key in object) {
+            $registerNewObjects(object[key], newObjects);
+        }
+    }
 }
 
 function $heapAccess(thing) {
@@ -207,16 +376,40 @@ function $set(thing, index, value) {
     };
 }
 
-function $saveHistory(filePath) {
+async function $cleanUp() {
+    $flushLogDB();
+    const { profile } = await $stopProfiler();
+    fs.writeFileSync(PROFILE_JSON_PATH, JSON.stringify(profile));
+}
+
+function $flushLogDB() {
     if ($isBrowser) {
         return;
     }
-    const jsonr = require("@airportyh/jsonr");
-    require("fs").writeFile(
-        filePath,
-        jsonr.stringify($history, "	"),
-        () => console.log(`Wrote ${filePath}.`)
-    );
+    $logDB.exec("end transaction");
+}
+
+function $startProfiler() {
+    return new Promise((accept) => {
+        $inspectorSession.post('Profiler.enable', () => {
+            $inspectorSession.post('Profiler.start', () => {
+                accept();
+            });
+        });
+    });
+}
+
+function $stopProfiler() {
+    return new Promise((accept, reject) => {
+        $inspectorSession.post('Profiler.stop', (err, data) => {
+            if (err) {
+                reject(err);
+                return;
+            } else {
+                accept(data);
+            }
+        });
+    });
 }
 
 // Built-in Functions:"
@@ -252,6 +445,20 @@ function repeat(str, times) {
 
 function print(...args) {
     console.log(...args);
+}
+
+async function prompt(message) {
+    return new Promise((accept) => {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        rl.question(message + " ", (answer) => {
+            rl.close();
+            accept(answer);
+        });
+    });
 }
 
 function pop(thing) {
@@ -337,6 +544,13 @@ function join(thing, separator) {
 function floor(num) {
     return Math.floor(num);
 }
+
+function parseNumber(string) {
+    return Number(string);
+}
+
+/*
+==  Virtual DOM temporarily disabled ==
 
 function getElementById(id) {
     throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
@@ -508,6 +722,7 @@ function removeClass(elementId, clazz) {
     const element = $virtualDomToNativeMap.get(elementId);
     element.classList.remove(clazz);
 }
+
 
 function $nativeDomToVDom(node) {
     throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
@@ -751,6 +966,7 @@ function compare(source, heap1, destination, heap2) {
     }
 
 }
+*/
 
 // Time-Traveling Debugger UI
 async function sleep(ms) {
@@ -869,3 +1085,8 @@ async function waitForEvent(eventName) {
 function random() {
     return Math.random();
 }
+
+function currentTime() {
+    return new Date().getTime();
+}
+

@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@airportyh/jsonr": "^1.1.6",
+    "better-sqlite3": "^7.1.0",
     "mz": "^2.7.0",
     "sql-template-strings": "^2.2.2",
     "sqlite": "^4.0.14",

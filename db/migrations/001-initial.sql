@@ -1,13 +1,14 @@
 -- Up
 
-create table HistoryEntry (
+create table Snapshot (
     id integer primary key,
-    frame_id integer not null,
-    heap text,    -- JSONR format
-    interop text, -- JSONR format
+    fun_call_id integer not null,
+    stack integer,
+    heap integer,
+    interop integer,
     line_no integer,
-    constraint HistoryEntry_fk_frame_id foreign key (frame_id)
-        references StackFrame(id)
+    constraint Snapshot_fk_fun_call_id foreign key (fun_call_id)
+        references FunCall(id)
 );
 
 create table Object (
@@ -15,21 +16,20 @@ create table Object (
     data text  -- JSONR format
 );
 
-create table StackFrame (
+create table FunCall (
     id integer primary key,
     fun_name text,
-    parameters text, -- JSONR format
-    variables text,  -- JSONR format
+    parameters integer,
     parent_id integer,
     
-    constraint StackFrame_fk_parent_id foreign key (parent_id)
-        references StackFrame(id)
+    constraint FunCall_fk_parent_id foreign key (parent_id)
+        references FunCall(id)
 );
 
 -- Down
-drop index HistoryEntry_fk_frame_id;
-drop table HistoryEntry;
+drop index Snapshot_fk_fun_call_id;
+drop table Snapshot;
 drop table Object;
-drop index StackFrame_fk_parent_id;
-drop table StackFrame;
+drop index FunCall_fk_parent_id;
+drop table FunCall;
 

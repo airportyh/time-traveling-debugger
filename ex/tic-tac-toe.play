@@ -153,7 +153,7 @@ def notDumbComputer(board, me) [
 ]
 
 def smartComputer(board, me) [
-    result = smartComputerCalculateMove(board, me, 6, false)
+    result = smartComputerCalculateMove(board, me, 3, false)
     move = result["move"]
     board[move] = me
     sx = getX(move)

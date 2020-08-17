@@ -19,11 +19,15 @@ exports.generateCode = function generateCode(ast, options) {
     };
     
     const jsCode =
-        [runtimeCode]
+        [
+            `const HISTORY_FILE_PATH = "${options.historyFilePath}"`,
+            `const PROFILE_JSON_PATH = "${options.profileJsonPath}"`,
+        ]
+        .concat(runtimeCode)
         .concat(generateCodeForStatement(ast, null, closureInfo))
         .concat([`main().catch(err => console.log(err.stack))`
             + (options.historyFilePath ?
-                `.finally(() => $saveHistory("${options.historyFilePath}"));` :
+                `.finally(() => $cleanUp());` :
                 "")])
         .concat([options.code ? `const $code = \`${options.code}\`;` : "const $code = null;"])
         .concat(["$isBrowser && createDebugButton();"])
@@ -113,6 +117,8 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
         ].join("\n");
     } else if (statement.type === "break") {
         return "break;";
+    } else if (statement.type === "continue") {
+        return "continue";
     } else if (statement.type === "indexed_assignment") {
         const subject = generateCodeForExpression(statement.subject, funNode, closureInfo);
         const index = generateCodeForExpression(statement.index, funNode, closureInfo);
@@ -254,7 +260,14 @@ function generateFunction(node, closureInfo) {
     let stackParameters = parameters;
     const line1 = (isAsync ? "async " : "") +
         "function " + (funName || "") + "(" + parameters.join(", ") + ") {";
-    const body = indent(generateCodeForCodeBlock(node.body, node, closureInfo));
+    let body = generateCodeForCodeBlock(node.body, node, closureInfo);
+    const useProfiler = funName === "main";
+    if (useProfiler) {
+        body = [
+            "await $startProfiler();",
+            body
+        ].join("\n");
+    }
     const initLines = [`var $immediateReturnValue;`];
     const closuresArray = [];
     if (closureProvider) {
@@ -285,7 +298,7 @@ function generateFunction(node, closureInfo) {
         line1,
         ...initLines,
         indent(`try {`),
-        indent(body),
+        indent(indent(body)),
         indent(`} finally {`),
         indent(indent([
             `if (!$halted) {`,

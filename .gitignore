@@ -1,2 +1,5 @@
 node_modules
 zoom-debugger-build
+*.history
+*.profile.json
+*.db
