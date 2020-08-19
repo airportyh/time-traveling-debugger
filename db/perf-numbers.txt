@@ -1,0 +1,76 @@
+## Naive
+
+Persisting entry 83049 of 83049    
+real	7m5.316s
+user	2m39.051s
+sys	3m30.217s
+
+## Transaction for each 1000 entries
+
+Persisting entry 83049 of 83049    
+real	1m37.007s
+user	1m32.675s
+sys	0m10.966s
+
+## Transaction for each 10000 entries
+  
+Persisting entry 83049 of 83049    
+real	1m37.483s
+user	1m34.277s
+sys	0m10.671s
+
+## Plus WAL mode on
+
+Persisting entry 83049 of 83049    
+real	1m30.512s
+user	1m26.742s
+sys	0m10.193s
+
+## Plus synchronous off
+
+Persisting entry 83049 of 83049    
+real	1m32.708s
+user	1m28.672s
+sys	0m10.430s
+
+## No indices
+
+Persisting entry 83049 of 83049    
+real	1m33.824s
+user	1m30.025s
+sys	0m10.685s
+
+## Write to log file
+
+Persisting entry 83049 of 83049    
+real	1m17.493s
+user	1m11.110s
+sys	0m10.391s
+
+## Write to log file without waiting
+
+Persisting entry 83049 of 83049    
+real	1m12.023s
+user	1m14.019s
+sys	0m8.698s
+
+## Processing data without writing
+
+Persisting entry 83049 of 83049    
+real	1m5.234s
+user	1m3.227s
+sys	0m3.230s
+
+## Does nothing but parse payload
+
+Persisting entry 83049 of 83049    
+real	0m55.211s
+user	0m53.111s
+sys	0m2.036s
+
+## Does not parse payload
+
+Persisting entry 83049 of 83049    
+real	0m1.112s
+user	0m0.790s
+sys	0m0.415s

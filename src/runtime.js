@@ -280,6 +280,67 @@ function $stringify(object, firstLevel) {
     }
 }
 
+function $stringify_(object) {
+    const COMMA = {};
+    const RBRACKET = {};
+    const RBRACE = {};
+    const COLON = {};
+    const KEY = {};
+    let output = "";
+    let stack = [object];
+    let firstLevel = true;
+    while (true) {
+        if (stack.length === 0) {
+            break;
+        }
+        object = stack.shift();
+        if (!firstLevel && $objectToIdMap.has(object)) {
+            output += "*" + $objectToIdMap.get(object);
+        } else {
+            if (object == null) {
+                output += "null";
+            } else if (object === COMMA) {
+                output += ",";
+            } else if (object === RBRACKET) {
+                output += "]";
+            } else if (object === RBRACE) {
+                output += "}";
+            } else if (object === KEY) {
+                const key = stack.shift();
+                output += '"' + key + '":';
+            } else if (Array.isArray(object)) {
+                output += "[";
+                for (let i = 0; i < object.length; i++) {
+                    if (i > 0) {
+                        stack.push(COMMA);
+                    }
+                    stack.push(object[i]);
+                }
+                stack.push(RBRACKET);
+            } else if (typeof object === "object") {
+                output += "{";
+                const keys = Object.keys(object);
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    if (i > 0) {
+                        stack.push(COMMA);
+                    }
+                    stack.push(KEY);
+                    stack.push(key);
+                    stack.push(object[key]);
+                }
+                stack.push(RBRACE);
+            } else {
+                output += JSON.stringify(object);
+            }
+        }
+        if (firstLevel) {
+            firstLevel = false;
+        }
+    }
+    return output;
+}
+
 function $sendFunCall(call) {
     const newObjects = [];
     $registerNewObjects(call.parameters, newObjects);
