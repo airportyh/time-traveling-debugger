@@ -1,0 +1,129 @@
+# With DB logging Depth 3
+
+$ ./run ex/tic-tac-toe-term.play 
+Wrote ex/tic-tac-toe-term.ast.
+Wrote ex/tic-tac-toe-term.js.
+running "node ex/tic-tac-toe-term.js"
+
+   
+   
+   
+
+Your move? (1-9) 5
+Computer took 12777ms to make this move.
+
+X  
+ O 
+   
+
+Your move? (1-9) 3
+Computer took 7702ms to make this move.
+
+X O
+ O 
+X  
+
+Your move? (1-9) 4
+Computer took 2268ms to make this move.
+
+X O
+OOX
+X  
+
+Your move? (1-9) 9
+Computer took 245ms to make this move.
+
+XXO
+OOX
+X O
+
+Your move? (1-9) 8
+It's a draw
+Play again? (y or n) n
+
+## Without DB Logging
+
+$ ./run ex/tic-tac-toe-term.play 
+Wrote ex/tic-tac-toe-term.ast.
+Wrote ex/tic-tac-toe-term.js.
+running "node ex/tic-tac-toe-term.js"
+
+   
+   
+   
+
+Your move? (1-9) 5
+Computer took 62ms to make this move.
+
+X  
+ O 
+   
+
+Your move? (1-9) 3
+Computer took 19ms to make this move.
+
+X O
+ O 
+X  
+
+Your move? (1-9) 4
+Computer took 10ms to make this move.
+
+X O
+OOX
+X  
+
+Your move? (1-9) 9
+Computer took 1ms to make this move.
+
+XXO
+OOX
+X O
+
+Your move? (1-9) 8
+It's a draw
+Play again? (y or n) n
+
+
+## After Enhancement to stringify with logging
+
+$ ./run ex/tic-tac-toe-term.play 
+Wrote ex/tic-tac-toe-term.ast.
+Wrote ex/tic-tac-toe-term.js.
+running "node ex/tic-tac-toe-term.js"
+
+   
+   
+   
+
+Your move? (1-9) 5
+Computer took 2062ms to make this move.
+
+X  
+ O 
+   
+
+Your move? (1-9) 3
+Computer took 1224ms to make this move.
+
+X O
+ O 
+X  
+
+Your move? (1-9) 4
+Computer took 291ms to make this move.
+
+X O
+OOX
+X  
+
+Your move? (1-9) 9
+Computer took 42ms to make this move.
+
+XXO
+OOX
+X O
+
+Your move? (1-9) 8
+It's a draw
+Play again? (y or n) n

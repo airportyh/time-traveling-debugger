@@ -1,7 +1,8 @@
 import { ZoomRenderable, BoundingBox } from "./zui";
-import { HistoryEntry } from "./play-lang";
+import { FunCall, DBObject, Snapshot, FunCallExpanded } from "./play-lang";
 import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
 import { traverse } from "../traverser";
+import { ZoomDebuggerContext } from "./zoom-debugger";
 
 const CODE_LINE_HEIGHT = 1.5;
 const CODE_FONT_FAMILY = "Monaco";
@@ -11,108 +12,39 @@ const VARIABLE_DISPLAY_COLOR = "#f0b155";
 const HEAP_REF_COLOR = "#119af5";
 
 type SubEntryGroup = {
-    callExpr: any
-    entries: HistoryEntry[]
+    callExpr: any,
+    funCall: FunCall
 };
 
 type HeapRef = { id: number };
 
-function isHeapRef(thing): thing is HeapRef {
-    return thing && typeof thing === "object" && typeof thing.id === "number";
-}
-
-function hasHeapValueChanged(id: number, heapOne: any, heapTwo) {
-    if (heapOne[id] !== heapTwo[id]) {
-        return true;
-    } else {
-        const thingOne = heapOne[id];
-        const thingTwo = heapTwo[id];
-        if (Array.isArray(thingOne)) {
-            for (let i = 0; i < thingOne.length; i++) {
-                if (thingOne[i] !== thingTwo[i]) {
-                    return true;
-                } else if (isHeapRef(thingOne[i])) {
-                    if (hasHeapValueChanged(thingOne[i].id, heapOne, heapTwo)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } else if (typeof thingOne === "object") {
-            for (let prop in thingOne) {
-                const valueOne = thingOne[prop];
-                const valueTwo = thingTwo[prop];
-                if (valueOne !== valueTwo) {
-                    return true;
-                } else if (isHeapRef(valueOne)) {
-                    if (hasHeapValueChanged(valueOne.id, heapOne, heapTwo)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } else {
-            return false;
-        }
-    }
-}
-
-function getValueDisplay(
-    entryIdx: number,
-    value: any, 
-    childMap: Map<Box, ZoomRenderable>, 
-    heap: any,
-    textMeasurer: TextMeasurer): TextBox {
-    if (isHeapRef(value)) {
-        const textBox: TextBox = {
-            type: "text",
-            text: "*" + value.id,
-            color: VARIABLE_DISPLAY_COLOR,
-            border: {
-                color: VARIABLE_DISPLAY_COLOR
-            }
-        };
-        
-        childMap.set(textBox, new HeapObjectRenderer(entryIdx, value, textMeasurer, heap));
-        return textBox;
-    }
-    return {
-        type: "text",
-        text: JSON.stringify(value),
-        color: VARIABLE_DISPLAY_COLOR
-    };
-}
-
-function getValueDisplayLength(value: any): number {
-    if (isHeapRef(value)) {
-        return String("*" + value.id).length;
-    }
-    return JSON.stringify(value).length;
-}
-
 export class CodeScopeRenderer implements ZoomRenderable {
-    entryIdx: number;
-    entries: HistoryEntry[];
-    ast: any;
+    funCall: FunCall;
     callExpr: any;
     callExprCode: string;
-    code: string;
-    textMeasurer: TextMeasurer;
+    context: ZoomDebuggerContext;
     
-    constructor(entries: HistoryEntry[], callExpr: any, callExprCode: string, ast: any, code: string, textMeasurer: TextMeasurer) {
-        this.entries = entries;
+    constructor(
+        funCall: FunCall, 
+        callExpr: any, 
+        context: ZoomDebuggerContext) {
+        this.funCall = funCall;
         this.callExpr = callExpr;
-        this.callExprCode = callExprCode;
-        this.ast = ast;
-        this.code = code;
-        this.textMeasurer = textMeasurer;
-        if (this.id() === "scope[0,5:8,5:18]") {
-            throw new Error("BLARGH");
+        if (callExpr === context.ast) {
+            // main()
+            this.callExprCode = "main()";
+        } else {
+            const line = context.codeLines[callExpr.start.line - 1];
+            const startIdx = callExpr.start.col;
+            const endIdx = callExpr.end.col;
+            const callExprCode = line.slice(startIdx, endIdx);
+            this.callExprCode = callExprCode;
         }
+        this.context = context;
     }
     
     id(): string {
-        return `scope[${this.entries[0].idx},${this.callExpr.start && this.callExpr.start.line + ":" + this.callExpr.start.col},${this.callExpr.end && this.callExpr.end.line + ":" + this.callExpr.end.col}]`;
+        return String(this.funCall.id);
     }
     
     hoverable(): boolean {
@@ -122,9 +54,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
     render(
         ctx: CanvasRenderingContext2D,
         bbox: BoundingBox,
-        viewport: BoundingBox,
-        mouseX: number,
-        mouseY: number
+        viewport: BoundingBox
     ): Map<BoundingBox, ZoomRenderable> {
         // TODO: move this logic to container
         if (bbox.x + bbox.width < viewport.x ||
@@ -135,35 +65,32 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
         const myArea = bbox.width * bbox.height;
         const myAreaRatio = myArea / (viewport.width * viewport.height);
-        const firstEntry = this.entries[0];
-        const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
-        const funName = stackFrame.funName;
-        const funNode = findFunction(this.ast, funName);
-        const userDefinedFunctions = findNodesOfType(this.ast, "function_definition");
+        //const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
+        const funName = this.funCall.fun_name;
+        const funNode = findFunction(this.context.ast, funName);
+        if (!funNode) {
+            console.log("Could not find funNode for", funName, "in", this.callExpr);
+        }
+        const userDefinedFunctions = findNodesOfType(this.context.ast, "function_definition");
         const userDefinedFunctionNames = userDefinedFunctions.map(fun => fun.name.value);
-
+        
         ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
-        const { currentEntries, childEntries } = groupHistoryEntries(funNode, this.entries, userDefinedFunctionNames);
-        
-        //console.log(funName, "group entries", currentEntries, childEntries, this.entries);
+        const funCallExpanded = this.context.funScopeCache.get(this.funCall);
 
-        if (myAreaRatio < 0.4) {
-            // not rendering children
-            const textBox: TextBox = {
-                type: "text",
-                text: this.callExprCode
-            };
-            fitBox(textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.textMeasurer, CODE_LINE_HEIGHT, ctx);
-        } else {
+        if (funCallExpanded && myAreaRatio >= 0.4) {
+            // link call expressions with funCall objects line by line
+            const childCallMap = this.buildChildCallMap(funNode, funCallExpanded, userDefinedFunctionNames);
+            //console.log("funCall", this.funCall.fun_name, "childCallMap", childCallMap, funCallExpanded);
+            
             const { codeBox, childMap } = this.getCodeBox(
-                this.code, currentEntries, childEntries, 
-                userDefinedFunctionNames, this.ast
+                funCallExpanded, funCallExpanded.snapshots, childCallMap, 
+                userDefinedFunctionNames
             );
             
             const bboxMap = fitBox(
                 codeBox, bbox, viewport, CODE_FONT_FAMILY, 
-                "normal", true, this.textMeasurer, CODE_LINE_HEIGHT, ctx);
+                "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
     
             // generate map from bounding box to child zoom-renderable
             let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
@@ -172,24 +99,32 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 childRenderables.set(childBBox, renderable);
             }
             return childRenderables;
+        
+        } else {
+            const textBox: TextBox = {
+                type: "text",
+                text: this.callExprCode
+            };
+            fitBox(textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
+            return new Map();
         }
-        return new Map();
     }
 
     getCodeBox(
-        code: string, 
-        currentEntries: HistoryEntry[], 
-        childEntries: Map<HistoryEntry, SubEntryGroup[]>, 
-        userDefinedFunctionNames: string[],
-        ast: any
+        funCallExpanded: FunCallExpanded,
+        currentEntries: Snapshot[], 
+        childEntries: Map<Snapshot, SubEntryGroup[]>, 
+        userDefinedFunctionNames: string[]
         ): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
         // rendering children
         //console.log(indent + "myAreaRatio >= 0.5");
-        const codeLines = code.split("\n");
         const firstEntry = currentEntries[0];
-        const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
-        const funName = stackFrame.funName;
-        const funNode = findFunction(ast, funName);
+        //const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
+        const funName = this.funCall.fun_name;
+        const funNode = findFunction(this.context.ast, funName);
+        if (!funNode) {
+            console.log("Could not find funNode for", funName, this.context.ast);
+        }
         const lineNumberWidth = 3;
         const childMap: Map<Box, ZoomRenderable> = new Map();
         
@@ -199,19 +134,19 @@ export class CodeScopeRenderer implements ZoomRenderable {
             children: []
         };
         // layout the function signature
-        codeBox.children.push(this.layoutFunctionSignature(funNode, stackFrame, codeLines, lineNumberWidth, childMap, firstEntry.heap));
+        codeBox.children.push(this.layoutFunctionSignature(funNode, null, lineNumberWidth, childMap, firstEntry.heap));
         
         // Go through current entries and layout the code line by line
         for (let i = 0; i < currentEntries.length; i++) {
             const entry = currentEntries[i];
             const nextEntry = currentEntries[i + 1];
-            if (nextEntry && entry.line === nextEntry.line) {
+            if (nextEntry && entry.line_no === nextEntry.line_no) {
                 continue;
             }
-            const line = codeLines[entry.line - 1];
+            const line = this.context.codeLines[entry.line_no - 1];
             const lineNumberBox: TextBox = {
                 type: "text",
-                text: String(entry.line).padEnd(lineNumberWidth) + "  ",
+                text: String(entry.line_no).padEnd(lineNumberWidth) + "  ",
                 color: LINE_NUMBER_COLOR
             };
             const lineBox: ContainerBox = {
@@ -226,12 +161,11 @@ export class CodeScopeRenderer implements ZoomRenderable {
             
             const valueDisplayStrings: TextBox[][] = [];
             
-            this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
-            this.renderUpdatedHeapObjects(funNode, entry, nextEntry, childMap, valueDisplayStrings);
-            this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
+            //this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
+            //this.renderUpdatedHeapObjects(funNode, entry, nextEntry, childMap, valueDisplayStrings);
+            //this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             
             /*
-            
             for (let callExprNode of callExprNodes) {
                 const myChildEntries = childEntries.get(callExprNode);
                 if (!myChildEntries) {
@@ -284,11 +218,6 @@ export class CodeScopeRenderer implements ZoomRenderable {
                     }
                 ]);
             }
-            
-            
-            
-            
-            
             */
             
             codeBox.children.push(lineBox);
@@ -323,13 +252,44 @@ export class CodeScopeRenderer implements ZoomRenderable {
         };
     }
     
+    buildChildCallMap(funNode: any, funCallExpanded: FunCallExpanded, userDefinedFunctionNames: string[]): Map<Snapshot, SubEntryGroup[]> {
+        const childCallMap: Map<Snapshot, SubEntryGroup[]> = new Map();
+        let childFunCallIdx = 0;
+        for (let i = 0; i < funCallExpanded.snapshots.length; i++) {
+            const snapshot = funCallExpanded.snapshots[i];
+            const nextSnapshot = funCallExpanded.snapshots[i + 1];
+            if (nextSnapshot && snapshot.line_no === nextSnapshot.line_no) {
+                continue;
+            }
+            let callExprs: any[] = 
+                findNodesOfTypeOnLine(funNode, "call_expression", snapshot.line_no);
+            callExprs = callExprs.filter(expr => userDefinedFunctionNames.includes(expr.fun_name.value));
+            for (let j = 0; j < callExprs.length; j++) {
+                const callExpr = callExprs[j];
+                if (!childCallMap.has(snapshot)) {
+                    childCallMap.set(snapshot, []);
+                }
+                const funCall = funCallExpanded.childFunCalls[childFunCallIdx++];
+                if (!funCall) {
+                    throw new Error("HERE Y NO FUN CALL?");
+                }
+                childCallMap.get(snapshot).push({
+                    callExpr,
+                    funCall
+                });
+            }
+        }
+        return childCallMap;
+    }
+    
     renderLine(
         line: string, 
-        entry: HistoryEntry, 
+        entry: Snapshot, 
         lineBox: ContainerBox, 
-        childEntries: Map<HistoryEntry, SubEntryGroup[]>,
+        childEntries: Map<Snapshot, SubEntryGroup[]>,
         childMap: Map<Box, ZoomRenderable>
     ) {
+        
         const subEntryGroups = childEntries.get(entry);
         //console.log("renderLine subEntryGroups", subEntryGroups, "childEntries", childEntries, "entry", entry);
         if (!subEntryGroups) {
@@ -340,6 +300,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             });
             return;
         }
+        
         let pos = 0;
         for (let i = 0; i < subEntryGroups.length; i++) {
             const subEntryGroup = subEntryGroups[i];
@@ -363,19 +324,19 @@ export class CodeScopeRenderer implements ZoomRenderable {
             };
             
             lineBox.children.push(callExprTextBox);
+            
+            if (!subEntryGroup.funCall) {
+                console.log(subEntryGroup);
+                throw new Error("Y NO FUN CALL?");
+            }
             childMap.set(
                 callExprTextBox, 
                 new CodeScopeRenderer(
-                    subEntryGroup.entries,
+                    subEntryGroup.funCall,
                     callExprNode,
-                    callExprCode,
-                    this.ast,
-                    this.code,
-                    this.textMeasurer
+                    this.context
                 )
             );
-            
-            
         }
         const rest = line.slice(pos);
         if (rest.length > 0) {
@@ -387,15 +348,16 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
     }
     
-    renderVariableAssignmentValues(entry: HistoryEntry, funNode: any, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    /*
+    renderVariableAssignmentValues(entry: Snapshot, funNode: any, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         // Display variable values for assignments
-        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line)[0];
+        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line_no)[0];
         if (assignmentNode) {
             const varName = assignmentNode.var_name.value;
             if (nextEntry) {
                 const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
                 let varValue = nextStackFrame.variables[varName];
-                const varValueDisplay = this.getVarValueDisplay(entry.idx, varValue, childMap, nextEntry.heap);
+                const varValueDisplay = this.getVarValueDisplay(entry.id, varValue, childMap, nextEntry.heap);
                 const prefix = `${varName} = `;
                 const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
                     if (idx === 0) {
@@ -421,9 +383,11 @@ export class CodeScopeRenderer implements ZoomRenderable {
             }
         }
         
-    }
+    }*/
     
-    renderUpdatedHeapObjects(funNode: any, entry: HistoryEntry, nextEntry: HistoryEntry, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    
+    /*
+    renderUpdatedHeapObjects(funNode: any, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         let varNameAssigned;
         const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line)[0];
         if (assignmentNode) {
@@ -471,11 +435,13 @@ export class CodeScopeRenderer implements ZoomRenderable {
             }
         }    
     }
+    */
     
+    /*
     renderReturnValues(
         funNode: any, 
-        entry: HistoryEntry, 
-        nextEntry: HistoryEntry, 
+        entry: Snapshot, 
+        nextEntry: Snapshot, 
         childMap: Map<Box, ZoomRenderable>,
         valueDisplayStrings: Box[][]
     ) {
@@ -509,8 +475,9 @@ export class CodeScopeRenderer implements ZoomRenderable {
             valueDisplayStrings.push(...tagged);
         }
     }
+    */
 
-    layoutFunctionSignature(funNode: any, stackFrame: any, codeLines: string[], lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>, heap: any) {
+    layoutFunctionSignature(funNode: any, stackFrame: any, lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>, heap: any) {
         const funSigBox: ContainerBox = {
             type: "container",
             direction: "horizontal",
@@ -522,11 +489,12 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 },
                 {
                     type: "text",
-                    text: codeLines[funNode.start.line - 1],
+                    text: this.context.codeLines[funNode.start.line - 1],
                     color: CODE_COLOR
                 }
             ]
         };
+        /*
         for (let param of funNode.parameters) {
             const paramName = param.value;
             let value = stackFrame.variables[paramName];
@@ -547,6 +515,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             } as Box;
             funSigBox.children.push(outerBox);
         }
+        */
         return funSigBox;
     }
     
@@ -557,7 +526,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 const row: Box[] = [];
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
-                    const itemBox = getValueDisplay(entryIdx, item, childMap, heap, this.textMeasurer);
+                    const itemBox = getValueDisplay(entryIdx, item, childMap, heap, this.context.textMeasurer);
                     itemBox.text = " " + itemBox.text + " ";
                     if (!itemBox.border) {
                         itemBox.border = { color: VARIABLE_DISPLAY_COLOR };
@@ -577,7 +546,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                         color: VARIABLE_DISPLAY_COLOR,
                         border: { color: VARIABLE_DISPLAY_COLOR }
                     };
-                    const propValueBox = getValueDisplay(entryIdx, propValue, childMap, heap, this.textMeasurer);
+                    const propValueBox = getValueDisplay(entryIdx, propValue, childMap, heap, this.context.textMeasurer);
                     propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
                     propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
                     table.push([propTextBox, propValueBox]);
@@ -585,7 +554,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 return table;
             }
         }
-        return [[getValueDisplay(entryIdx, value, childMap, heap, this.textMeasurer)]];
+        return [[getValueDisplay(entryIdx, value, childMap, heap, this.context.textMeasurer)]];
     }
     /*
     getVarValueDisplay_(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
@@ -679,90 +648,6 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
     }
     */
-
-    toString() {
-        return this.callExprCode;
-    }
-}
-
-function groupHistoryEntries(funNode: any, entries: HistoryEntry[], userDefinedFunctionNames: string[]) {
-    const funName = funNode.name.value;
-    if (funName === "playGame") {
-        //debugger;
-    }
-    const currentStackHeight = entries[0].stack.length;
-    const currentLevelEntries: HistoryEntry[] = [];
-    let currentParentEntry: HistoryEntry = entries[0];
-    let currentChildLevelEntries: HistoryEntry[] = [];
-    let callExprs: any[] = null;
-    let subEntryGroups: SubEntryGroup[] = null;
-    let callExprsIdx: number = 0;
-    const entryMap: Map<HistoryEntry, SubEntryGroup[]> = new Map();
-    let state = "open";
-    for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        if (state === "open") {
-            if (entry.stack.length > currentStackHeight) {
-                state = "collecting";
-                callExprs = findNodesOfTypeOnLine(funNode, "call_expression", currentParentEntry.line)
-                    .filter(expr => userDefinedFunctionNames.includes(expr.fun_name.value));
-                callExprsIdx = 0;
-                subEntryGroups = [];
-                currentChildLevelEntries = [entry];
-            } else {
-                currentLevelEntries.push(entry);
-                currentParentEntry = entry;
-            }
-        } else if (state === "collecting") {
-            if (entry.stack.length > currentStackHeight) {
-                currentChildLevelEntries.push(entry);
-            } else {
-                // we are back
-                const callExpr = callExprs[callExprsIdx];
-                const newGroup = {
-                    callExpr,
-                    entries: currentChildLevelEntries
-                };
-                subEntryGroups.push(newGroup);
-                
-                callExprsIdx++;
-                if (callExprsIdx >= callExprs.length) {
-                    state = "open";
-                    
-                    entryMap.set(currentParentEntry, subEntryGroups);
-                    subEntryGroups = [];
-                    
-                    // if entry is the same line as currentParentEntry that means
-                    // there is no need to add the entry to the currentLevelEntries
-                    // again because the previous instance is enough, it's also
-                    // important to leave the last instance because that's the instance
-                    // we are using as the key to entryMap
-                    
-                    if (entry.line !== currentParentEntry.line) {
-                        currentLevelEntries.push(entry);
-                    }
-                    currentParentEntry = entry;
-                    
-                } else {
-                    // TODO test semi open with the fib example
-                    // which has 2 call exprs on the same line
-                    state = "semiopen";
-                }
-            }
-        } else if (state === "semiopen") {
-            if (entry.stack.length > currentStackHeight) {
-                state = "collecting";
-                currentChildLevelEntries = [entry];
-            } else {
-                throw new Error("Unexpected state");
-            }
-        }
-    }
-    
-    return {
-        currentEntries: currentLevelEntries,
-        childEntries: entryMap
-    };
 }
 
 class HeapObjectRenderer implements ZoomRenderable {
@@ -784,9 +669,7 @@ class HeapObjectRenderer implements ZoomRenderable {
     render(
         ctx: CanvasRenderingContext2D,
         bbox: BoundingBox,
-        viewport: BoundingBox,
-        mouseX: number,
-        mouseY: number
+        viewport: BoundingBox
     ): Map<BoundingBox, ZoomRenderable> {
         const childMap: Map<Box, ZoomRenderable> = new Map();
         const myArea = bbox.width * bbox.height;
@@ -877,7 +760,7 @@ function findNodesOfType(node, type) {
     return defs;
 }
 
-function findNodesOfTypeOnLine(node, type, lineNo) {
+function findNodesOfTypeOnLine(node, type, lineNo): any[] {
     let defs = [];
     traverse(node, (childNode) => {
         if (childNode.type === type && childNode.start.line === lineNo) {
@@ -885,4 +768,77 @@ function findNodesOfTypeOnLine(node, type, lineNo) {
         }
     });
     return defs;
+}
+
+function isHeapRef(thing): thing is HeapRef {
+    return thing && typeof thing === "object" && typeof thing.id === "number";
+}
+
+function hasHeapValueChanged(id: number, heapOne: any, heapTwo) {
+    if (heapOne[id] !== heapTwo[id]) {
+        return true;
+    } else {
+        const thingOne = heapOne[id];
+        const thingTwo = heapTwo[id];
+        if (Array.isArray(thingOne)) {
+            for (let i = 0; i < thingOne.length; i++) {
+                if (thingOne[i] !== thingTwo[i]) {
+                    return true;
+                } else if (isHeapRef(thingOne[i])) {
+                    if (hasHeapValueChanged(thingOne[i].id, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else if (typeof thingOne === "object") {
+            for (let prop in thingOne) {
+                const valueOne = thingOne[prop];
+                const valueTwo = thingTwo[prop];
+                if (valueOne !== valueTwo) {
+                    return true;
+                } else if (isHeapRef(valueOne)) {
+                    if (hasHeapValueChanged(valueOne.id, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else {
+            return false;
+        }
+    }
+}
+
+function getValueDisplay(
+    entryIdx: number,
+    value: any, 
+    childMap: Map<Box, ZoomRenderable>, 
+    heap: any,
+    textMeasurer: TextMeasurer): TextBox {
+    if (isHeapRef(value)) {
+        const textBox: TextBox = {
+            type: "text",
+            text: "*" + value.id,
+            color: VARIABLE_DISPLAY_COLOR,
+            border: {
+                color: VARIABLE_DISPLAY_COLOR
+            }
+        };
+        
+        childMap.set(textBox, new HeapObjectRenderer(entryIdx, value, textMeasurer, heap));
+        return textBox;
+    }
+    return {
+        type: "text",
+        text: JSON.stringify(value),
+        color: VARIABLE_DISPLAY_COLOR
+    };
+}
+
+function getValueDisplayLength(value: any): number {
+    if (isHeapRef(value)) {
+        return String("*" + value.id).length;
+    }
+    return JSON.stringify(value).length;
 }

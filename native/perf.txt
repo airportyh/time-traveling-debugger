@@ -1,0 +1,71 @@
+# Native stringify
+
+$ ./run ex/tic-tac-toe-term.play
+Wrote ex/tic-tac-toe-term.ast.
+Wrote ex/tic-tac-toe-term.js.
+running "node ex/tic-tac-toe-term.js"
+
+   
+   
+   
+
+Your move? (1-9) 5
+Computer took 4684ms to make this move.
+
+X  
+ O 
+   
+
+Your move? (1-9) 9
+Computer took 3216ms to make this move.
+
+XX 
+ O 
+  O
+
+Your move? (1-9) 3
+Computer took 558ms to make this move.
+
+XXO
+XO 
+  O
+
+Your move? (1-9) 7
+The winner is O
+Play again? (y or n) n
+
+## JS $stringify
+
+$ ./run ex/tic-tac-toe-term.play
+Wrote ex/tic-tac-toe-term.ast.
+Wrote ex/tic-tac-toe-term.js.
+running "node ex/tic-tac-toe-term.js"
+
+   
+   
+   
+
+Your move? (1-9) 5
+Computer took 1782ms to make this move.
+
+X  
+ O 
+   
+
+Your move? (1-9) 9
+Computer took 1126ms to make this move.
+
+XX 
+ O 
+  O
+
+Your move? (1-9) 3
+Computer took 220ms to make this move.
+
+XXO
+XO 
+  O
+
+Your move? (1-9) 7
+The winner is O
+Play again? (y or n) n

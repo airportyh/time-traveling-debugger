@@ -7,6 +7,8 @@
 // HISTORY_FILE_PATH should be predefined by the emitted code
 
 // Inspector used for profiler
+
+//const $nativeStringify = require('bindings')('stringify');
 const inspector = require("inspector");
 const $inspectorSession = new inspector.Session();
 $inspectorSession.connect();
@@ -82,6 +84,12 @@ function $initLogDB() {
         constraint FunCall_fk_parent_id foreign key (parent_id)
             references FunCall(id)
     );
+    
+    create table SourceCode (
+        id integer primary key,
+        file_path text,
+        source text
+    );
     `;
     $logDB.exec(schema);
 
@@ -89,6 +97,8 @@ function $initLogDB() {
     $insertFunCallStatement = $logDB.prepare(`insert into FunCall values (?, ?, ?, ?)`);
     $insertSnapshotStatement = $logDB.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
     $heapObjectIds = new WeakMap();
+    $logDB.prepare(`insert into SourceCode values (1, ?, ?)`)
+        .run(SOURCE_FILE_PATH, $code);
 
     $logDB.exec("begin transaction");
 }
@@ -253,6 +263,7 @@ function $sendObjects(objects) {
     for (let newObject of objects) {
         const id = $objectToIdMap.get(newObject);
         $insertObjectStatement.run(id, $stringify(newObject, true));
+        //$insertObjectStatement.run(id, $nativeStringify(newObject, $objectToIdMap));
     }
 }
 
@@ -264,13 +275,22 @@ function $stringify(object, firstLevel) {
         let arrayString = "[";
         const parts = [];
         for (let i = 0; i < object.length; i++) {
+            if (i > 0) {
+                arrayString += ", ";
+            }
             arrayString += $stringify(object[i], false);
         }
         arrayString += "]";
         return arrayString;
     } else if (typeof object === "object") {
         let objectString = "{";
+        let first = true;
         for (let key in object) {
+            if (!first) {
+                objectString += ", ";    
+            } else {
+                first = false;
+            }
             objectString += '"' + key + '": ' + $stringify(object[key], false);
         }
         objectString += "}";
@@ -280,66 +300,6 @@ function $stringify(object, firstLevel) {
     }
 }
 
-function $stringify_(object) {
-    const COMMA = {};
-    const RBRACKET = {};
-    const RBRACE = {};
-    const COLON = {};
-    const KEY = {};
-    let output = "";
-    let stack = [object];
-    let firstLevel = true;
-    while (true) {
-        if (stack.length === 0) {
-            break;
-        }
-        object = stack.shift();
-        if (!firstLevel && $objectToIdMap.has(object)) {
-            output += "*" + $objectToIdMap.get(object);
-        } else {
-            if (object == null) {
-                output += "null";
-            } else if (object === COMMA) {
-                output += ",";
-            } else if (object === RBRACKET) {
-                output += "]";
-            } else if (object === RBRACE) {
-                output += "}";
-            } else if (object === KEY) {
-                const key = stack.shift();
-                output += '"' + key + '":';
-            } else if (Array.isArray(object)) {
-                output += "[";
-                for (let i = 0; i < object.length; i++) {
-                    if (i > 0) {
-                        stack.push(COMMA);
-                    }
-                    stack.push(object[i]);
-                }
-                stack.push(RBRACKET);
-            } else if (typeof object === "object") {
-                output += "{";
-                const keys = Object.keys(object);
-                for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i];
-                    if (i > 0) {
-                        stack.push(COMMA);
-                    }
-                    stack.push(KEY);
-                    stack.push(key);
-                    stack.push(object[key]);
-                }
-                stack.push(RBRACE);
-            } else {
-                output += JSON.stringify(object);
-            }
-        }
-        if (firstLevel) {
-            firstLevel = false;
-        }
-    }
-    return output;
-}
 
 function $sendFunCall(call) {
     const newObjects = [];

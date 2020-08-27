@@ -22,6 +22,7 @@ to learn more about it, you can watch these videos:
 * [Implementing Closures in Play Lang Playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Aw1Q4NuIZq9c87FDw_EN-S)
 * [Live Code: Debug Mode and Suspension](https://www.youtube.com/watch?v=dkuhfht93vQ&list=PLSq9OFrD2Q3BKZs7E-Un55QYzeoiaeSTk)
 * [Live Code: Todo MVC](https://www.youtube.com/watch?v=5kr0p2RddSw&list=PLSq9OFrD2Q3BpxGnJXrhtDyN39p1UYU9z)
+* [Time Machine Status Update 1](https://www.youtube.com/watch?v=USyEofrn2aI)
 
 ## Deep Zoom Debugger
 
