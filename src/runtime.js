@@ -158,7 +158,6 @@ function $heapAllocate(value) {
 }
 
 function $save(line) {
-    return;
     const entry = {
         line, 
         stack: $stack, 
