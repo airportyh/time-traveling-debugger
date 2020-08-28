@@ -3,6 +3,7 @@ import { FunCall, DBObject, Snapshot, FunCallExpanded } from "./play-lang";
 import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
 import { traverse } from "../traverser";
 import { ZoomDebuggerContext } from "./zoom-debugger";
+import { parse, Ref } from "@airportyh/jsonr";
 
 const CODE_LINE_HEIGHT = 1.5;
 const CODE_FONT_FAMILY = "Monaco";
@@ -18,7 +19,7 @@ type SubEntryGroup = {
 
 type HeapRef = { id: number };
 
-export class CodeScopeRenderer implements ZoomRenderable {
+export class FunCallRenderer implements ZoomRenderable {
     funCall: FunCall;
     callExpr: any;
     callExprCode: string;
@@ -161,7 +162,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             
             const valueDisplayStrings: TextBox[][] = [];
             
-            //this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
+            this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
             //this.renderUpdatedHeapObjects(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             //this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             
@@ -331,7 +332,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             }
             childMap.set(
                 callExprTextBox, 
-                new CodeScopeRenderer(
+                new FunCallRenderer(
                     subEntryGroup.funCall,
                     callExprNode,
                     this.context
@@ -348,16 +349,29 @@ export class CodeScopeRenderer implements ZoomRenderable {
         }
     }
     
-    /*
-    renderVariableAssignmentValues(entry: Snapshot, funNode: any, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    
+    renderVariableAssignmentValues(snapshot: Snapshot, funNode: any, nextSnapshot: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         // Display variable values for assignments
-        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line_no)[0];
+        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", snapshot.line_no)[0];
         if (assignmentNode) {
             const varName = assignmentNode.var_name.value;
-            if (nextEntry) {
-                const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
+            if (nextSnapshot) {
+                const stackDbObject = this.context.objectCache.get(nextSnapshot.stack);
+                if (!stackDbObject) {
+                    return;
+                }
+                console.log("stackDbObject", stackDbObject);
+                const stack = parse(stackDbObject.data, true);
+                console.log("stack", stack);
+                let nextStackFrame = stack[0];
+                if (isJsonrRef(nextStackFrame)) {
+                    nextStackFrame = this.context.objectCache.get(nextStackFrame.id);
+                    if (!nextStackFrame) {
+                        return;
+                    }
+                }
                 let varValue = nextStackFrame.variables[varName];
-                const varValueDisplay = this.getVarValueDisplay(entry.id, varValue, childMap, nextEntry.heap);
+                const varValueDisplay = this.getVarValueDisplay(snapshot.id, varValue, childMap, nextSnapshot.heap);
                 const prefix = `${varName} = `;
                 const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
                     if (idx === 0) {
@@ -383,7 +397,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
             }
         }
         
-    }*/
+    }
     
     
     /*
@@ -519,14 +533,14 @@ export class CodeScopeRenderer implements ZoomRenderable {
         return funSigBox;
     }
     
-    getVarValueDisplay(entryIdx: number, value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
+    getVarValueDisplay(snapshotId: number, value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
         if (isHeapRef(value)) {
             const object = heap[value.id];
             if (Array.isArray(object)) {
                 const row: Box[] = [];
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
-                    const itemBox = getValueDisplay(entryIdx, item, childMap, heap, this.context.textMeasurer);
+                    const itemBox = getValueDisplay(snapshotId, item, childMap, heap, this.context.textMeasurer);
                     itemBox.text = " " + itemBox.text + " ";
                     if (!itemBox.border) {
                         itemBox.border = { color: VARIABLE_DISPLAY_COLOR };
@@ -546,7 +560,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                         color: VARIABLE_DISPLAY_COLOR,
                         border: { color: VARIABLE_DISPLAY_COLOR }
                     };
-                    const propValueBox = getValueDisplay(entryIdx, propValue, childMap, heap, this.context.textMeasurer);
+                    const propValueBox = getValueDisplay(snapshotId, propValue, childMap, heap, this.context.textMeasurer);
                     propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
                     propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
                     table.push([propTextBox, propValueBox]);
@@ -554,7 +568,7 @@ export class CodeScopeRenderer implements ZoomRenderable {
                 return table;
             }
         }
-        return [[getValueDisplay(entryIdx, value, childMap, heap, this.context.textMeasurer)]];
+        return [[getValueDisplay(snapshotId, value, childMap, heap, this.context.textMeasurer)]];
     }
     /*
     getVarValueDisplay_(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
@@ -772,6 +786,10 @@ function findNodesOfTypeOnLine(node, type, lineNo): any[] {
 
 function isHeapRef(thing): thing is HeapRef {
     return thing && typeof thing === "object" && typeof thing.id === "number";
+}
+
+function isJsonrRef(thing): boolean {
+    return thing instanceof Ref;
 }
 
 function hasHeapValueChanged(id: number, heapOne: any, heapTwo) {

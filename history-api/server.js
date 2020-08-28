@@ -23,7 +23,10 @@ app.get("/api/Snapshot", (req, res) => {
 });
 
 app.get("/api/Object", (req, res) => {
-    const ids = req.query.id;
+    let ids = req.query.id;
+    if (!Array.isArray(ids)) {
+        ids = [ids];
+    }
     if (!ids) {
         res.json([]);
     } else {

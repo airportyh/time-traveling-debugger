@@ -1,7 +1,7 @@
 import { FunCallExpanded, FunCall } from "./play-lang";
 import { fetchJson } from "./fetch-json";
 
-export class FunScopeCache {
+export class FunCallCache {
     map: Map<number, FunCallExpanded | "pending">;
     constructor(private baseUrl: string, private onDataFetched: Function) {
         this.map = new Map();

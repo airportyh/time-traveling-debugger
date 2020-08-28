@@ -1,9 +1,10 @@
 import { parse } from "../parser";
 import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
-import { CodeScopeRenderer } from "./code-scope-renderer";
+import { FunCallRenderer } from "./fun-call-renderer";
 import { fetchJson } from "./fetch-json";
-import { FunScopeCache } from "./fun-scope-cache";
+import { FunCallCache } from "./fun-call-cache";
+import { ObjectCache } from "./object-cache";
 
 type Scope = {
     bbox: BoundingBox,
@@ -19,11 +20,13 @@ export type ZoomDebuggerContext = {
     ast: any, 
     codeLines: string[], 
     textMeasurer: TextMeasurer, 
-    funScopeCache: FunScopeCache
+    funScopeCache: FunCallCache,
+    objectCache: ObjectCache
 };
 
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
-    const funScopeCache: FunScopeCache = new FunScopeCache(apiBaseUrl, render);
+    const funScopeCache: FunCallCache = new FunCallCache(apiBaseUrl, render);
+    const objectCache: ObjectCache = new ObjectCache(apiBaseUrl, render);
     const sourceCode = await fetchJson(apiBaseUrl + "SourceCode");
     const code = sourceCode.source;
     const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];
@@ -62,7 +65,8 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
         ast,
         codeLines: code.split("\n"),
         textMeasurer,
-        funScopeCache
+        funScopeCache,
+        objectCache
     };
     const mainScope: Scope = {
         bbox: {
@@ -71,7 +75,7 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
             width: canvas.width,
             height: canvas.height
         },
-        renderable: new CodeScopeRenderer(rootFunCall, ast, context)
+        renderable: new FunCallRenderer(rootFunCall, ast, context)
     };
     
     let currentScopeChain: Scope[] = [mainScope];
