@@ -449,12 +449,14 @@ export class FunCallRenderer implements ZoomRenderable {
     ) {
         // Display variable values for return statements
         const returnStatement = findNodesOfTypeOnLine(funNode, "return_statement", entry.line_no)[0];
+        
         if (returnStatement) {
             const stack = this.context.dataCache.getObject(nextEntry.stack);
+            const heap = this.context.dataCache.getObject(nextEntry.heap);
             const nextStackFrame = this.deref(stack[0]);
             const variables = this.deref(nextStackFrame.variables);
             const varValue = variables["<ret val>"];
-            const valueDisplay = this.getVarValueDisplay(entry.id, varValue, childMap, nextEntry.heap);
+            const valueDisplay = this.getVarValueDisplay(entry.id, varValue, childMap, heap);
             const tagged: Box[][] = valueDisplay.map((line, idx) => {
                 if (idx === 0) {
                     return [
@@ -540,6 +542,7 @@ export class FunCallRenderer implements ZoomRenderable {
             let object = heap[value.id];
             if (object === undefined) {
                 console.warn("Object is undefined for", value, heap);
+                throw new Error("Object is undefined");
                 return [];
             }
             if (isJsonrRef(object)) {
