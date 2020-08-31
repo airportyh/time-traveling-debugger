@@ -1,13 +1,17 @@
 import { DBObject } from "./play-lang";
 import { fetchJson } from "./fetch-json";
+import { parse } from "@airportyh/jsonr";
 
 export class ObjectCache {
-    map: Map<number, DBObject | "pending">;
+    map: Map<number, any | "pending">;
     constructor(private baseUrl: string, private onDataFetched: Function) {
         this.map = new Map();
     }
     
-    get(id: number): DBObject | null {
+    get(id: number): any | null {
+        if (typeof id !== "number") {
+            throw new Error("calling object cache.get with a non-number: " + JSON.stringify(id));
+        }
         const value = this.map.get(id);
         if (!value) {
             this.map.set(id, "pending");
@@ -21,9 +25,14 @@ export class ObjectCache {
     }
     
     async fetch(id: number) {
-        console.log("fetching object with id: " + id);
-        const object = (await fetchJson(`${this.baseUrl}Object?id=${id}`))[0];
-        this.map.set(id, object);
-        this.onDataFetched();
+        setTimeout(async () => {
+            let object = (await fetchJson(`${this.baseUrl}Object?id=${id}`))[0];
+            if (!object) {
+                throw new Error("Got no data for object " + JSON.stringify(id));
+            }
+            object = parse(object.data, true);
+            this.map.set(id, object);
+            this.onDataFetched();
+        });
     }
 }

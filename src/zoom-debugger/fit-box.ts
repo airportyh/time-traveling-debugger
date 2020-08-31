@@ -237,7 +237,7 @@ export function layout(
     Map<Box, BoundingBox> {
     if (box.type === "text") {
         if (typeof box.text !== "string") {
-            throw new Error("Please provide a string for the text property of a text box.");
+            throw new Error("Please provide a string for the text property of a text box. We've got instead: " + JSON.stringify(box.text));
         }
         let width = textMeasurer.measureText(box.text);
         //console.log("measureText:", box.text, fontSize, "=", width);

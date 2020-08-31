@@ -5,6 +5,7 @@ import { FunCallRenderer } from "./fun-call-renderer";
 import { fetchJson } from "./fetch-json";
 import { FunCallCache } from "./fun-call-cache";
 import { ObjectCache } from "./object-cache";
+import throttle from "lodash/throttle";
 
 type Scope = {
     bbox: BoundingBox,
@@ -25,8 +26,9 @@ export type ZoomDebuggerContext = {
 };
 
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
-    const funScopeCache: FunCallCache = new FunCallCache(apiBaseUrl, render);
-    const objectCache: ObjectCache = new ObjectCache(apiBaseUrl, render);
+    //const throttledRender = throttle(render, 200);
+    const funScopeCache: FunCallCache = new FunCallCache(apiBaseUrl, requestRender);
+    const objectCache: ObjectCache = new ObjectCache(apiBaseUrl, requestRender);
     const sourceCode = await fetchJson(apiBaseUrl + "SourceCode");
     const code = sourceCode.source;
     const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];

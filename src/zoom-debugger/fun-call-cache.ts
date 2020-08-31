@@ -21,14 +21,16 @@ export class FunCallCache {
     }
     
     async fetch(funCall: FunCall) {
-        const childFunCalls = await fetchJson(`${this.baseUrl}FunCall?parentId=${funCall.id}`);
-        const snapshots = await fetchJson(`${this.baseUrl}Snapshot?funCallId=${funCall.id}`);
-        const expanded: FunCallExpanded = {
-            ...funCall,
-            snapshots,
-            childFunCalls
-        };
-        this.map.set(funCall.id, expanded);
-        this.onDataFetched();
+        setTimeout(async () => {
+            const childFunCalls = await fetchJson(`${this.baseUrl}FunCall?parentId=${funCall.id}`);
+            const snapshots = await fetchJson(`${this.baseUrl}Snapshot?funCallId=${funCall.id}`);
+            const expanded: FunCallExpanded = {
+                ...funCall,
+                snapshots,
+                childFunCalls
+            };
+            this.map.set(funCall.id, expanded);
+            this.onDataFetched();
+        });
     }
 }
