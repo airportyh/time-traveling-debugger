@@ -3,9 +3,7 @@ import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
 import { FunCallRenderer } from "./fun-call-renderer";
 import { fetchJson } from "./fetch-json";
-import { FunCallCache } from "./fun-call-cache";
-import { ObjectCache } from "./object-cache";
-import throttle from "lodash/throttle";
+import { DataCache } from "./data-cache";
 
 type Scope = {
     bbox: BoundingBox,
@@ -20,15 +18,13 @@ type HoverStateEntry = {
 export type ZoomDebuggerContext = {
     ast: any, 
     codeLines: string[], 
-    textMeasurer: TextMeasurer, 
-    funScopeCache: FunCallCache,
-    objectCache: ObjectCache
+    textMeasurer: TextMeasurer,
+    dataCache: DataCache
 };
 
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
     //const throttledRender = throttle(render, 200);
-    const funScopeCache: FunCallCache = new FunCallCache(apiBaseUrl, requestRender);
-    const objectCache: ObjectCache = new ObjectCache(apiBaseUrl, requestRender);
+    const dataCache = new DataCache(apiBaseUrl, requestRender);
     const sourceCode = await fetchJson(apiBaseUrl + "SourceCode");
     const code = sourceCode.source;
     const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];
@@ -67,8 +63,7 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
         ast,
         codeLines: code.split("\n"),
         textMeasurer,
-        funScopeCache,
-        objectCache
+        dataCache
     };
     const mainScope: Scope = {
         bbox: {

@@ -79,13 +79,13 @@ export class FunCallRenderer implements ZoomRenderable {
         
         ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
-        const funCallExpanded = this.context.funScopeCache.get(this.funCall);
+        const funCallExpanded = this.context.dataCache.getFunCallExpanded(this.funCall.id);
 
         if (funCallExpanded && myAreaRatio >= 0.4) {
             const childCallMap = this.buildChildCallMap(funNode, funCallExpanded);
             
             const { codeBox, childMap } = this.getCodeBox(
-                funCallExpanded, funCallExpanded.snapshots, childCallMap
+                funCallExpanded, childCallMap
             );
             
             const bboxMap = fitBox(codeBox, bbox, viewport, CODE_FONT_FAMILY, 
@@ -111,13 +111,9 @@ export class FunCallRenderer implements ZoomRenderable {
 
     getCodeBox(
         funCallExpanded: FunCallExpanded,
-        currentEntries: Snapshot[], 
         childEntries: Map<Snapshot, SubEntryGroup[]>
         ): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
         // rendering children
-        //console.log(indent + "myAreaRatio >= 0.5");
-        const firstEntry = currentEntries[0];
-        //const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
         const funName = this.funCall.fun_name;
         const funNode = findFunction(this.context.ast, funName);
         if (!funNode) {
@@ -133,12 +129,13 @@ export class FunCallRenderer implements ZoomRenderable {
         };
         // layout the function signature
         codeBox.children.push(this.layoutFunctionSignature(
-            funNode, null, lineNumberWidth, childMap, firstEntry.heap));
+            funNode, funCallExpanded, lineNumberWidth, childMap));
         
+        const snapshots = funCallExpanded.snapshots;
         // Go through current entries and layout the code line by line
-        for (let i = 0; i < currentEntries.length; i++) {
-            const entry = currentEntries[i];
-            const nextEntry = currentEntries[i + 1];
+        for (let i = 0; i < snapshots.length; i++) {
+            const entry = snapshots[i];
+            const nextEntry = snapshots[i + 1];
             if (nextEntry && entry.line_no === nextEntry.line_no) {
                 continue;
             }
@@ -162,7 +159,7 @@ export class FunCallRenderer implements ZoomRenderable {
             
             this.renderVariableAssignmentValues(entry, funNode, nextEntry, childMap, valueDisplayStrings);
             this.renderUpdatedHeapObjects(funNode, entry, nextEntry, childMap, valueDisplayStrings);
-            //this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
+            this.renderReturnValues(funNode, entry, nextEntry, childMap, valueDisplayStrings);
             
             /*
             for (let callExprNode of callExprNodes) {
@@ -354,26 +351,12 @@ export class FunCallRenderer implements ZoomRenderable {
         if (assignmentNode) {
             const varName = assignmentNode.var_name.value;
             if (nextSnapshot) {
-                const stack = this.context.objectCache.get(nextSnapshot.stack);
-                if (!stack) {
-                    return [];
-                }
-                let nextStackFrame = stack[0];
-                if (isJsonrRef(nextStackFrame)) {
-                    nextStackFrame = this.context.objectCache.get(nextStackFrame.id);
-                    if (!nextStackFrame) {
-                        return [];
-                    }
-                }
-                let variables = nextStackFrame.variables;
-                if (isJsonrRef(variables)) {
-                    variables = this.context.objectCache.get(variables.id);
-                    if (!variables) {
-                        return [];
-                    }
-                }
-                let varValue = variables[varName];
-                const varValueDisplay = this.getVarValueDisplay(snapshot.id, varValue, childMap, nextSnapshot.heap);
+                const stack = this.context.dataCache.getObject(nextSnapshot.stack);
+                const heap = this.context.dataCache.getObject(nextSnapshot.heap);
+                const nextStackFrame = this.deref(stack[0]);
+                const variables = this.deref(nextStackFrame.variables);
+                const varValue = variables[varName];
+                const varValueDisplay = this.getVarValueDisplay(snapshot.id, varValue, childMap, heap);
                 const prefix = `${varName} = `;
                 const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
                     if (idx === 0) {
@@ -402,47 +385,21 @@ export class FunCallRenderer implements ZoomRenderable {
         
     }
     
-    
     renderUpdatedHeapObjects(funNode: any, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
-        let varNameAssigned;
+        let varNameAssigned: any;
         const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line_no)[0];
         if (assignmentNode) {
             varNameAssigned = assignmentNode.var_name.value;
         }
         if (nextEntry) {
-            const nextStack = this.context.objectCache.get(nextEntry.stack);
-            if (!nextStack) {
-                return;
-            }
-            const currentStack = this.context.objectCache.get(entry.stack);
-            if (!currentStack) {
-                return;
-            }
-            console.log("nextStack", nextStack);
-            const nextFrame = this.context.objectCache.get(nextStack[0]);
-            if (!nextFrame) {
-                return;
-            }
-            const currentFrame = this.context.objectCache.get(currentStack[0]);
-            if (!currentFrame) {
-                return;
-            }
-            const nextVariables = this.context.objectCache.get(nextFrame.variables);
-            if (!nextVariables) {
-                return;
-            }
-            const currentVariables = this.context.objectCache.get(currentFrame.variables);
-            if (!currentVariables) {
-                return;
-            }
-            const currentHeap = this.context.objectCache.get(entry.heap);
-            if (!currentHeap) {
-                return;
-            }
-            const nextHeap = this.context.objectCache.get(nextEntry.heap);
-            if (!nextHeap) {
-                return;
-            }
+            const currentHeap = this.context.dataCache.getObject(entry.heap);
+            const nextHeap = this.context.dataCache.getObject(nextEntry.heap);
+            const nextStack = this.context.dataCache.getObject(nextEntry.stack);
+            const currentStack = this.context.dataCache.getObject(entry.stack);
+            const nextFrame = this.deref(nextStack[0]);
+            const currentFrame = this.deref(currentStack[0]);
+            const nextVariables = this.deref(nextFrame.variables);
+            const currentVariables = this.deref(currentFrame.variables);
             for (let varName in currentVariables) {
                 if (varName === varNameAssigned) {
                     continue;
@@ -450,7 +407,6 @@ export class FunCallRenderer implements ZoomRenderable {
                 const value = currentVariables[varName];
                 if (isHeapRef(value)) {
                     const nextValue = nextVariables[varName];
-                    console.log("calling hasHeapValueChanged", value.id, currentHeap, nextHeap);
                     const headValueChanged = hasHeapValueChanged(value.id, currentHeap, nextHeap);
                     if (!nextValue || 
                         (isHeapRef(value) && (
@@ -484,7 +440,6 @@ export class FunCallRenderer implements ZoomRenderable {
         }    
     }
     
-    /*
     renderReturnValues(
         funNode: any, 
         entry: Snapshot, 
@@ -493,11 +448,13 @@ export class FunCallRenderer implements ZoomRenderable {
         valueDisplayStrings: Box[][]
     ) {
         // Display variable values for return statements
-        const returnStatement = findNodesOfTypeOnLine(funNode, "return_statement", entry.line)[0];
+        const returnStatement = findNodesOfTypeOnLine(funNode, "return_statement", entry.line_no)[0];
         if (returnStatement) {
-            const nextStackFrame = nextEntry.stack[nextEntry.stack.length - 1];
-            const varValue = nextStackFrame.variables["<ret val>"];
-            const valueDisplay = this.getVarValueDisplay(entry.idx, varValue, childMap, nextEntry.heap);
+            const stack = this.context.dataCache.getObject(nextEntry.stack);
+            const nextStackFrame = this.deref(stack[0]);
+            const variables = this.deref(nextStackFrame.variables);
+            const varValue = variables["<ret val>"];
+            const valueDisplay = this.getVarValueDisplay(entry.id, varValue, childMap, nextEntry.heap);
             const tagged: Box[][] = valueDisplay.map((line, idx) => {
                 if (idx === 0) {
                     return [
@@ -522,9 +479,8 @@ export class FunCallRenderer implements ZoomRenderable {
             valueDisplayStrings.push(...tagged);
         }
     }
-    */
 
-    layoutFunctionSignature(funNode: any, stackFrame: any, lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>, heap: any) {
+    layoutFunctionSignature(funNode: any, funCallExpanded: FunCallExpanded, lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>) {
         const funSigBox: ContainerBox = {
             type: "container",
             direction: "horizontal",
@@ -541,11 +497,16 @@ export class FunCallRenderer implements ZoomRenderable {
                 }
             ]
         };
-        /*
+        const snapshot = funCallExpanded.snapshots[0];
+        const stack = this.context.dataCache.getObject(snapshot.stack);
+        const heap = this.context.dataCache.getObject(snapshot.heap);
+        const stackFrame = this.deref(stack[0]);
+        const variables = this.deref(stackFrame.variables);
+        
         for (let param of funNode.parameters) {
             const paramName = param.value;
-            let value = stackFrame.variables[paramName];
-            const rows = this.getVarValueDisplay(this.entries[0].idx, value, childMap, heap);
+            let value = variables[paramName];
+            const rows = this.getVarValueDisplay(snapshot.id, value, childMap, heap);
             funSigBox.children.push({
                 type: "text",
                 text: `  ${paramName} = `,
@@ -562,7 +523,7 @@ export class FunCallRenderer implements ZoomRenderable {
             } as Box;
             funSigBox.children.push(outerBox);
         }
-        */
+        
         return funSigBox;
     }
     
@@ -570,28 +531,19 @@ export class FunCallRenderer implements ZoomRenderable {
         let objectId = null;
         if (isJsonrRef(value)) {
             objectId = value.id;
-            value = this.context.objectCache.get(value.id);
-            if (!value) {
-                return [];
-            }
+            value = this.context.dataCache.getObject(value.id);
         }
         if (isHeapRef(value)) {
             if (isJsonrRef(heap)) {
-                heap = this.context.objectCache.get(heap.id);
-                if (!heap) {
-                    return [];
-                }
+                heap = this.context.dataCache.getObject(heap.id);
             }
             let object = heap[value.id];
             if (object === undefined) {
-                console.warn("Object is undefined for", value);
+                console.warn("Object is undefined for", value, heap);
                 return [];
             }
             if (isJsonrRef(object)) {
-                object = this.context.objectCache.get(object.id);
-                if (!object) {
-                    return [];
-                }
+                object = this.context.dataCache.getObject(object.id);
             }
             if (Array.isArray(object)) {
                 const row: Box[] = [];
@@ -627,98 +579,14 @@ export class FunCallRenderer implements ZoomRenderable {
         }
         return [[getValueDisplay(snapshotId, value, childMap, heap, this.context.textMeasurer)]];
     }
-    /*
-    getVarValueDisplay_(varValue: any, childMap: Map<Box, ZoomRenderable>, heap: any): TextBox[][] {
-        if (isHeapRef(varValue)) {
-            varValue = heap[varValue.id];
+    
+    deref(object: any) {
+        if (isJsonrRef(object)) {
+            object = this.context.dataCache.getObject(object.id);
         }
-        if (typeof varValue === "string") {
-            return [[{
-                type: "text",
-                text: '"' + varValue + '"',
-                color: VARIABLE_DISPLAY_COLOR
-            }]];
-        } else if (Array.isArray(varValue)) {
-            const array = varValue;
-            return [array.map(item => {
-                const display = isHeapRef(item) ? String(item.id) : " " + JSON.stringify(item) + " ";
-                const textBox: TextBox = {
-                    type: "text",
-                    text: " " + display + " ",
-                    color: VARIABLE_DISPLAY_COLOR,
-                    border: {
-                        color: VARIABLE_DISPLAY_COLOR
-                    }
-                };
-                
-                if (isHeapRef(item)) {
-                    childMap.set(textBox, {
-                        render: (ctx, bbox, viewport): Map<BoundingBox, ZoomRenderable> => {
-                            const myArea = bbox.width * bbox.height;
-                            const myAreaRatio = myArea / (viewport.width * viewport.height);
-                            if (myAreaRatio > 0.001) {
-                                const value = heap[item.id];
-                                ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
-                                const childMap = new Map();
-                                const rows = this.getVarValueDisplay(value, childMap, heap);
-                                const outerBox: Box = {
-                                    type: "container",
-                                    direction: "vertical",
-                                    children: rows.map((cells) => ({
-                                        type: "container",
-                                        direction: "horizontal",
-                                        children: cells
-                                    }))
-                                } as Box;
-                                const bboxMap = fitBox(outerBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.textMeasurer, CODE_LINE_HEIGHT, ctx, VARIABLE_DISPLAY_COLOR);
-                                const childBboxMap = new Map();
-                                for (let [box, renderable] of bboxMap.entries()) {
-                                    childBboxMap.set(bboxMap.get(box), renderable);
-                                }
-                                //return childBboxMap;
-                            }
-                            return new Map();
-                        }
-                    })
-                }
-                return textBox;
-            })];
-        } else if (typeof varValue === "object") {
-            const dict = varValue;
-            const boxes = [];
-            for (let key in dict) {
-                const value = dict[key];
-                boxes.push([
-                    {
-                        type: "text",
-                        text: " " + key + " ",
-                        color: VARIABLE_DISPLAY_COLOR,
-                        border: {
-                            color: VARIABLE_DISPLAY_COLOR
-                        }
-                    },
-                    {
-                        type: "text",
-                        text: " " + JSON.stringify(value) + " ",
-                        color: VARIABLE_DISPLAY_COLOR,
-                        border: {
-                            color: VARIABLE_DISPLAY_COLOR
-                        }
-                    }
-                ]);
-            }
-            return boxes;
-        } else {
-            return [[
-                {
-                    type: "text",
-                    text: String(varValue),
-                    color: VARIABLE_DISPLAY_COLOR
-                }
-            ]]
-        }
+        return object;
     }
-    */
+    
 }
 
 class HeapObjectRenderer implements ZoomRenderable {
