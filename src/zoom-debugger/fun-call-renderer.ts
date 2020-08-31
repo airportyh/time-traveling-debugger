@@ -79,34 +79,34 @@ export class FunCallRenderer implements ZoomRenderable {
         
         ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
-        const funCallExpanded = this.context.dataCache.getFunCallExpanded(this.funCall.id);
-
-        if (funCallExpanded && myAreaRatio >= 0.4) {
-            const childCallMap = this.buildChildCallMap(funNode, funCallExpanded);
-            
-            const { codeBox, childMap } = this.getCodeBox(
-                funCallExpanded, childCallMap
-            );
-            
-            const bboxMap = fitBox(codeBox, bbox, viewport, CODE_FONT_FAMILY, 
-                "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
-    
-            // generate map from bounding box to child zoom-renderable
-            let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
-            for (let [box, renderable] of childMap) {
-                const childBBox = bboxMap.get(box);
-                childRenderables.set(childBBox, renderable);
-            }
-            return childRenderables;
         
-        } else {
-            const textBox: TextBox = {
-                type: "text",
-                text: this.callExprCode
-            };
-            fitBox(textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
-            return new Map();
+        if (myAreaRatio >= 0.4) {
+            const funCallExpanded = this.context.dataCache.getFunCallExpanded(this.funCall.id);
+            if (funCallExpanded) {
+                const childCallMap = this.buildChildCallMap(funNode, funCallExpanded);
+                
+                const { codeBox, childMap } = this.getCodeBox(
+                    funCallExpanded, childCallMap
+                );
+                
+                const bboxMap = fitBox(codeBox, bbox, viewport, CODE_FONT_FAMILY, 
+                    "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
+        
+                // generate map from bounding box to child zoom-renderable
+                let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
+                for (let [box, renderable] of childMap) {
+                    const childBBox = bboxMap.get(box);
+                    childRenderables.set(childBBox, renderable);
+                }
+                return childRenderables;
+            }
         }
+        const textBox: TextBox = {
+            type: "text",
+            text: this.callExprCode
+        };
+        fitBox(textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
+        return new Map();
     }
 
     getCodeBox(
@@ -530,7 +530,7 @@ export class FunCallRenderer implements ZoomRenderable {
     }
     
     getVarValueDisplay(snapshotId: number, value: any, childMap: Map<Box, ZoomRenderable>, heap: any): Box[][] {
-        let objectId = null;
+        let objectId: any = null;
         if (isJsonrRef(value)) {
             objectId = value.id;
             value = this.context.dataCache.getObject(value.id);
@@ -541,7 +541,6 @@ export class FunCallRenderer implements ZoomRenderable {
             }
             let object = heap[value.id];
             if (object === undefined) {
-                console.warn("Object is undefined for", value, heap);
                 throw new Error("Object is undefined");
             }
             if (isJsonrRef(object)) {

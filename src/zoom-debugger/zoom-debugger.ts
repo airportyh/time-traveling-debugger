@@ -25,6 +25,10 @@ export type ZoomDebuggerContext = {
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
     //const throttledRender = throttle(render, 200);
     const dataCache = new DataCache(apiBaseUrl, requestRender);
+    setInterval(() => {
+        console.log("data cache object map size:", dataCache.objectMap.size);
+        console.log("data cache fun call map size:", dataCache.funCallMap.size);
+    }, 1000);
     const sourceCode = await fetchJson(apiBaseUrl + "SourceCode");
     const code = sourceCode.source;
     const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];
