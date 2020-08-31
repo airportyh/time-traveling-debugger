@@ -543,7 +543,6 @@ export class FunCallRenderer implements ZoomRenderable {
             if (object === undefined) {
                 console.warn("Object is undefined for", value, heap);
                 throw new Error("Object is undefined");
-                return [];
             }
             if (isJsonrRef(object)) {
                 object = this.context.dataCache.getObject(object.id);
