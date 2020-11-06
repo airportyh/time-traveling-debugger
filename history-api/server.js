@@ -11,7 +11,7 @@ app.use(session({
     secret: 'ABCDEFG'
 }));
 
-const filename = "../ex/tic-tac-toe-term.history";
+const filename = "../ex/tic-tac-toe-speed-test.history";
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");

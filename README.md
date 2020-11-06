@@ -35,6 +35,12 @@ about the debugger:
 
 ## Todo
 
+* automatic reference counting
+    * count up for function parameters
+    * count up for elements array literals
+    * count up for values in dictionary literals
+    * count up for assignments to array elements
+    * count up for assignments to dictionary entries
 * unintentional variable shadowing is a usability problem
 * when a closure variable hasn't been assigned yet, and you try to use it, strange bugs occur
 * passing in a nested style object as an attr in createElement doesn't work

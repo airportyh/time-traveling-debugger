@@ -32,6 +32,8 @@ let $nextFunCallId = 1;
 let $nextEntryId = 1;
 const $emptyObject = {};
 let $heap = $emptyObject;
+let $heapRefCount = $emptyObject;
+let $pendingRetVal = null;
 let $interops = [];
 let $halted = false;
 let $errorMessage = null;
@@ -199,7 +201,36 @@ function $pushFrame(funName, variables, closures) {
 }
 
 function $popFrame() {
+    let frame = $stack[0];
+    for (let varName in frame.variables) {
+        let varValue = frame.variables[varName];
+        if ($isHeapRef(varValue)) {
+            $heapRefCount[varValue.id]--;
+            console.log("decreasing ref count for", varValue.id, "to", $heapRefCount[varValue.id]);
+            if ($heapRefCount[varValue.id] <= 0) {
+                if (varName === "<ret val>") {
+                    if ($pendingRetVal && $pendingRetVal.id !== varValue.id) {
+                        if ($heapRefCount[$pendingRetVal.id] <= 0) {
+                            console.log("previous pend ret val removed", $pendingRetVal);
+                            $removeFromHeap($pendingRetVal);
+                        }
+                    }
+                    console.log("pend ret val set to ", varValue);
+                    $pendingRetVal = varValue;
+                } else {
+                    console.log("removed from heap", varValue);
+                    $removeFromHeap(varValue);
+                }
+            }
+        }
+    }
     $stack = $stack[1];
+}
+
+function $removeFromHeap(heapRef) {
+    let newHeap = { ...$heap };
+    delete newHeap[heapRef.id];
+    $heap = newHeap;
 }
 
 function $getVariable(varName) {
@@ -220,6 +251,11 @@ function $setVariable(varName, value) {
         ...frame,
         variables: { ...frame.variables, [varName]: value }
     };
+    if ($isHeapRef(value)) {
+        let refCount = $heapRefCount[value.id] || 0;
+        $heapRefCount[value.id] = refCount + 1;
+        console.log("increase ref count for", value.id, "to", $heapRefCount[value.id]);
+    }
     $stack = [newFrame, $stack[1]];
 }
 
@@ -273,7 +309,6 @@ function $stringify(object, firstLevel) {
     }
     if (Array.isArray(object)) {
         let arrayString = "[";
-        const parts = [];
         for (let i = 0; i < object.length; i++) {
             if (i > 0) {
                 arrayString += ", ";
@@ -568,6 +603,10 @@ function floor(num) {
 
 function parseNumber(string) {
     return Number(string);
+}
+
+function has(dict, key) {
+    return key in dict;
 }
 
 /*
