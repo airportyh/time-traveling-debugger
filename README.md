@@ -35,6 +35,7 @@ about the debugger:
 
 ## Todo
 
+* register objects as they are created so that $save does not have to traverse
 * unintentional variable shadowing is a usability problem
 * when a closure variable hasn't been assigned yet, and you try to use it, strange bugs occur
 * passing in a nested style object as an attr in createElement doesn't work
@@ -59,6 +60,17 @@ about the debugger:
 
 ## Done
 
+* automatic reference counting
+    * count up for function parameters (done)
+    * count up for elements array literals (done)
+    * count up for values in dictionary literals (done)
+    * count down for elements of arrays on pop frame (done)
+    * count down for entries of dictionaries on pop frame (done)
+    * count up for assignments to array elements (done)
+    * count up for assignments to dictionary entries (done)
+    * count down for old value on assignments (done)
+    * count down for old value on array assignments (done)
+    * count down for old value on dictionary assignments (done)
 * case: a parameter to a function is in the closure provider, we need to use
 $setHeapVariable to initial it in the closure, and remove it from the initialization
 of stack variables

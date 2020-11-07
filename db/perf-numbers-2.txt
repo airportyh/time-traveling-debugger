@@ -1,0 +1,110 @@
+Node v14.8.0
+
+## Database Counts for a succeslful load:
+
+FunCall: 2961
+Object: 151455
+Snapshot: 80088
+
+## load2.js
+
+$ ./run
+Parsing entry 83049 of 83049    Parsing took 55.776 seconds
+Persisting entry 83049 of 83049    Saving took 33.646 seconds
+
+real	1m30.293s
+user	1m26.227s
+sys	0m10.233s
+
+## load2.js with db.run lines commented out
+
+$ ./run
+Parsing entry 83049 of 83049    Parsing took 62.893 seconds
+Persisting entry 83049 of 83049    Saving took 10.107 seconds
+
+real	1m13.952s
+user	1m9.702s
+sys	0m4.191s
+
+## load2.js without waiting for db
+
+Parsing entry 83049 of 83049    Parsing took 56.221 seconds
+Persisting entry 83049 of 83049    (node:24898) UnhandledPromiseRejectionWarning: Error: SQLITE_ERROR: cannot start a transaction within a transaction
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24898) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To terminate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)
+(node:24898) [DEP0018] DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.
+(node:24898) UnhandledPromiseRejectionWarning: Error: SQLITE_ERROR: cannot commit - no transaction is active
+(node:24898) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To terminate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 2)
+Saving took 26.941 seconds
+
+real	1m24.878s
+user	1m26.008s
+sys	0m9.619s
+
+## load2.js with prepared statement
+
+$ ./run
+Parsing entry 83049 of 83049    Parsing took 56.527 seconds
+Persisting entry 83049 of 83049    Saving took 28.592 seconds
+
+real	1m25.853s
+user	1m20.652s
+sys	0m9.999s
+
+## load2.js with prepared statement and no wait for db
+
+Parsing entry 83049 of 83049    Parsing took 56.552 seconds
+Persisting entry 83049 of 83049    Saving took 15.682 seconds
+
+real	1m25.252s
+user	1m21.726s
+sys	0m13.151s
+
+## load3.js
+
+$ ./run
+Parsing entry 83049 of 83049    Parsing took 59.401 seconds
+Persisting entry 83049 of 83049    Saving took 19.407 seconds
+
+real	1m19.663s
+user	1m12.651s
+sys	0m9.909s
+
+## load3.js without file writes
+
+Parsing entry 83049 of 83049    Parsing took 56.676 seconds
+Persisting entry 83049 of 83049    Saving took 8.2 seconds
+
+real	1m5.515s
+user	1m3.448s
+sys	0m3.240s
+
+## load3.js without waiting fro file writes
+
+Parsing entry 83049 of 83049    Parsing took 55.509 seconds
+Persisting entry 83049 of 83049    Saving took 9.011 seconds
+
+real	1m8.303s
+user	1m7.331s
+sys	0m7.825s
+
+## load4.js with better-sqlite3
+
+$ ./run
+rm: database.db: No such file or directory
+Parsing entry 83049 of 83049    Parsing took 64.543 seconds
+Persisting entry 83049 of 83049    Saving took 12.03 seconds
+
+real	1m17.483s
+user	1m12.805s
+sys	0m4.146s
+
+## load4.js without transactions
+
+$ ./run
+Parsing entry 83049 of 83049    Parsing took 56.716 seconds
+Persisting entry 83049 of 83049    Saving took 300.501 seconds
+
+real	5m57.960s
+user	1m35.931s
+sys	3m15.281s

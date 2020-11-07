@@ -1,4 +1,4 @@
-// Generated automatically by nearley, version 2.19.0
+// Generated automatically by nearley, version 2.19.5
 // http://github.com/Hardmath123/nearley
 (function () {
 function id(x) { return x[0]; }
@@ -103,6 +103,7 @@ var grammar = {
     {"name": "executable_statement", "symbols": ["for_loop"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["function_definition"], "postprocess": id},
     {"name": "executable_statement", "symbols": ["break"], "postprocess": id},
+    {"name": "executable_statement", "symbols": ["continue"], "postprocess": id},
     {"name": "return_statement$ebnf$1$subexpression$1", "symbols": ["__", "expression"]},
     {"name": "return_statement$ebnf$1", "symbols": ["return_statement$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "return_statement$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
@@ -248,7 +249,7 @@ var grammar = {
         })
                 },
     {"name": "multiplicative_expression", "symbols": ["maybe_not_expression"], "postprocess": id},
-    {"name": "multiplicative_expression", "symbols": ["maybe_not_expression", "_", /[*\/%]/, "_", "multiplicative_expression"], "postprocess": 
+    {"name": "multiplicative_expression", "symbols": ["maybe_not_expression", "_", /[*/%]/, "_", "multiplicative_expression"], "postprocess": 
         d => ({
             type: "binary_operation",
             operator: convertToken(d[2]),
@@ -352,6 +353,7 @@ var grammar = {
     {"name": "number", "symbols": [(lexer.has("number_literal") ? {type: "number_literal"} : number_literal)], "postprocess": convertTokenId},
     {"name": "identifier", "symbols": [(lexer.has("identifier") ? {type: "identifier"} : identifier)], "postprocess": convertTokenId},
     {"name": "break", "symbols": [{"literal":"break"}], "postprocess": convertTokenId},
+    {"name": "continue", "symbols": [{"literal":"continue"}], "postprocess": convertTokenId},
     {"name": "null_literal", "symbols": [{"literal":"null"}], "postprocess": convertTokenId},
     {"name": "_ml$ebnf$1", "symbols": []},
     {"name": "_ml$ebnf$1", "symbols": ["_ml$ebnf$1", "multi_line_ws_char"], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},

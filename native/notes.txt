@@ -1,0 +1,7 @@
+select max(length(data)) from object;
+-- JS answer: 25299
+-- native answer: 22056
+
+select * from object where length(data) = 25299;
+-- answer 3 rows, each with a large object
+

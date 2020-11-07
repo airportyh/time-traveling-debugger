@@ -1,8 +1,9 @@
 import { parse } from "../parser";
 import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
-import { HistoryEntry } from "./play-lang";
-import { CodeScopeRenderer } from "./code-scope-renderer";
+import { FunCallRenderer } from "./fun-call-renderer";
+import { fetchJson } from "./fetch-json";
+import { DataCache } from "./data-cache";
 
 type Scope = {
     bbox: BoundingBox,
@@ -14,10 +15,23 @@ type HoverStateEntry = {
     bbox: BoundingBox
 };
 
-export function initZoomDebugger(element: HTMLElement, code: string, history: HistoryEntry[]) {
-    for (let i = 0; i < history.length; i++) {
-        history[i]["idx"] = i;
-    }
+export type ZoomDebuggerContext = {
+    ast: any, 
+    codeLines: string[], 
+    textMeasurer: TextMeasurer,
+    dataCache: DataCache
+};
+
+export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
+    //const throttledRender = throttle(render, 200);
+    const dataCache = new DataCache(apiBaseUrl, requestRender);
+    setInterval(() => {
+        console.log("data cache object map size:", dataCache.objectMap.size);
+        console.log("data cache fun call map size:", dataCache.funCallMap.size);
+    }, 1000);
+    const sourceCode = await fetchJson(apiBaseUrl + "SourceCode");
+    const code = sourceCode.source;
+    const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];
     
     const canvasWidth = element.offsetWidth * 2;
     const canvasHeight = element.offsetHeight * 2;
@@ -49,7 +63,12 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     element.appendChild(canvas);
     ctx.textBaseline = "top";
     const textMeasurer = new TextMeasurer(ctx, true);
-    
+    const context: ZoomDebuggerContext = {
+        ast,
+        codeLines: code.split("\n"),
+        textMeasurer,
+        dataCache
+    };
     const mainScope: Scope = {
         bbox: {
             y: 0,
@@ -57,7 +76,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
             width: canvas.width,
             height: canvas.height
         },
-        renderable: new CodeScopeRenderer(history, ast, "main()", ast, code, textMeasurer)
+        renderable: new FunCallRenderer(rootFunCall, ast, context)
     };
     
     let currentScopeChain: Scope[] = [mainScope];
@@ -143,7 +162,7 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
         }
         // </QUESTIONABLE-CODE>
         
-        const childRenderables = renderable.render(ctx, bbox, viewportBBox, mouseX, mouseY);
+        const childRenderables = renderable.render(ctx, bbox, viewportBBox);
         let childEnclosingRenderable: Scope[] | null = null;
         const myScope = {
             bbox: boxCanvasToWorld(bbox),
@@ -265,4 +284,3 @@ export function initZoomDebugger(element: HTMLElement, code: string, history: Hi
     }
     
 }
-

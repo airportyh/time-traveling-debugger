@@ -14,10 +14,13 @@ async function main() {
     const codeFilePath = filePath.replace(".ast", ".play");
     const code = (await fs.readFile(codeFilePath)).toString();
     const historyFilePath = filePath.replace(".ast", ".history");
+    const profileJsonPath = filePath.replace(".ast", ".profile.json");
     const dir = path.dirname(filePath);
     const outputFilePath = path.join(dir, path.basename(filePath, ".ast") + ".js");
     const jsCode = generateCode(ast, {
         historyFilePath,
+        profileJsonPath,
+        sourceFilePath: codeFilePath,
         code
     });
     await fs.writeFile(outputFilePath, jsCode);

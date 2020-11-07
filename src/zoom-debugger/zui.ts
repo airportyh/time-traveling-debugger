@@ -14,8 +14,6 @@ export type ZoomRenderable = {
     render(
         ctx: CanvasRenderingContext2D, 
         boundingBox: BoundingBox, 
-        viewport: BoundingBox,
-        mouseX: number,
-        mouseY: number
+        viewport: BoundingBox
     ): Map<BoundingBox, ZoomRenderable>;
 };

@@ -104,7 +104,7 @@ function traverse(node, visit) {
             traverse(node.body, visit);
             break;
         case "break":
-            break;
+        case "continue":
         case "null":
             break;
         default:

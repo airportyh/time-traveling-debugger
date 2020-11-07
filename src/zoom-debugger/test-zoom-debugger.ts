@@ -1,5 +1,3 @@
-import * as jsonr from "@airportyh/jsonr";
-import { HistoryEntry } from "./play-lang";
 import { initZoomDebugger } from "./zoom-debugger";
 
 main().catch(err => console.log(err.stack));
@@ -13,15 +11,6 @@ async function main() {
     element.style.width = "100%";
     element.style.height = "100%";
     document.body.appendChild(element);
-    
-    const code = await fetchText("ex/tic-tac-toe.play");
-    const historyText = await fetchText("ex/tic-tac-toe.history");
-    const history: HistoryEntry[] = jsonr.parse(historyText);
-    
-    initZoomDebugger(element, code, history);
-}
-
-async function fetchText(filename) {
-    const request = await fetch(filename);
-    return request.text();
+    const DEBUGGER_API = "http://localhost:3000/api/";
+    await initZoomDebugger(element, DEBUGGER_API);
 }

@@ -51,7 +51,8 @@ const lexer = moo.compile({
             true: "true",
             false: "false",
             break: "break",
-            null: "null"
+            null: "null",
+            continue: "continue"
         })
     }
 });

@@ -126,6 +126,7 @@ executable_statement
    |  for_loop             {% id %}
    |  function_definition  {% id %}
    |  break                {% id %}
+   |  continue             {% id %}
 
 return_statement
    -> "return" (__ expression):?
@@ -461,6 +462,8 @@ number -> %number_literal {% convertTokenId %}
 identifier -> %identifier {% convertTokenId %}
 
 break -> "break"  {% convertTokenId %}
+
+continue -> "continue"  {% convertTokenId %}
 
 null_literal -> "null" {% convertTokenId %}
 
