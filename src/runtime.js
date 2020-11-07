@@ -183,6 +183,12 @@ function $initCanvas() {
 
 function $pushFrame(funName, variables, closures) {
     const id = $nextFunCallId++;
+    for (let varName in variables) {
+        const varValue = variables[varName];
+        if ($isHeapRef(varValue)) {
+            $incRefCount(varValue);
+        }
+    }
     const funCall = {
         id,
         funName, 
@@ -205,20 +211,19 @@ function $popFrame() {
     for (let varName in frame.variables) {
         let varValue = frame.variables[varName];
         if ($isHeapRef(varValue)) {
-            $heapRefCount[varValue.id]--;
-            console.log("decreasing ref count for", varValue.id, "to", $heapRefCount[varValue.id]);
+            $decRefCount(varValue);
             if ($heapRefCount[varValue.id] <= 0) {
                 if (varName === "<ret val>") {
-                    if ($pendingRetVal && $pendingRetVal.id !== varValue.id) {
+                    if ($pendingRetVal && $pendingRetVal.id !== varValue.id && $pendingRetVal.id in $heap) {
                         if ($heapRefCount[$pendingRetVal.id] <= 0) {
-                            console.log("previous pend ret val removed", $pendingRetVal);
+                            //console.log("previous pend ret val removed", $pendingRetVal);
                             $removeFromHeap($pendingRetVal);
                         }
                     }
-                    console.log("pend ret val set to ", varValue);
+                    //console.log("pend ret val set to ", varValue);
                     $pendingRetVal = varValue;
                 } else {
-                    console.log("removed from heap", varValue);
+                    //console.log("removed from heap", varValue);
                     $removeFromHeap(varValue);
                 }
             }
@@ -227,10 +232,20 @@ function $popFrame() {
     $stack = $stack[1];
 }
 
+
 function $removeFromHeap(heapRef) {
+    const object = $heap[heapRef.id];
     let newHeap = { ...$heap };
     delete newHeap[heapRef.id];
     $heap = newHeap;
+    delete $heapRefCount[heapRef.id];
+    // for either arrays or objects
+    for (let key in object) {
+        const value = object[key];
+        if ($isHeapRef(value)) {
+            $decRefCountAndCleanup(value);
+        }
+    }
 }
 
 function $getVariable(varName) {
@@ -247,16 +262,39 @@ function $getVariable(varName) {
 
 function $setVariable(varName, value) {
     const frame = $stack[0];
+    const oldValue = frame.variables[varName];
     const newFrame = {
         ...frame,
         variables: { ...frame.variables, [varName]: value }
     };
-    if ($isHeapRef(value)) {
-        let refCount = $heapRefCount[value.id] || 0;
-        $heapRefCount[value.id] = refCount + 1;
-        console.log("increase ref count for", value.id, "to", $heapRefCount[value.id]);
+    if (value !== oldValue) {
+        if ($isHeapRef(value)) {
+            $incRefCount(value);
+        }
+        if ($isHeapRef(oldValue)) {
+            $decRefCountAndCleanup(oldValue);
+        }
     }
     $stack = [newFrame, $stack[1]];
+}
+
+function $incRefCount(heapRef) {
+    let refCount = $heapRefCount[heapRef.id] || 0;
+    $heapRefCount[heapRef.id] = refCount + 1;
+    //console.log("increase ref count for", heapRef.id, "to", $heapRefCount[heapRef.id]);
+}
+
+function $decRefCount(heapRef) {
+    $heapRefCount[heapRef.id]--;
+    //console.log("decreasing ref count for", heapRef.id, "to", $heapRefCount[heapRef.id]);
+}
+
+function $decRefCountAndCleanup(heapRef) {
+    $decRefCount(heapRef);
+    if ($heapRefCount[heapRef.id] <= 0) {
+        //console.log("removed from heap", heapRef);
+        $removeFromHeap(heapRef);
+    }
 }
 
 function $getHeapVariable(varName, closureId) {
@@ -284,6 +322,13 @@ function $heapAllocate(value) {
         ...$heap,
         [id]: value
     };
+    // For either an array or object
+    for (let key in value) {
+        let entryValue = value[key];
+        if ($isHeapRef(entryValue)) {
+            $incRefCount(entryValue);
+        }
+    }
     return { id };
 }
 
@@ -417,6 +462,7 @@ function $set(thing, index, value) {
     } else {
         object = thing;
     }
+    const oldValue = object[index];
     if (Array.isArray(object)) {
         newObject = object.slice();
         newObject[index] = value;
@@ -425,6 +471,12 @@ function $set(thing, index, value) {
             ...object,
             [index]: value
         };
+    }
+    if ($isHeapRef(value)) {
+        $incRefCount(value);
+    }
+    if ($isHeapRef(oldValue)) {
+        $decRefCountAndCleanup(oldValue);
     }
     $heap = {
         ...$heap,
