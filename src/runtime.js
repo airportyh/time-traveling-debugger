@@ -24,6 +24,7 @@ let $logDB;
 const $isBrowser = typeof document !== "undefined";
 //const $history = [];
 //let $historyCursor = -1;
+const loggingOn = false;
 const $objectToIdMap = new WeakMap();
 let $stack = null;
 let $nextObjectId = 1;
@@ -54,6 +55,9 @@ if (!$isBrowser) {
 }
 
 function $initLogDB() {
+    if (!loggingOn) {
+        return;
+    }
     try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
     $logDB = $sqlite3(HISTORY_FILE_PATH);
     $logDB.exec("PRAGMA journal_mode=WAL");
@@ -341,6 +345,9 @@ function $save(line) {
 }
 
 function $sendObjects(objects) {
+    if (!loggingOn) {
+        return;
+    }
     for (let newObject of objects) {
         const id = $objectToIdMap.get(newObject);
         $insertObjectStatement.run(id, $stringify(newObject, true));
@@ -382,6 +389,9 @@ function $stringify(object, firstLevel) {
 
 
 function $sendFunCall(call) {
+    if (!loggingOn) {
+        return;
+    }
     const newObjects = [];
     $registerNewObjects(call.parameters, newObjects);
     $sendObjects(newObjects);
@@ -394,6 +404,9 @@ function $sendFunCall(call) {
 }
 
 function $sendSnapshot(id, line) {
+    if (!loggingOn) {
+        return;
+    }
     const newObjects = [];
     $registerNewObjects($stack, newObjects);
     $registerNewObjects($heap, newObjects);
@@ -491,6 +504,9 @@ async function $cleanUp() {
 }
 
 function $flushLogDB() {
+    if (!loggingOn) {
+        return;
+    }
     if ($isBrowser) {
         return;
     }
