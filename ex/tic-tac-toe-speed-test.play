@@ -1,0 +1,147 @@
+def main() [
+    board = [
+        " ", " ", " ", 
+        " ", "O", " ",
+        " ", " ", " "
+    ]
+    smartComputer(board, "X")
+]
+
+def smartComputer(board, me) [
+    start = currentTime()
+    result = smartComputerCalculateMove(board, me, 4, false)
+    end = currentTime()
+    print("Computer took " + (end - start) + "ms to make this move.")
+    move = result["move"]
+    board[move] = me
+]
+
+# Score is either 0 - losing, 1 - even, or 2 - winning
+def smartComputerCalculateMove(board, me, depth, min) [
+    if isWinner(board, "X") [
+        return { move: null, score: 2 }
+    ]
+    if isWinner(board, "O") [
+        return { move: null, score: 0 }
+    ]
+    if depth == 0 [
+        return smartComputerRandomMove(board, me)
+    ]
+    
+    bestScore = null
+    if min [
+        bestScore = 3
+    ] else [
+        bestScore = -1
+    ]
+    bestMove = null
+    opponent = switchPlayer(me)
+    i = 0
+    while i < 9 [
+        if board[i] == " " [
+            newBoard = imagineMove(board, i, me)
+            result = smartComputerCalculateMove(newBoard, opponent, depth - 1, !min)
+            
+            if min [
+                if result["score"] < bestScore [
+                    bestScore = result["score"]
+                    bestMove = i
+                ]
+            ] else [
+                if result["score"] > bestScore [
+                    bestScore = result["score"]
+                    bestMove = i
+                ]
+            ]
+        ]
+        i = i + 1
+    ]
+    
+    if bestScore == -1 [
+        return smartComputerRandomMove(board, me)
+    ] else [
+        return { move: bestMove, score: bestScore }
+    ]
+]
+
+def smartComputerRandomMove(board, me) [
+    openSquares = []
+    i = 0
+    while i < 9 [
+        state = board[i]
+        if state == " " [
+            push(openSquares, i)
+        ]
+        i = i + 1
+    ]
+    idx = floor(random() * length(openSquares))
+    return { move: openSquares[idx], score: 1 }
+]
+
+def imagineMove(board, move, player) [
+    newBoard = []
+    i = 0
+    while i < 9 [
+        if i == move [
+            push(newBoard, player)
+        ] else [
+            push(newBoard, board[i])
+        ]
+        i = i + 1
+    ]
+    return newBoard
+]
+
+def getX(i) [
+    return 100 + (i % 3) * 100
+]
+
+def getY(i) [
+    return 100 + floor(i / 3) * 100
+]
+
+def isDraw(board) [
+    for state in board [
+        if state == " " [
+            return false
+        ]
+    ]
+    return true
+]
+
+def isWinner(board, player) [
+    zero = board[0] == player
+    one = board[1] == player
+    two = board[2] == player
+    three = board[3] == player
+    four = board[4] == player
+    five = board[5] == player
+    six = board[6] == player
+    seven = board[7] == player
+    eight = board[8] == player
+    a = zero and one and two
+    b = three and four and five
+    c = six and seven and eight
+    d = zero and four and eight
+    e = two and four and six
+    f = zero and three and six
+    g = one and four and seven
+    h = two and five and eight
+    return a or b or c or d or e or f or g or h
+]
+
+def switchPlayer(player) [
+    if player == "O" [
+        return "X"
+    ] else [
+        return "O"
+    ]
+]
+
+def drawBoard(board) [
+    print("")
+    print(board[0] + board[1] + board[2])
+    print(board[3] + board[4] + board[5])
+    print(board[6] + board[7] + board[8])
+    print("")
+]

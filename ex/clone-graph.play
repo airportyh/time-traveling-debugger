@@ -1,0 +1,47 @@
+def main() [
+    one = createNode(1)
+    two = createNode(2)
+    three = createNode(3)
+    four = createNode(4)
+    
+    push(one["neighbors"], two)
+    push(one["neighbors"], four)
+    
+    push(two["neighbors"], one)
+    push(two["neighbors"], three)
+    
+    push(three["neighbors"], two)
+    push(three["neighbors"], four)
+    
+    push(four["neighbors"], one)
+    push(four["neighbors"], three)
+    
+    cloned = cloneGraph(one)
+]
+
+def createNode(value) [
+    return {
+        value: value,
+        neighbors: []
+    }
+]
+
+def cloneGraph(node) [
+    return cloneHelper(node, {})
+]
+
+def cloneHelper(node, valueToNew) [
+    if node == null [
+        return null
+    ]
+    if has(valueToNew, node["value"]) [
+        return valueToNew[node["value"]]
+    ]
+    newNode = createNode(node["value"])
+    valueToNew[node["value"]] = newNode
+    newNeighbors = map(node["neighbors"], def(n) [
+        return cloneHelper(n, valueToNew)
+    ])
+    newNode["neighbors"] = newNeighbors
+    return newNode
+]

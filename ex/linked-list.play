@@ -1,0 +1,20 @@
+def main() [
+    a = list("Emma", null)
+    b = list("Linus", a)
+    c = list("Marty", b)
+    print_all(c)
+]
+
+def list(data, rest) [
+    return {
+        data: data,
+        rest: rest
+    }
+]
+
+def print_all(list) [
+    if list != null [
+        print(list["data"])
+        print_all(list["rest"])
+    ]
+]

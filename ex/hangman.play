@@ -1,0 +1,77 @@
+def main() [
+    clear()
+    # The hanger
+    setLineColor("black")
+    setLineWidth(8)
+    setLineCap("round")
+    drawLine(116, 14, 379, 14)
+    drawLine(379, 14, 376, 388)
+    setLineCap("butt")
+    drawLine(248, 17, 248, 49)
+    
+    waitForEvent("keypress")
+    # The face
+    setColor("yellow")
+    fillCircle(250, 100, 50)
+    
+    waitForEvent("keypress")
+    # The arms
+    setLineCap("round")
+    setLineColor("yellow")
+    setLineWidth(20)
+    drawLine(200, 150, 150, 250)
+    
+    waitForEvent("keypress")
+    drawLine(300, 150, 350, 250)
+    
+    waitForEvent("keypress")
+    # The body
+    setColor("black")
+    fillRect(200, 150, 100, 100)
+
+    waitForEvent("keypress")
+    # The left leg
+    setLineCap("butt")
+    setLineColor("blue")
+    setLineWidth(40)
+    drawLine(230, 240, 200, 350)
+    setColor("black")
+    fillRect(174, 340, 50, 26)
+    setColor("black")
+    fillRect(200, 150, 100, 100)
+    
+    # The right leg
+    waitForEvent("keypress")
+    drawLine(270, 240, 300, 350)
+    setColor("black")
+    fillRect(276, 341, 50, 26)
+    setColor("black")
+    fillRect(200, 150, 100, 100)
+
+    waitForEvent("keypress")
+
+    # The eyes
+    setColor("white")
+    fillCircle(231, 93, 10)
+    setColor("black")
+    fillCircle(231, 93, 5)
+    setColor("white")
+    waitForEvent("keypress")
+    
+    fillCircle(267, 93, 10)
+    setColor("black")
+    fillCircle(267, 93, 5)
+    
+    waitForEvent("keypress")
+    # The Mouth
+    setLineColor("hotpink")
+    setLineCap("round")
+    setLineWidth(4)
+    drawArc(250, 130, 10, 270, 90)
+    
+    waitForEvent("keypress")
+    # The text
+    setColor("hotpink")
+    setFont("50px Impact")
+    fillText("Goodbye world", 100, 395)
+]

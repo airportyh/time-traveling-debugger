@@ -1,0 +1,53 @@
+def main() [
+    bob = { name: "Bob" }
+    jeff = { name: "Jeff", friend: bob }
+    janice = { name: "Janice" }
+    jeff["friend"] = janice
+]
+
+def main6() [
+    people = [create_person("Bob"), create_person("John")]
+    people[1] = create_person("Janice")
+]
+
+def main5() [
+    people = do_thing()
+]
+
+def main4() [
+    bob = { name: "Bob" }
+    jeff = { name: "Jeff", friend: bob }
+]
+
+def main3() [
+    bob = create_person("Bob")
+    bob = null
+]
+
+def main2() [
+    person = create_person("James")
+    greet(person)
+    print("The person is", person["name"])
+]
+
+def do_thing2() [
+    do_thing()
+    return { name: "James" }
+]
+
+def do_thing() [
+    bob = create_person("Bob")
+    jason = { name: "Jason" }
+    ja = jason
+    return [bob, jason, ja]
+]
+
+def greet(person) [
+    print("Hello, " + person["name"] + "!")
+]
+
+def create_person(name) [
+    return {
+        name: name
+    }
+]

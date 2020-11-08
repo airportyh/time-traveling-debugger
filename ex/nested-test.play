@@ -1,0 +1,14 @@
+def main() [
+    b = tree(1, null, null)
+    c = tree(2, null, null)
+    root = tree(3, b, c)
+    
+]
+
+def tree(data, left, right) [
+    return {
+        data: data,
+        left: left,
+        right: right
+    }
+]
