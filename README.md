@@ -35,7 +35,9 @@ about the debugger:
 
 ## Todo
 
-* register objects as they are created so that $save does not have to traverse
+* improve speed of logger. Ideas:
+    * compare with file-based logger
+    * try batching insert with different batch sizes
 * unintentional variable shadowing is a usability problem
 * when a closure variable hasn't been assigned yet, and you try to use it, strange bugs occur
 * passing in a nested style object as an attr in createElement doesn't work
@@ -60,6 +62,7 @@ about the debugger:
 
 ## Done
 
+* register objects as they are created so that $save does not have to traverse (done)
 * automatic reference counting
     * count up for function parameters (done)
     * count up for elements array literals (done)
