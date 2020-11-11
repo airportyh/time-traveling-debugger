@@ -30,29 +30,10 @@ Database Logger Implementation
 
 class $SQLiteDBLogger {
     initialize() {
-        $initLogDB();
-    }
-    logNewObject(object) {
-        $registerNewObject(object);
-    }
-    logFunCall(call) {
-        $sendFunCall(call);
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        $sendSnapshot(id, line);
-    }
-    flush() {
-        $flushLogDB();
-    }
-}
-
-class $SQLiteBatchingDBLogger {
-    initialize() {
         try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
         this.db = $sqlite3(HISTORY_FILE_PATH);
         this.db.exec("PRAGMA journal_mode=WAL");
-        //$logDB.exec("PRAGMA cache_size=10000");
+        //this.db.exec("PRAGMA cache_size=10000");
         this.db.exec("PRAGMA synchronous = OFF");
         
         const schema = `
@@ -90,9 +71,9 @@ class $SQLiteBatchingDBLogger {
         `;
         this.db.exec(schema);
 
-        this.insertObjectStatement = $logDB.prepare(`insert into Object values (?, ?)`);
-        this.insertFunCallStatement = $logDB.prepare(`insert into FunCall values (?, ?, ?, ?)`);
-        this.insertSnapshotStatement = $logDB.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
+        this.insertObjectStatement = this.db.prepare(`insert into Object values (?, ?)`);
+        this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?)`);
+        this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
         this.db
             .prepare(`insert into SourceCode values (1, ?, ?)`)
             .run(SOURCE_FILE_PATH, $code);
@@ -107,8 +88,12 @@ class $SQLiteBatchingDBLogger {
         this.pendingNewObjects.push(object);
         return object;
     }
-    logFunCall(call) {
-        this.pendingFunCalls.push(call);
+    logFunCall(funName, parameters, parentId) {
+        const id = $nextFunCallId++;
+        this.pendingFunCalls.push({
+            id, funName, parameters, parentId
+        });
+        return id;
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
@@ -157,99 +142,6 @@ function $getObjectId(object) {
         throw new Error("Object does not have a registered ID");
     }
     return id;
-}
-
-function $initLogDB() {
-    try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
-    $logDB = $sqlite3(HISTORY_FILE_PATH);
-    $logDB.exec("PRAGMA journal_mode=WAL");
-    $logDB.exec("PRAGMA cache_size=10000");
-    $logDB.exec("PRAGMA synchronous = OFF");
-    
-    const schema = `
-    create table Snapshot (
-        id integer primary key,
-        fun_call_id integer not null,
-        stack integer,
-        heap integer,
-        interop integer,
-        line_no integer,
-        constraint Snapshot_fk_fun_call_id foreign key (fun_call_id)
-            references FunCall(id)
-    );
-
-    create table Object (
-        id integer primary key,
-        data text  -- JSONR format
-    );
-
-    create table FunCall (
-        id integer primary key,
-        fun_name text,
-        parameters integer,
-        parent_id integer,
-        
-        constraint FunCall_fk_parent_id foreign key (parent_id)
-            references FunCall(id)
-    );
-    
-    create table SourceCode (
-        id integer primary key,
-        file_path text,
-        source text
-    );
-    `;
-    $logDB.exec(schema);
-
-    $insertObjectStatement = $logDB.prepare(`insert into Object values (?, ?)`);
-    $insertFunCallStatement = $logDB.prepare(`insert into FunCall values (?, ?, ?, ?)`);
-    $insertSnapshotStatement = $logDB.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
-    $logDB.prepare(`insert into SourceCode values (1, ?, ?)`)
-        .run(SOURCE_FILE_PATH, $code);
-
-    $logDB.exec("begin transaction");
-}
-
-function $sendObjects(objects) {
-    for (let newObject of objects) {
-        const id = $objectToIdMap.get(newObject);
-        $insertObjectStatement.run(id, $stringify(newObject));
-    }
-}
-
-function $registerNewObject(object) {
-    const id = $nextObjectId++;
-    $objectToIdMap.set(object, id);
-    $pendingNewObjects.push(object);
-    return object;
-}
-
-function $sendFunCall(call) {
-    $sendObjects($pendingNewObjects);
-    $pendingNewObjects = [];
-    $insertFunCallStatement.run(
-        call.id, 
-        call.funName, 
-        $getObjectId(call.parameters), 
-        call.parentId
-    );
-}
-
-function $sendSnapshot(id, line) {
-    $sendObjects($pendingNewObjects);
-    $pendingNewObjects = [];
-    const funCall = $stack ? $stack[0].funCall : null;
-    $insertSnapshotStatement.run(
-        id, 
-        funCall, 
-        $getObjectId($stack), 
-        $getObjectId($heap), 
-        $interops && $interops.length && $getObjectId($interops),
-        line
-    );
-    if (id % 1000 === 0) {
-        $logDB.exec("end transaction; begin transaction");
-    }
 }
 
 function $stringify(object) {
@@ -331,8 +223,10 @@ class $FileLogger {
         $objectToIdMap.set(object, id);
         this.stream.write(`object(${id}): ${$stringify(object)}\n`);
     }
-    logFunCall(call) {
-        this.stream.write(`funcall(${call.id}, ${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId})\n`);
+    logFunCall(funName, parameters, parentId) {
+        const id = $nextFunCallId++;
+        this.stream.write(`funcall(${id}, ${funName}, ${$getObjectId(parameters)}, ${parentId})\n`);
+        return id;
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
@@ -347,199 +241,18 @@ class $FileLogger {
     }
 }
 /*
-const OBJECT_BUFFER = Buffer.from("object(");
-const FUNCALL_BUFFER = Buffer.from("funcall(");
-const SNAPSHOT_BUFFER = Buffer.from("snapshot(");
-const LBRACKET_BUFFER = Buffer.from("[");
-const RBRACKET_BUFFER = Buffer.from("]");
-const QUOTE_BUFFER = Buffer.from('"');
-const LBRACE_BUFFER = Buffer.from("{");
-const RBRACE_BUFFER = Buffer.from("}");
-const NULL_BUFFER = Buffer.from("null");
-const TRUE_BUFFER = Buffer.from("true");
-const FALSE_BUFFER = Buffer.from("false");
-const COMMA_BUFFER = Buffer.from(", ");
-const RPAREN_BUFFER = Buffer.from(")");
-const NEWLINE_BUFFER = Buffer.from("\n");
-const COLON_BUFFER = Buffer.from(": ");
-const HEAP_REF_HEADER_BUFFER = Buffer.from(`"{"id": `);
-const STAR_BUFFER = Buffer.from("*");
-
-class $StreamingFileLogger {
-    constructor() {
-        this.stream = null;
-    }
-    initialize() {
-        this.stream = fs.createWriteStream(HISTORY_FILE_PATH);
-    }
-    logNewObject(object) {
-        const id = $nextObjectId++;
-        $objectToIdMap.set(object, id);
-        this.stream.write(OBJECT_BUFFER);
-        this.stream.write(Buffer.from([id]));
-        this.stream.write(RPAREN_BUFFER);
-        $streamStringify(object, this.stream);
-        this.stream.write(NEWLINE_BUFFER);
-    }
-    logFunCall(call) {
-        this.stream.write(FUNCALL_BUFFER);
-        this.stream.write(Buffer.from([call.id]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(call.funName);
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([$getObjectId(call.parameters)]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([call.parentId]));
-        this.stream.write(RPAREN_BUFFER);
-        this.stream.write(NEWLINE_BUFFER);
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
-        const stack = $getObjectId($stack);
-        const heap = $getObjectId($heap);
-        const interops = $interops && $interops.length && $getObjectId($interops);
-        this.stream.write(SNAPSHOT_BUFFER);
-        this.stream.write(Buffer.from([id]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([funCall]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([stack]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([heap]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([interops]));
-        this.stream.write(COMMA_BUFFER);
-        this.stream.write(Buffer.from([line]));
-        this.stream.write(RPAREN_BUFFER);
-        this.stream.write(NEWLINE_BUFFER);
-    }
-    flush() {
-        this.stream.end();
-    }
-}
-
-function $streamStringify(object, stream) {
-    if (Array.isArray(object)) {
-        stream.write(LBRACKET_BUFFER);
-        for (let i = 0; i < object.length; i++) {
-            if (i > 0) {
-                stream.write(COMMA_BUFFER);
-            }
-            let value = object[i];
-            if (value === true) {
-                stream.write(TRUE_BUFFER);
-            } else if (value === false) {
-                stream.write(FALSE_BUFFER);
-            } else if (value == null) {
-                stream.write(NULL_BUFFER);
-            } else if (typeof value === "string") {
-                stream.write(QUOTE_BUFFER);
-                stream.write(value);
-                stream.write(QUOTE_BUFFER);
-            } else if (typeof value === "number") {
-                stream.write(Buffer.from([value]));
-            } else if ($isHeapRef(value)) {
-                stream.write(HEAP_REF_HEADER_BUFFER);
-                stream.write(Buffer.from([value.id]));
-                stream.write(RBRACE_BUFFER);
-            } else {
-                stream.write(STAR_BUFFER);
-                stream.write(Buffer.from([$getObjectId(value)]));
-            }
-        }
-        stream.write(RBRACKET_BUFFER);
-    } else if (typeof object === "object") {
-        stream.write(LBRACE_BUFFER);
-        let first = true;
-        for (let key in object) {
-            if (!first) {
-                stream.write(COMMA_BUFFER);
-            } else {
-                first = false;
-            }
-            stream.write(QUOTE_BUFFER);
-            stream.write(key);
-            stream.write(QUOTE_BUFFER);
-            stream.write(COLON_BUFFER);
-            let value = object[key];
-            if (value === true) {
-                stream.write(TRUE_BUFFER);
-            } else if (value === false) {
-                stream.write(FALSE_BUFFER);
-            } else if (value == null) {
-                stream.write(NULL_BUFFER);
-            } else if (typeof value === "string") {
-                stream.write(QUOTE_BUFFER);
-                stream.write(value);
-                stream.write(QUOTE_BUFFER);
-            } else if (typeof value === "number") {
-                stream.write(Buffer.from([value]));
-            } else if ($isHeapRef(value)) {
-                stream.write(HEAP_REF_HEADER_BUFFER);
-                stream.write(Buffer.from([value.id]));
-                stream.write(RBRACE_BUFFER);
-            } else {
-                stream.write(STAR_BUFFER);
-                stream.write(Buffer.from([$getObjectId(value)]));
-            }
-        }
-        stream.write(RBRACE_BUFFER);
-    } else {
-        throw new Error("Cannot stringify non-object");
-    }
-}
-class $FileLoggerWithNextTick {
-    constructor() {
-        this.stream = null;
-    }
-    initialize() {
-        this.stream = fs.createWriteStream(HISTORY_FILE_PATH);
-    }
-    logNewObject(object) {
-        const id = $nextObjectId++;
-        $objectToIdMap.set(object, id);
-        process.nextTick(() => {
-            this.stream.write(`object(${id}): ${$stringify(object)}\n`);
-        });
-    }
-    logFunCall(call) {
-        process.nextTick(() => {
-            this.stream.write(`funcall(${call.id}, ${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId})\n`);
-        });
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
-        const stack = $getObjectId($stack);
-        const heap = $getObjectId($heap);
-        const interops = $interops && $interops.length && $getObjectId($interops);
-        process.nextTick(() => {
-            this.stream.write(`snapshot(${id}, ${funCall}, ${stack}, ${heap}, ${interops}, ${line})\n`);
-        });
-    }
-    flush() {
-        process.nextTick(() => {
-            this.stream.end();
-        });
-    }
-}
-*/
-
-/*
 File-based Logger Implementation ends
 */
 
 let $insertObjectStatement;
 let $insertFunCallStatement;
 let $insertSnapshotStatement;
-let $logDB;
 
 const $isBrowser = typeof document !== "undefined";
 //const $history = [];
 //let $historyCursor = -1;
 const $objectToIdMap = new WeakMap();
-const $logger = new $SQLiteBatchingDBLogger();
+const $logger = new $SQLiteDBLogger();
 
 let $stack = null;
 
@@ -548,7 +261,6 @@ let $nextObjectId = 1;
 let $nextHeapId = 1;
 let $nextFunCallId = 1;
 let $nextSnapshotId = 1;
-let $pendingNewObjects = [];
 
 const $emptyObject = {};
 let $heap = $emptyObject;   
@@ -660,14 +372,8 @@ function $pushFrame(funName, variables, closures) {
             $incRefCount(varValue);
         }
     }
-    const id = $nextFunCallId++;
-    const funCall = {
-        id,
-        funName, 
-        parameters: variables,
-        parentId: $stack && $stack[0] && $stack[0].funCall || null
-    };
-    $logger.logFunCall(funCall);
+    const parentId = $stack && $stack[0] && $stack[0].funCall || null;
+    const id = $logger.logFunCall(funName, variables, parentId);
     const newFrame = {
         funCall: id,
         variables
@@ -860,13 +566,6 @@ async function $cleanUp() {
     $logger.flush();
     const { profile } = await $stopProfiler();
     fs.writeFileSync(PROFILE_JSON_PATH, JSON.stringify(profile));
-}
-
-function $flushLogDB() {
-    if ($isBrowser) {
-        return;
-    }
-    $logDB.exec("end transaction");
 }
 
 function $startProfiler() {
