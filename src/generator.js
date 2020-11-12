@@ -27,10 +27,15 @@ exports.generateCode = function generateCode(ast, options) {
         .concat([options.code ? `const $code = \`${options.code}\`;` : "const $code = null;"])
         .concat(runtimeCode)
         .concat(generateCodeForStatement(ast, null, closureInfo))
-        .concat([`main().catch(err => console.log(err.stack))`
-            + (options.historyFilePath ?
+        .concat([
+            `(async () => {`,
+            `  await $initialize();`,
+            `  await main();`,
+            `})().catch(err => console.log(err.stack))`,
+            (options.historyFilePath ?
                 `.finally(() => $cleanUp());` :
-                "")])
+                "")
+        ])
         .concat(["$isBrowser && createDebugButton();"])
         .join("\n\n");
     return jsCode;

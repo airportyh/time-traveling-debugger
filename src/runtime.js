@@ -10,11 +10,10 @@
 
 const inspector = require("inspector");
 const $inspectorSession = new inspector.Session();
-$inspectorSession.connect();
-
 const readline = require('readline');
 const fs = require('fs');
 const $sqlite3 = require('better-sqlite3');
+const $leveldown = require('leveldown');
 
 class $NullLogger {
     initialize() {}
@@ -22,6 +21,7 @@ class $NullLogger {
     logFunCall(call) {}
     logSnapshot(line) {}
     flush() {}
+    close() {}
 }
 
 /*
@@ -29,7 +29,7 @@ Database Logger Implementation
 */
 
 class $SQLiteDBLogger {
-    initialize() {
+    async initialize() {
         try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
         this.db = $sqlite3(HISTORY_FILE_PATH);
         this.db.exec("PRAGMA journal_mode=WAL");
@@ -133,6 +133,228 @@ class $SQLiteDBLogger {
         this.pendingSnapshots = [];
         this.db.exec("end transaction");
     }
+    close() {}
+}
+
+/*
+Database Logger Implementation ends
+*/
+
+/*
+File-based Logger Implementation
+*/
+class $FileLogger {
+    constructor() {
+        this.stream = null;
+    }
+    async initialize() {
+        this.stream = fs.createWriteStream(HISTORY_FILE_PATH);
+    }
+    logNewObject(object) {
+        const id = $nextObjectId++;
+        $objectToIdMap.set(object, id);
+        this.stream.write(`object(${id}): ${$stringify(object)}\n`);
+    }
+    logFunCall(funName, parameters, parentId) {
+        const id = $nextFunCallId++;
+        this.stream.write(`funcall(${id}, ${funName}, ${$getObjectId(parameters)}, ${parentId})\n`);
+        return id;
+    }
+    logSnapshot(line) {
+        const id = $nextSnapshotId++;
+        const funCall = $stack ? $stack[0].funCall : null;
+        const stack = $getObjectId($stack);
+        const heap = $getObjectId($heap);
+        const interops = $interops && $interops.length && $getObjectId($interops);
+        this.stream.write(`snapshot(${id}, ${funCall}, ${stack}, ${heap}, ${interops}, ${line})\n`);
+    }
+    flush() {
+        this.stream.end();
+    }
+    close() {}
+}
+/*
+File-based Logger Implementation ends
+*/
+
+/*
+Level DB Logger implementation
+*/
+class $LevelDBLogger {
+    constructor() {
+        this.pendingNewObjects = [];
+        this.pendingFunCalls = [];
+        this.pendingSnapshots = [];
+    }
+    initialize() {
+        this.db = $leveldown(HISTORY_FILE_PATH);
+        return new Promise((accept, reject) => {
+            this.db.open((error) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    accept();
+                }
+            });
+        });
+    }
+    logNewObject(object) {
+        const id = $nextObjectId++;
+        $objectToIdMap.set(object, id);
+        this.pendingNewObjects.push(object);
+    }
+    logFunCall(funName, parameters, parentId) {
+        const id = $nextFunCallId++;
+        this.pendingFunCalls.push({
+            id, funName, parameters, parentId
+        });
+        return id;
+    }
+    logSnapshot(line) {
+        const id = $nextSnapshotId++;
+        const funCall = $stack ? $stack[0].funCall : null;
+        const snapshot = [
+            id, 
+            funCall, 
+            $getObjectId($stack), 
+            $getObjectId($heap), 
+            $interops && $interops.length && $getObjectId($interops),
+            line
+        ];
+        this.pendingSnapshots.push(snapshot);
+        if (id % 100 === 0) {
+            this.flush();
+        }
+    }
+    flush() {
+        const batch = this.db.batch();
+        for (let newObject of this.pendingNewObjects) {
+            const id = $objectToIdMap.get(newObject);
+            batch.put("object:" + id, $stringify(newObject));
+        }
+        this.pendingNewObjects = [];
+        for (let call of this.pendingFunCalls) {
+            batch.put("funcall:" + call.id, `${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId}`);
+        }
+        this.pendingFunCalls = [];
+        for (let snapshot of this.pendingSnapshots) {
+            let [id, funCall, stack, heap, interops, line] = snapshot;
+            batch.put("snapshot:" + id, `${funCall}, ${stack}, ${heap}, ${interops}, ${line}`);
+        }
+        this.pendingSnapshots = [];
+        batch.write(() => undefined);
+    }
+    close() {
+        this.db.close(() => undefined);
+    }
+}
+/*
+Level DB Logger implementation ends
+*/
+
+const $isBrowser = typeof document !== "undefined";
+const $objectToIdMap = new WeakMap();
+const $logger = new $NullLogger();
+
+let $stack = null;
+
+// DB logger variables
+let $nextObjectId = 1;
+let $nextHeapId = 1;
+let $nextFunCallId = 1;
+let $nextSnapshotId = 1;
+// DB logger variables end
+
+const $emptyObject = {};
+let $heap = $emptyObject;   
+
+// ARC variables
+let $heapRefCount = $emptyObject;
+let $pendingRetVal = null;
+// ARC variables end
+
+let $interops = [];
+let $halted = false;
+let $errorMessage = null;
+const $emptyArray = [];
+
+// let $body = $isBrowser && $nativeDomToVDom(document.body);
+// let $heapOfLastDomSync = $heap;
+let $canvas;
+let $canvasContext;
+let $canvasXY;
+
+async function $initialize() {
+    $inspectorSession.connect();
+    if ($isBrowser) {
+        $initStyles();
+        $initCanvas();
+    }
+
+    await $logger.initialize();
+    $logger.logNewObject($heap);
+}
+
+function $initStyles() {
+    const stylesText = `
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    #canvas {
+        border: 1px solid black;
+        margin: 0;
+    }
+    
+    #canvas-xy {
+        font-family: Helvetica, sans-serif;
+    }
+    
+    .current-line {
+        background-color: yellow;
+        color: black;
+    }
+    
+    .heap-id {
+        color: blue;
+    }
+    
+    .heap-object {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    
+    .heap-object td {
+        padding: 2px;
+    }
+    
+    .error-message {
+        color: #e35e54;
+        font-family: Helvetica, sans-serif;
+    }
+    
+    .code-line {
+        padding: 0 1em;
+    }
+    
+    .stack-frame {
+    }
+    
+    .stack-frame label {
+        display: block;
+        background-color: gray;
+        color: white;
+        padding: 0 1em;
+    }
+    `;
+    const style = document.createElement("style");
+    style.textContent = stylesText;
+    document.body.appendChild(style);
 }
 
 function $getObjectId(object) {
@@ -202,152 +424,6 @@ function $stringify(object) {
     } else {
         throw new Error("Cannot stringify non-object");
     }
-}
-
-/*
-Database Logger Implementation ends
-*/
-
-/*
-File-based Logger Implementation
-*/
-class $FileLogger {
-    constructor() {
-        this.stream = null;
-    }
-    initialize() {
-        this.stream = fs.createWriteStream(HISTORY_FILE_PATH);
-    }
-    logNewObject(object) {
-        const id = $nextObjectId++;
-        $objectToIdMap.set(object, id);
-        this.stream.write(`object(${id}): ${$stringify(object)}\n`);
-    }
-    logFunCall(funName, parameters, parentId) {
-        const id = $nextFunCallId++;
-        this.stream.write(`funcall(${id}, ${funName}, ${$getObjectId(parameters)}, ${parentId})\n`);
-        return id;
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
-        const stack = $getObjectId($stack);
-        const heap = $getObjectId($heap);
-        const interops = $interops && $interops.length && $getObjectId($interops);
-        this.stream.write(`snapshot(${id}, ${funCall}, ${stack}, ${heap}, ${interops}, ${line})\n`);
-    }
-    flush() {
-        this.stream.end();
-    }
-}
-/*
-File-based Logger Implementation ends
-*/
-
-let $insertObjectStatement;
-let $insertFunCallStatement;
-let $insertSnapshotStatement;
-
-const $isBrowser = typeof document !== "undefined";
-//const $history = [];
-//let $historyCursor = -1;
-const $objectToIdMap = new WeakMap();
-const $logger = new $SQLiteDBLogger();
-
-let $stack = null;
-
-// $SQLiteDBLogger variables
-let $nextObjectId = 1;
-let $nextHeapId = 1;
-let $nextFunCallId = 1;
-let $nextSnapshotId = 1;
-
-const $emptyObject = {};
-let $heap = $emptyObject;   
-
-// ARC variables
-let $heapRefCount = $emptyObject;
-let $pendingRetVal = null;
-
-let $interops = [];
-let $halted = false;
-let $errorMessage = null;
-const $emptyArray = [];
-
-// let $body = $isBrowser && $nativeDomToVDom(document.body);
-// let $heapOfLastDomSync = $heap;
-let $canvas;
-let $canvasContext;
-let $canvasXY;
-
-if ($isBrowser) {
-    $initStyles();
-    $initCanvas();
-}
-
-$logger.initialize();
-$logger.logNewObject($heap);
-
-function $initStyles() {
-    const stylesText = `
-    * {
-        box-sizing: border-box;
-    }
-    
-    body {
-        margin: 0;
-        padding: 0;
-    }
-    
-    #canvas {
-        border: 1px solid black;
-        margin: 0;
-    }
-    
-    #canvas-xy {
-        font-family: Helvetica, sans-serif;
-    }
-    
-    .current-line {
-        background-color: yellow;
-        color: black;
-    }
-    
-    .heap-id {
-        color: blue;
-    }
-    
-    .heap-object {
-        margin-right: 5px;
-        margin-bottom: 5px;
-    }
-    
-    .heap-object td {
-        padding: 2px;
-    }
-    
-    .error-message {
-        color: #e35e54;
-        font-family: Helvetica, sans-serif;
-    }
-    
-    .code-line {
-        padding: 0 1em;
-    }
-    
-    .stack-frame {
-    }
-    
-    .stack-frame label {
-        display: block;
-        background-color: gray;
-        color: white;
-        padding: 0 1em;
-    }
-    `;
-    const style = document.createElement("style");
-    style.textContent = stylesText;
-    document.body.appendChild(style);
 }
 
 function $initCanvas() {
@@ -564,6 +640,7 @@ function $set(thing, index, value) {
 
 async function $cleanUp() {
     $logger.flush();
+    $logger.close();
     const { profile } = await $stopProfiler();
     fs.writeFileSync(PROFILE_JSON_PATH, JSON.stringify(profile));
 }
