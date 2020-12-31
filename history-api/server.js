@@ -11,11 +11,13 @@ app.use(session({
     secret: 'ABCDEFG'
 }));
 
-const filename = "../ex/tic-tac-toe-speed-test.history";
+const filename = "ex/tic-tac-toe-speed-test.history";
+// const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
+const getSnapshotsById = db.prepare("select * from Snapshot where id = ?");
 const getObjectStatement = db.prepare("select * from Object where id = ?");
 
 app.get("/api/FunCall", (req, res) => {
@@ -69,6 +71,26 @@ app.get("/api/FunCallExpanded", (req, res) => {
         snapshots,
         objectMap
     };
+    res.json(retval);
+});
+
+app.get("/api/SnapshotExpanded", (req, res) => {
+    if (!req.session.objectsAlreadyFetched) {
+        req.session.objectsAlreadyFetched = {};
+    };
+    const objectsAlreadyFetched = req.session.objectsAlreadyFetched;
+    const id = req.query.id;
+    const snapshot = getSnapshotsById.get(id);
+    const objectMap = {};
+    const funCall = getFunCallStatement.get(snapshot.fun_call_id);
+    getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
+    getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
+    getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
+    const retval = {
+        ...snapshot,
+        funCall,
+        objectMap
+    }
     res.json(retval);
 });
 

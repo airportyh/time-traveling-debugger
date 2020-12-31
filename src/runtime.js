@@ -12,8 +12,6 @@ const inspector = require("inspector");
 const $inspectorSession = new inspector.Session();
 const readline = require('readline');
 const fs = require('fs');
-const $sqlite3 = require('better-sqlite3');
-const $leveldown = require('leveldown');
 
 class $NullLogger {
     initialize() {}
@@ -31,7 +29,8 @@ Database Logger Implementation
 class $SQLiteDBLogger {
     async initialize() {
         try { fs.unlinkSync(HISTORY_FILE_PATH); } catch (e) {}
-        this.db = $sqlite3(HISTORY_FILE_PATH);
+        const sqlite3 = require('better-sqlite3');
+        this.db = sqlite3(HISTORY_FILE_PATH);
         this.db.exec("PRAGMA journal_mode=WAL");
         //this.db.exec("PRAGMA cache_size=10000");
         this.db.exec("PRAGMA synchronous = OFF");
@@ -186,8 +185,7 @@ class $LevelDBLogger {
         this.pendingFunCalls = [];
         this.pendingSnapshots = [];
     }
-    initialize() {
-        this.db = $leveldown(HISTORY_FILE_PATH);
+    openDB() {
         return new Promise((accept, reject) => {
             this.db.open((error) => {
                 if (error) {
@@ -197,6 +195,28 @@ class $LevelDBLogger {
                 }
             });
         });
+    }
+    put(key, value) {
+        return new Promise((accept, reject) => {
+            this.db.put(key, value, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                } else {
+                    accept();
+                }
+            });
+        });
+    }
+    async initialize() {
+        const leveldown = require('leveldown');
+        const charwise = require('charwise');
+        this.charwise = charwise;
+        this.db = leveldown(HISTORY_FILE_PATH, {
+            keyEncoding: charwise
+        });
+        await this.openDB();
+        await this.put("sourcecode", JSON.stringify({ file_path: SOURCE_FILE_PATH, source: $code }));
     }
     logNewObject(object) {
         const id = $nextObjectId++;
@@ -227,19 +247,22 @@ class $LevelDBLogger {
         }
     }
     flush() {
+        const charwise = this.charwise;
         const batch = this.db.batch();
         for (let newObject of this.pendingNewObjects) {
             const id = $objectToIdMap.get(newObject);
-            batch.put("object:" + id, $stringify(newObject));
+            batch.put(charwise.encode(["object", id]), $stringify(newObject));
         }
         this.pendingNewObjects = [];
         for (let call of this.pendingFunCalls) {
-            batch.put("funcall:" + call.id, `${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId}`);
+            batch.put(charwise.encode(["funcall", call.id]), `${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId}`);
+            batch.put(charwise.encode(["funcall", "parentId", call.parentId, call.id]), call.id);
         }
         this.pendingFunCalls = [];
         for (let snapshot of this.pendingSnapshots) {
             let [id, funCall, stack, heap, interops, line] = snapshot;
-            batch.put("snapshot:" + id, `${funCall}, ${stack}, ${heap}, ${interops}, ${line}`);
+            batch.put(charwise.encode(["snapshot", id]), `${funCall}, ${stack}, ${heap}, ${interops}, ${line}`);
+            batch.put(charwise.encode(["snapshot", "funcall", funCall, id]), id);
         }
         this.pendingSnapshots = [];
         batch.write(() => undefined);
@@ -254,7 +277,7 @@ Level DB Logger implementation ends
 
 const $isBrowser = typeof document !== "undefined";
 const $objectToIdMap = new WeakMap();
-const $logger = new $NullLogger();
+const $logger = new $SQLiteDBLogger();
 
 let $stack = null;
 

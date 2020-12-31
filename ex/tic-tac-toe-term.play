@@ -43,6 +43,7 @@ def playGame() [
         # Computer moves
         smartComputer(board, currentPlayer)
         if isWinner(board, currentPlayer) [
+            drawBoard(board)
             print("The winner is " + currentPlayer)
             gameOver = true
         ] else [
