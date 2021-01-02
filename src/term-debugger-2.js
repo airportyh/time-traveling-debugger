@@ -1,13 +1,18 @@
 /*
 TODO:
+* stack parameter rendering
+* scrolling code stroll
+* scrolling for stack pane
+* ability to change layout
+* heap pane
+* help menu
+* re-layout when window resize occurs
+
 * step over (done)
 * step back over (done)
-* step out
-* step back out
-* stack frame rendering
-* horizontal code stroll
-* heap rendering
-* help menu
+* step out (done)
+* step back out (done)
+* stack frame (done)
 
 
 Notes:
@@ -18,8 +23,16 @@ Notes:
 const path = require("path");
 const fetch = require("node-fetch");
 const fs = require("fs");
+const { parse, Ref, stringify } = require("@airportyh/jsonr");
 
 async function CodePane(db, width) {
+    const self = {
+        unsetStep,
+        updateStep,
+        initialDisplay,
+        updateDisplay
+    };
+    
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     let codeLineOffset = 0; // width = dividerColumn1 - 1
     const sourceCode = await getSourceCode(db.apiUrl);
@@ -74,12 +87,64 @@ async function CodePane(db, width) {
         return line - codeLineOffset;
     }
     
-    return {
-        unsetStep,
-        updateStep,
-        initialDisplay,
-        updateDisplay
+    return self;
+}
+
+async function StackPane(db, left, width, log) {
+    const self = {
+        render
+    };
+    
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    const objectMap = new Map();
+    const funCallMap = new Map();
+    
+    function render() {
+        log.write("Snapshot: " + JSON.stringify(db.snapshot, null, "  ") + "\n");
+        // Store new object entries in cache
+        for (let key in db.snapshot.objectMap) {
+            const rawValue = db.snapshot.objectMap[key];
+            const parsed = parse(rawValue, true);
+            // log.write(
+            //     key + ", Raw Value: " + rawValue + ", parsed: " + 
+            //     JSON.stringify(parsed, null, "  ") + "\n"
+            // );
+            objectMap.set(Number(key), parsed);
+        }
+        
+        // Store new fun call entries in cache
+        for (let key in db.snapshot.funCallMap) {
+            funCallMap.set(Number(key), db.snapshot.funCallMap[key]);
+        }
+        const lines = [];
+        log.write("FunCallMap: " + JSON.stringify(Array.from(funCallMap.entries())) + "\n");
+        //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
+        let stack = objectMap.get(db.snapshot.stack);
+        //log.write("Stack: " + JSON.stringify(stack) + "\n");
+        let i = 1;
+        while (true) {
+            if (!stack) break;
+            const frame = objectMap.get(stack[0].id);
+            const variables = objectMap.get(frame.variables.id);
+            const funCall = funCallMap.get(frame.funCall);
+            lines.push(funCall.fun_name + "()");
+            for (let key in variables) {
+                let value = variables[key];
+                if (value instanceof Object && ("id" in value)) {
+                    value = "*" + value.id;
+                }
+                lines.push(key + " = " + value);
+            }
+            lines.push(strTimes("─", width));
+            log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
+            stack = stack[1] && objectMap.get(stack[1].id);
+            i += 2;
+        }
+        renderText(left, 1, width, windowHeight, lines);
+        
     }
+    
+    return self;
 }
 
 async function TermDebugger() {
@@ -130,19 +195,18 @@ async function TermDebugger() {
     const topOffset = 1;
     const objectMap = new Map();
     const dividerColumn1 = Math.floor(windowWidth / 2);
-    //const dividerColumn1 = Math.floor(windowWidth / 3);
-    //const dividerColumn2 = 2 * Math.floor(windowWidth / 3);
     let snapshotId = 1;
     let snapshot = null;
     const codePane = await CodePane(self, dividerColumn1 - 1);
+    const stackPane = await StackPane(self, dividerColumn1 + 1, Math.ceil(windowWidth / 2), log);
     drawDivider(dividerColumn1);
-    //drawDivider(dividerColumn2);
     await fetchStep();
     codePane.initialDisplay();
+    stackPane.render();
     
     function drawDivider(leftOffset) {
         for (let i = 0; i < windowHeight; i++) {
-            printAt(leftOffset, i + topOffset, "║");
+            printAt(leftOffset, i + topOffset, "┃");
         }
     }
     
@@ -152,72 +216,37 @@ async function TermDebugger() {
     }
     
     async function stepForward() {
-        const response = await fetch(`${url}/api/SnapshotExpanded?id=${snapshotId + 1}`);
-        const result = await response.json();
-        if (result) {
-            codePane.unsetStep();
-            snapshotId++;
-            snapshot = result;
-            codePane.updateDisplay();
-        }
+        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshotId + 1}`));
     }
     
     async function stepBackward() {
-        if (snapshotId > 1) {
-            const response = await fetch(`${url}/api/SnapshotExpanded?id=${snapshotId - 1}`);
-            const result = await response.json();
-            if (result) {
-                codePane.unsetStep();
-                snapshotId--;
-                snapshot = result;
-                codePane.updateDisplay();
-            }
-        }
+        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshotId - 1}`));
     }
     
     async function stepOver() {
-        const response = await fetch(`${url}/api/StepOver?id=${snapshotId}`);
-        codePane.unsetStep();
-        const result = await response.json();
-        
-        if (result) {
-            snapshot = result;
-            snapshotId = snapshot.id;
-        }
-        log.write(`Snapshot: ${snapshot.id}, ${JSON.stringify(snapshot, null, "  ")}\n`);
-        codePane.updateDisplay();
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOver?id=${snapshotId}`));
     }
     
     async function stepOverBackward() {
-        const response = await fetch(`${url}/api/StepOverBackward?id=${snapshotId}`);
-        codePane.unsetStep();
-        const result = await response.json();
-        log.write(`stepOverBackward ${snapshotId} - ${JSON.stringify(result, null, "  ")}\n`);
-        if (result) {
-            snapshot = result;
-            snapshotId = snapshot.id;
-        }
-        codePane.updateDisplay();
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOverBackward?id=${snapshotId}`));
     }
     
     async function stepOut() {
-        const response = await fetch(`${url}/api/StepOut?id=${snapshotId}`);
-        codePane.unsetStep();
-        const result = await response.json();
-        if (result) {
-            snapshot = result;
-            snapshotId = snapshot.id;
-        }
-        codePane.updateDisplay();
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOut?id=${snapshotId}`));
     }
     
     async function stepOutBackward() {
-        const response = await fetch(`${url}/api/StepOutBackward?id=${snapshotId}`);
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOutBackward?id=${snapshotId}`));
+    }
+    
+    async function stepWithFetchFun(fetchStep) {
+        const response = await fetchStep();
         codePane.unsetStep();
         const result = await response.json();
         if (result) {
             snapshot = result;
             snapshotId = snapshot.id;
+            stackPane.render();
         }
         codePane.updateDisplay();
     }
@@ -226,6 +255,10 @@ async function TermDebugger() {
 }
 
 TermDebugger().catch((e) => console.log(e.stack));
+
+function strTimes(str, num) {
+    return Array(num + 1).join(str);
+}
 
 async function getSourceCode(url) {
     const response = await fetch(`${url}/api/SourceCode`);

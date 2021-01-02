@@ -75,18 +75,20 @@ app.get("/api/FunCallExpanded", (req, res) => {
 
 app.get("/api/SnapshotExpanded", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = req.query.id;
     const snapshot = getSnapshotById.get(id);
     if (!snapshot) {
         res.json(null);
         return;
     }
-    const snapshotExpanded = expandSnapshot(snapshot, objectsAlreadyFetched);
+    const snapshotExpanded = expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched);
     res.json(snapshotExpanded);
 });
 
 app.get("/api/StepOver", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const nextSnapshot = getSnapshotById.get(id + 1);
@@ -101,17 +103,18 @@ app.get("/api/StepOver", (req, res) => {
             snapshotAfterCall = getSnapshotById.get(snapshotAfterCall.id + 1);
         }
         if (snapshotAfterCall) {
-            res.json(expandSnapshot(snapshotAfterCall, objectsAlreadyFetched));
+            res.json(expandSnapshot(snapshotAfterCall, objectsAlreadyFetched, funCallsAlreadyFetched));
         } else {
             res.json(null);
         }
     } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched));
+        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
     }
 });
 
 app.get("/api/StepOverBackward", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const prevSnapshot = getSnapshotById.get(id - 1);
@@ -121,23 +124,40 @@ app.get("/api/StepOverBackward", (req, res) => {
     }
     const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
     if (prevSnapshotFunCall.parent_id === snapshot.fun_call_id) {
-        console.log("doing getPrevSnapshotWithFunCallId query", prevSnapshot.id, snapshot.fun_call_id);
         let snapshotBeforeCall = getPrevSnapshotWithFunCallId.get(prevSnapshot.id, snapshot.fun_call_id);
         if (snapshotBeforeCall.line_no === snapshot.line_no) {
             snapshotBeforeCall = getSnapshotById.get(snapshotBeforeCall.id - 1);
         }
         if (snapshotBeforeCall) {
-            res.json(expandSnapshot(snapshotBeforeCall, objectsAlreadyFetched));
+            res.json(expandSnapshot(snapshotBeforeCall, objectsAlreadyFetched, funCallsAlreadyFetched));
         } else {
             res.json(null);
         }
     } else {
-        res.json(expandSnapshot(prevSnapshot, objectsAlreadyFetched));
+        const prevPrevSnapshot = getSnapshotById.get(id - 2);
+        if (prevPrevSnapshot) {
+            const prevPrevSnapshotFunCall = getFunCallStatement.get(prevPrevSnapshot.fun_call_id);
+            if (prevPrevSnapshotFunCall.parent_id === prevSnapshot.fun_call_id) {
+                let snapshotBeforeCall = getPrevSnapshotWithFunCallId.get(prevPrevSnapshot.id, prevSnapshot.fun_call_id);
+                if (snapshotBeforeCall.line_no === snapshot.line_no) {
+                    snapshotBeforeCall = getSnapshotById.get(snapshotBeforeCall.id - 1);
+                }
+                if (snapshotBeforeCall) {
+                    res.json(expandSnapshot(snapshotBeforeCall, objectsAlreadyFetched, funCallsAlreadyFetched));
+                    return;
+                } else {
+                    res.json(null);
+                    return;
+                }
+            }
+        }
+        res.json(expandSnapshot(prevSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
     }
 });
 
 app.get("/api/StepOut", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
@@ -146,12 +166,13 @@ app.get("/api/StepOut", (req, res) => {
         res.json(null);
         return;
     } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched));
+        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
     }
 });
 
 app.get("/api/StepOutBackward", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
@@ -160,7 +181,7 @@ app.get("/api/StepOutBackward", (req, res) => {
         res.json(null);
         return;
     } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched));
+        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
     }
 });
 
@@ -171,17 +192,45 @@ function useObjectsAlreadyFetched(req) {
     return req.session.objectsAlreadyFetched;
 }
 
-function expandSnapshot(snapshot, objectsAlreadyFetched) {
+function useFunCallsAlreadyFetched(req) {
+    if (!req.session.funCallsAlreadyFetched) {
+        req.session.funCallsAlreadyFetched = {};
+    };
+    return req.session.funCallsAlreadyFetched;
+}
+
+function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
     const objectMap = {};
-    const funCall = getFunCallStatement.get(snapshot.fun_call_id);
-    getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
+    //getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
     getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
     getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
+    const funCallMap = ensureFunCallsFetched(
+        snapshot, objectMap, funCallsAlreadyFetched);
     return {
         ...snapshot,
-        funCall,
+        funCallMap,
         objectMap
     };
+}
+
+function ensureFunCallsFetched(snapshot, objectMap, funCallsAlreadyFetched) {
+    const funCallMap = {};
+    if (snapshot.stack in objectMap) {
+        let stack = parse(objectMap[snapshot.stack], true);
+        while (true) {
+            if (!stack) {
+                break;
+            }
+            const frame = parse(objectMap[String(stack[0].id)], true);
+            if (!(frame.funCall in funCallsAlreadyFetched)) {
+                const funCall = getFunCallStatement.get(frame.funCall);
+                funCallMap[funCall.id] = funCall;
+                funCallsAlreadyFetched[frame.funCall] = true;
+            }
+            stack = stack[1] && parse(objectMap[String(stack[1].id)], true);
+        }
+    }
+    return funCallMap;
 }
 
 function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
