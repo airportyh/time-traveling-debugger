@@ -4,10 +4,10 @@ TODO:
 * scrolling code stroll
 * scrolling for stack pane
 * ability to change layout
-* heap pane
 * help menu
 * re-layout when window resize occurs
 
+* heap pane (done)
 * step over (done)
 * step back over (done)
 * step out (done)
@@ -90,34 +90,97 @@ async function CodePane(db, width) {
     return self;
 }
 
-async function StackPane(db, left, width, log) {
+function HeapPane(db, left, width) {
     const self = {
-        render
+        updateDisplay
     };
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
-    const objectMap = new Map();
-    const funCallMap = new Map();
+    const log = db.log;
+    const cache = db.cache;
     
-    function render() {
-        log.write("Snapshot: " + JSON.stringify(db.snapshot, null, "  ") + "\n");
-        // Store new object entries in cache
-        for (let key in db.snapshot.objectMap) {
-            const rawValue = db.snapshot.objectMap[key];
-            const parsed = parse(rawValue, true);
-            // log.write(
-            //     key + ", Raw Value: " + rawValue + ", parsed: " + 
-            //     JSON.stringify(parsed, null, "  ") + "\n"
-            // );
-            objectMap.set(Number(key), parsed);
-        }
-        
-        // Store new fun call entries in cache
-        for (let key in db.snapshot.funCallMap) {
-            funCallMap.set(Number(key), db.snapshot.funCallMap[key]);
-        }
+    function updateDisplay() {
+        const heap = cache.objectMap.get(db.snapshot.heap);
+        log.write(`Heap: ${JSON.stringify(heap)} \n`);
         const lines = [];
-        log.write("FunCallMap: " + JSON.stringify(Array.from(funCallMap.entries())) + "\n");
+        for (let id in heap) {
+            const object = cache.objectMap.get(heap[id].id);
+            log.write(`Object(${id}): ${JSON.stringify(object)}\n`);
+            if (Array.isArray(object)) {
+                renderArray(id, object, lines);
+            } else if (object instanceof Object) {
+                renderDictionary(id, object, lines);
+            }
+        }
+        log.write(`Display lines: ${JSON.stringify(lines)}\n`);
+        renderText(left, 1, width, windowHeight, lines);
+    }
+    
+    function renderArray(id, array, lines) {
+        const displayItems = array.map(displayValue);
+        lines.push("*" + id);
+        lines.push("┌" +
+            displayItems.map(item => "".padEnd(item.length, "─")).join("┬") +
+            "┐");
+        if (displayItems.length > 0) {
+            lines.push(
+                "│" + displayItems.join("│") + "│");
+        }
+        lines.push(
+            "└" + displayItems.map(item => "".padEnd(item.length, "─")).join("┴") +
+             "┘");
+    }
+    
+    function renderDictionary(id, dict, lines) {
+        const entries = [];
+        for (let key in dict) {
+            entries.push([displayValue(key), displayValue(dict[key])]);
+        }
+        const column1Width = entries.reduce((width, entry) =>
+            entry[0].length > width ? entry[0].length : width, 1);
+        const column2Width = entries.reduce((width, entry) =>
+            entry[1].length > width ? entry[1].length : width, 1);
+    
+        lines.push("*" + id);
+        lines.push(
+            "┌" + Array(column1Width + 1).join("─") +
+            "┬" + Array(column2Width + 1).join("─") +
+            "┐");
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            lines.push(
+                "│" + entry[0].padEnd(column1Width, " ") +
+                "│" + entry[1].padEnd(column2Width, " ") +
+                "│");
+    
+            if (i < entries.length - 1) {
+                lines.push(
+                    "├" + "".padEnd(column1Width, "─") +
+                    "┼" + "".padEnd(column2Width, "─") +
+                    "┤");
+            }
+        }
+        lines.push(
+            "└" + Array(column1Width + 1).join("─") +
+            "┴" + Array(column2Width + 1).join("─") +
+            "┘");
+    }
+    
+    return self;
+}
+
+function StackPane(db, left, width) {
+    const self = {
+        updateDisplay
+    };
+    
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    const log = db.log;
+    
+    function updateDisplay() {
+        const objectMap = db.cache.objectMap;
+        const funCallMap = db.cache.funCallMap;
+        const lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
         let stack = objectMap.get(db.snapshot.stack);
         //log.write("Stack: " + JSON.stringify(stack) + "\n");
@@ -136,7 +199,7 @@ async function StackPane(db, left, width, log) {
                 lines.push(key + " = " + value);
             }
             lines.push(strTimes("─", width));
-            log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
+            //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
             stack = stack[1] && objectMap.get(stack[1].id);
             i += 2;
         }
@@ -147,16 +210,44 @@ async function StackPane(db, left, width, log) {
     return self;
 }
 
+function DataCache() {
+    const self = {
+        update,
+        get objectMap() { return objectMap },
+        get funCallMap() { return funCallMap }
+    };
+    
+    const objectMap = new Map();
+    const funCallMap = new Map();
+    
+    function update(snapshot) {
+        // Store new object entries in cache
+        for (let key in snapshot.objectMap) {
+            const rawValue = snapshot.objectMap[key];
+            const parsed = parse(rawValue, true);
+            objectMap.set(Number(key), parsed);
+        }
+        
+        // Store new fun call entries in cache
+        for (let key in snapshot.funCallMap) {
+            funCallMap.set(Number(key), snapshot.funCallMap[key]);
+        }
+    }
+    
+    return self;
+}
+
 async function TermDebugger() {
     const self = {
         get apiUrl() { return url },
-        get snapshot() { return snapshot }
+        get snapshot() { return snapshot },
+        get cache() { return cache },
+        get log() { return log }
     };
     
     const log = fs.createWriteStream("term-debug.log");
     process.stdin.setRawMode(true);
     process.stdin.on('data', (data) => {
-        
         log.write("Data: ");
         for (let i = 0; i < data.length; i++) {
             log.write(data[i] + " ");
@@ -193,16 +284,21 @@ async function TermDebugger() {
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const topOffset = 1;
-    const objectMap = new Map();
-    const dividerColumn1 = Math.floor(windowWidth / 2);
+    const cache = DataCache();
+    const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
+    const dividerColumn1 = singlePaneWidth + 1;
+    const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
     let snapshotId = 1;
     let snapshot = null;
     const codePane = await CodePane(self, dividerColumn1 - 1);
-    const stackPane = await StackPane(self, dividerColumn1 + 1, Math.ceil(windowWidth / 2), log);
+    const stackPane = StackPane(self, dividerColumn1 + 1, singlePaneWidth);
+    const heapPane = HeapPane(self, dividerColumn2 + 1, singlePaneWidth);
     drawDivider(dividerColumn1);
+    drawDivider(dividerColumn2);
     await fetchStep();
     codePane.initialDisplay();
-    stackPane.render();
+    stackPane.updateDisplay();
+    heapPane.updateDisplay();
     
     function drawDivider(leftOffset) {
         for (let i = 0; i < windowHeight; i++) {
@@ -213,6 +309,7 @@ async function TermDebugger() {
     async function fetchStep() {
         const response = await fetch(`${url}/api/SnapshotExpanded?id=${snapshotId}`);
         snapshot =  await response.json();
+        cache.update(snapshot);
     }
     
     async function stepForward() {
@@ -245,8 +342,10 @@ async function TermDebugger() {
         const result = await response.json();
         if (result) {
             snapshot = result;
+            cache.update(snapshot);
             snapshotId = snapshot.id;
-            stackPane.render();
+            stackPane.updateDisplay();
+            heapPane.updateDisplay();
         }
         codePane.updateDisplay();
     }
@@ -270,6 +369,20 @@ function exit() {
     process.stdin.setRawMode(false);
     setCursorVisible(true);
     process.exit(0);
+}
+
+function displayValue(value) {
+    if (typeof value === "object") {
+        return "*" + value.id;
+    } else if (typeof value === "string") {
+        return quote(value);
+    } else {
+        return String(value);
+    }
+}
+
+function quote(str) {
+    return '"' + str.replace(/\"/g, '\\"') + '"';
 }
 
 function renderText(x, y, width, height, textLines) {
