@@ -3,9 +3,11 @@ TODO:
 * stack parameter rendering
 * scrolling code stroll
 * scrolling for stack pane
+* scrolling for heap pane
 * ability to change layout
 * help menu
 * re-layout when window resize occurs
+* color coding of heap ids/objects
 
 * heap pane (done)
 * step over (done)
@@ -23,7 +25,7 @@ Notes:
 const path = require("path");
 const fetch = require("node-fetch");
 const fs = require("fs");
-const { parse, Ref, stringify } = require("@airportyh/jsonr");
+const { parse } = require("@airportyh/jsonr");
 
 async function CodePane(db, width) {
     const self = {
@@ -372,7 +374,9 @@ function exit() {
 }
 
 function displayValue(value) {
-    if (typeof value === "object") {
+    if (value === null) {
+        return "null";
+    }else if (typeof value === "object") {
         return "*" + value.id;
     } else if (typeof value === "string") {
         return quote(value);
