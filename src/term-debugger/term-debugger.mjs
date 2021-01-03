@@ -96,8 +96,18 @@ async function TermDebugger() {
         width: dividerColumn1 - 1,
         height: windowHeight
     });
-    const stackPane = StackPane(self, dividerColumn1 + 1, singlePaneWidth);
-    const heapPane = HeapPane(self, dividerColumn2 + 1, singlePaneWidth);
+    const stackPane = StackPane(self, {
+        top: 1,
+        left: dividerColumn1 + 1, 
+        width: singlePaneWidth,
+        height: windowHeight - 1
+    });
+    const heapPane = HeapPane(self, {
+        top: 1,
+        left: dividerColumn2 + 1, 
+        width: singlePaneWidth,
+        height: windowHeight
+    });
     drawDivider(dividerColumn1);
     drawDivider(dividerColumn2);
     await fetchStep();

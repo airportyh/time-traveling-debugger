@@ -2,12 +2,11 @@ import {
     renderText
 } from "./term-utils.mjs";
 
-export function StackPane(db, left, width) {
+export function StackPane(db, box) {
     const self = {
         updateDisplay
     };
     
-    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const log = db.log;
     
     function updateDisplay() {
@@ -31,13 +30,12 @@ export function StackPane(db, left, width) {
                 }
                 lines.push(key + " = " + value);
             }
-            lines.push(strTimes("─", width));
+            lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
             stack = stack[1] && objectMap.get(stack[1].id);
             i += 2;
         }
-        renderText(left, 1, width, windowHeight, lines);
-        
+        renderText(box.left, box.top, box.width, box.height, lines);
     }
     
     return self;

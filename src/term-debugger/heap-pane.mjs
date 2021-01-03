@@ -2,12 +2,11 @@ import {
     renderText
 } from "./term-utils.mjs";
 
-export function HeapPane(db, left, width) {
+export function HeapPane(db, box) {
     const self = {
         updateDisplay
     };
     
-    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const log = db.log;
     const cache = db.cache;
     
@@ -25,7 +24,7 @@ export function HeapPane(db, left, width) {
             }
         }
         log.write(`Display lines: ${JSON.stringify(lines)}\n`);
-        renderText(left, 1, width, windowHeight, lines);
+        renderText(box.left, box.top, box.width, box.height, lines);
     }
     
     function renderArray(id, array, lines) {
