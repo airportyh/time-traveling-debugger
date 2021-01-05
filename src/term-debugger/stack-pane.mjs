@@ -4,15 +4,19 @@ import {
 
 export function StackPane(db, box) {
     const self = {
-        updateDisplay
+        updateDisplay,
+        scrollUp,
+        scrollDown
     };
     
     const log = db.log;
+    let topOffset = 0;
+    let lines = [];
     
     function updateDisplay() {
         const objectMap = db.cache.objectMap;
         const funCallMap = db.cache.funCallMap;
-        const lines = [];
+        lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
         let stack = objectMap.get(db.snapshot.stack);
         //log.write("Stack: " + JSON.stringify(stack) + "\n");
@@ -35,7 +39,29 @@ export function StackPane(db, box) {
             stack = stack[1] && objectMap.get(stack[1].id);
             i += 2;
         }
-        renderText(box.left, box.top, box.width, box.height, lines);
+        softUpdateDisplay();
+    }
+    
+    function softUpdateDisplay() {
+        let displayLines = lines;
+        if (topOffset < 0) {
+            displayLines = lines.slice(-topOffset);
+        }
+        renderText(box.left, box.top, box.width, box.height, displayLines);
+    }
+    
+    function scrollUp() {
+        if (lines.length + topOffset > box.height) {
+            topOffset--;
+            softUpdateDisplay();
+        }
+    }
+    
+    function scrollDown() {
+        if (topOffset < 0) {
+            topOffset++;
+            updateDisplay();
+        }
     }
     
     return self;

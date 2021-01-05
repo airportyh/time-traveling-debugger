@@ -1,15 +1,15 @@
 /*
 TODO:
-* separate files
-* stack parameter rendering
 * scrolling code stroll
 * scrolling for stack pane
 * scrolling for heap pane
 * ability to change layout
-* help menu
 * re-layout when window resize occurs
+* stack parameter rendering
+* help menu
 * color coding of heap ids/objects
 
+* separate files (done)
 * heap pane (done)
 * step over (done)
 * step back over (done)
@@ -34,7 +34,8 @@ import {
     clearScreen,
     renderText,
     printAt,
-    setCursorVisible
+    setCursorVisible,
+    setMouseButtonTracking
 } from "./term-utils.mjs";
 
 async function TermDebugger() {
@@ -70,6 +71,10 @@ async function TermDebugger() {
             stepOut();
         } else if (isStepOutBackwardKey(data)) {
             stepOutBackward();
+        } else if (isWheelUpEvent(data)) {
+            scrollUp(data);
+        } else if (isWheelDownEvent(data)) {
+            scrollDown(data);
         }
     });
     
@@ -81,6 +86,7 @@ async function TermDebugger() {
     
     clearScreen();
     setCursorVisible(false);
+    setMouseButtonTracking(true);
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const topOffset = 1;
@@ -105,7 +111,7 @@ async function TermDebugger() {
     const heapPane = HeapPane(self, {
         top: 1,
         left: dividerColumn2 + 1, 
-        width: singlePaneWidth,
+        width: windowWidth - 2 * singlePaneWidth - 2,
         height: windowHeight
     });
     drawDivider(dividerColumn1);
@@ -165,6 +171,32 @@ async function TermDebugger() {
         codePane.updateDisplay();
     }
     
+    function scrollUp(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            log.write(`Scroll up code pane: (${x}, ${y})\n`);
+        } else if (x < dividerColumn2) {
+            log.write(`Scroll up stack pane: (${x}, ${y})\n`);
+            stackPane.scrollUp();
+        } else {
+            log.write(`Scroll up heap pane: (${x}, ${y})\n`);
+        }
+    }
+    
+    function scrollDown(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            log.write(`Scroll down code pane: (${x}, ${y})\n`);
+        } else if (x < dividerColumn2) {
+            log.write(`Scroll down stack pane: (${x}, ${y})\n`);
+            stackPane.scrollDown();
+        } else {
+            log.write(`Scroll down heap pane: (${x}, ${y})\n`);
+        }
+    }
+    
     return self;
 }
 
@@ -173,6 +205,7 @@ TermDebugger().catch((e) => console.log(e.stack));
 function exit() {
     process.stdin.setRawMode(false);
     setCursorVisible(true);
+    setMouseButtonTracking(false);
     process.exit(0);
 }
 
@@ -226,6 +259,16 @@ function isDownArrow(data) {
         data[0] === 27 &&
         data[1] === 91 &&
         data[2] === 66;
+}
+
+function isWheelUpEvent(data) {
+    return (data.length ===  6 || data.length === 12) && 
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 97;
+}
+
+function isWheelDownEvent(data) {
+    return (data.length ===  6 || data.length === 12) && 
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 96;
 }
 
 
