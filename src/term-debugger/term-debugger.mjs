@@ -1,13 +1,14 @@
 /*
 TODO:
-* bring back current line highlight (styled string)
 * ability to change layout
 * re-layout when window resize occurs
 * stack parameter rendering
 * help menu
 * color coding of heap ids/objects
 * allow arrow buttons + current mouse position for scrolling as well
+* click to select a stack frame and zoom in and out in the code pane
 
+* bring back current line highlight (styled string) (done)
 * horizontal scroll (done)
 * ENTER to re-center code pane to current line (done)
 * scrolling code stroll (done)
@@ -50,9 +51,55 @@ async function TermDebugger() {
         get log() { return log }
     };
     
+    const url = process.argv[2] || "http://localhost:3000";
+    if (!url) {
+        console.log("Please provide the URL for the History API.");
+        exit();
+    }
+    
     const log = fs.createWriteStream("term-debug.log");
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    const topOffset = 1;
+    const cache = DataCache();
+    const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
+    const dividerColumn1 = singlePaneWidth + 1;
+    const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
+    let snapshotId = 1;
+    let snapshot = null;
+    
+    const codePane = await CodePane(self, {
+        top: 1,
+        left: 1,
+        width: dividerColumn1 - 1,
+        height: windowHeight
+    });
+    const stackPane = StackPane(self, {
+        top: 1,
+        left: dividerColumn1 + 1, 
+        width: singlePaneWidth,
+        height: windowHeight - 1
+    });
+    const heapPane = HeapPane(self, {
+        top: 1,
+        left: dividerColumn2 + 1, 
+        width: windowWidth - 2 * singlePaneWidth - 2,
+        height: windowHeight
+    });
+    
     process.stdin.setRawMode(true);
-    process.stdin.on('data', (data) => {
+    process.stdin.on('data', onDataReceived);
+    clearScreen();
+    setCursorVisible(false);
+    setMouseButtonTracking(true);
+    
+    drawDivider(dividerColumn1);
+    drawDivider(dividerColumn2);
+    await fetchStep();
+    codePane.initialDisplay();
+    stackPane.updateDisplay();
+    heapPane.updateDisplay();
+    
+    function onDataReceived(data) {
         log.write("Data: (");
         for (let i = 0; i < data.length; i++) {
             log.write(data[i] + " ");
@@ -86,50 +133,7 @@ async function TermDebugger() {
         } else if (isEnter(data)) {
             codePane.showCurrentLine();
         }
-    });
-    
-    const url = process.argv[2] || "http://localhost:3000";
-    if (!url) {
-        console.log("Please provide the URL for the History API.");
-        exit();
     }
-    
-    clearScreen();
-    setCursorVisible(false);
-    setMouseButtonTracking(true);
-    
-    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
-    const topOffset = 1;
-    const cache = DataCache();
-    const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
-    const dividerColumn1 = singlePaneWidth + 1;
-    const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
-    let snapshotId = 1;
-    let snapshot = null;
-    const codePane = await CodePane(self, {
-        top: 1,
-        left: 1,
-        width: dividerColumn1 - 1,
-        height: windowHeight
-    });
-    const stackPane = StackPane(self, {
-        top: 1,
-        left: dividerColumn1 + 1, 
-        width: singlePaneWidth,
-        height: windowHeight - 1
-    });
-    const heapPane = HeapPane(self, {
-        top: 1,
-        left: dividerColumn2 + 1, 
-        width: windowWidth - 2 * singlePaneWidth - 2,
-        height: windowHeight
-    });
-    drawDivider(dividerColumn1);
-    drawDivider(dividerColumn2);
-    await fetchStep();
-    codePane.initialDisplay();
-    stackPane.updateDisplay();
-    heapPane.updateDisplay();
     
     function drawDivider(leftOffset) {
         for (let i = 0; i < windowHeight; i++) {
@@ -177,8 +181,8 @@ async function TermDebugger() {
             snapshotId = snapshot.id;
             stackPane.updateDisplay();
             heapPane.updateDisplay();
+            codePane.updateDisplay();
         }
-        codePane.updateDisplay();
     }
     
     function scrollUp(data) {

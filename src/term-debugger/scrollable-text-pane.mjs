@@ -12,7 +12,8 @@ export function ScrollableTextPane(db, box) {
         scrollRight() { scrollLeftTo(leftOffset + 1) },
         get scrollTopOffset() { return topOffset },
         get scrollLeftOffset() { return leftOffset },
-        textLines() { return textLines }
+        textLines() { return textLines },
+        get longestLineLength() { return longestLineLength }
     };
     
     let textLines = [];

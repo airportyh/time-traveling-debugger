@@ -4,6 +4,7 @@ import {
     renderText
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
+import StyledString from "styled_string";
 
 export async function CodePane(db, box) {
     const self = {
@@ -21,19 +22,18 @@ export async function CodePane(db, box) {
     const textPane = ScrollableTextPane(db, box);
     
     function unsetStep() {
-        // textPane.updateLine(
-        //     db.snapshot.line_no - 1, 
-        //     codeLines[db.snapshot.line_no - 1]
-        // );
         textPane.updateLine(db.snapshot.line_no - 1, 
             " " + codeLines[db.snapshot.line_no - 1]);
     }
     
     function updateStep() {
+        const displayLine = ("→" + codeLines[db.snapshot.line_no - 1])
+            .padEnd(textPane.longestLineLength, " ");
         textPane.updateLine(db.snapshot.line_no - 1, 
-            "→" + codeLines[db.snapshot.line_no - 1]);
-        // textPane.updateLine(db.snapshot.line_no - 1, 
-        //     "\x1B[47m\x1B[30m" + codeLines[db.snapshot.line_no - 1] + "\x1B[0m");
+            StyledString(displayLine, {
+                background: "white",
+                foreground: "black"
+            }));
     }
     
     function scrollCodeIfNeeded() {
