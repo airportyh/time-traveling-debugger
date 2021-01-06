@@ -3,48 +3,57 @@ import {
     printAt,
     renderText
 } from "./term-utils.mjs";
+import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 
 export async function CodePane(db, box) {
     const self = {
         unsetStep,
         updateStep,
         initialDisplay,
-        updateDisplay
+        updateDisplay,
+        get textPane() { return textPane },
+        showCurrentLine() { scrollCodeIfNeeded() }
     };
     
-    let codeLineOffset = 0; // width = dividerColumn1 - 1
+    const log = db.log;
     const sourceCode = await getSourceCode(db.apiUrl);
     const codeLines = sourceCode.source.split("\n");
+    const textPane = ScrollableTextPane(db, box);
     
     function unsetStep() {
-        const line = (" " + codeLines[db.snapshot.line_no - 1])
-            .padEnd(box.width, " ")
-            .slice(0, box.width);
-        printAt(box.left, offset(db.snapshot.line_no), line);
+        // textPane.updateLine(
+        //     db.snapshot.line_no - 1, 
+        //     codeLines[db.snapshot.line_no - 1]
+        // );
+        textPane.updateLine(db.snapshot.line_no - 1, 
+            " " + codeLines[db.snapshot.line_no - 1]);
     }
     
     function updateStep() {
-        const line = ("→" + codeLines[db.snapshot.line_no - 1])
-            .padEnd(box.width, " ")
-            .slice(0, box.width);
-        printAt(box.left, offset(db.snapshot.line_no), "\x1B[47m\x1B[30m" + line + "\x1B[0m");
+        textPane.updateLine(db.snapshot.line_no - 1, 
+            "→" + codeLines[db.snapshot.line_no - 1]);
+        // textPane.updateLine(db.snapshot.line_no - 1, 
+        //     "\x1B[47m\x1B[30m" + codeLines[db.snapshot.line_no - 1] + "\x1B[0m");
     }
     
     function scrollCodeIfNeeded() {
         const line = db.snapshot.line_no;
-        if (line > (codeLineOffset + box.height - 1)) {
-            codeLineOffset = Math.min(
+        let offset = textPane.scrollTopOffset;
+        if (line > (offset + box.height - 1)) {
+            offset = Math.min(
                 codeLines.length - box.height,
-                line - Math.floor(box.height / 2));
+                line - Math.floor(box.height / 2)
+            );
         }
-        if (line < (codeLineOffset + 1)) {
-            codeLineOffset = Math.max(0, line - Math.floor(box.height / 2));
+        if (line < (offset + 1)) {
+            offset = Math.max(0, line - Math.floor(box.height / 2));
         }
+        
+        textPane.scrollTopTo(offset);
     }
     
     function updateCodeDisplay() {
-        const lines = codeLines.slice(codeLineOffset);
-        renderText(box.left + 1, box.top, box.width - 1, box.height, lines);
+        textPane.updateAllLines(codeLines.map((line) => " " + line));
     }
     
     function initialDisplay() {
@@ -53,16 +62,8 @@ export async function CodePane(db, box) {
     }
     
     function updateDisplay() {
-        const codeLineOffsetBefore = codeLineOffset;
         scrollCodeIfNeeded();
-        if (codeLineOffsetBefore !== codeLineOffset) {
-            updateCodeDisplay();
-        }
         updateStep();
-    }
-    
-    function offset(line) {
-        return box.top - 1 + line - codeLineOffset;
     }
     
     async function getSourceCode(url) {

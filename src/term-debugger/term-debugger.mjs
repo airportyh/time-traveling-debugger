@@ -1,14 +1,18 @@
 /*
 TODO:
-* scrolling code stroll
-* scrolling for stack pane
-* scrolling for heap pane
+* bring back current line highlight (styled string)
 * ability to change layout
 * re-layout when window resize occurs
 * stack parameter rendering
 * help menu
 * color coding of heap ids/objects
+* allow arrow buttons + current mouse position for scrolling as well
 
+* horizontal scroll (done)
+* ENTER to re-center code pane to current line (done)
+* scrolling code stroll (done)
+* scrolling for stack pane (done)
+* scrolling for heap pane (done)
 * separate files (done)
 * heap pane (done)
 * step over (done)
@@ -49,11 +53,11 @@ async function TermDebugger() {
     const log = fs.createWriteStream("term-debug.log");
     process.stdin.setRawMode(true);
     process.stdin.on('data', (data) => {
-        log.write("Data: ");
+        log.write("Data: (");
         for (let i = 0; i < data.length; i++) {
             log.write(data[i] + " ");
         }
-        log.write("\n");
+        log.write(")\n");
         log.write("String: " + String(data) + "\n");
         if (String(data) === 'q') {
             clearScreen();
@@ -75,6 +79,12 @@ async function TermDebugger() {
             scrollUp(data);
         } else if (isWheelDownEvent(data)) {
             scrollDown(data);
+        } else if (isWheelUpAltEvent(data)) {
+            scrollLeft(data);
+        } else if (isWheelDownAltEvent(data)) {
+            scrollRight(data);
+        } else if (isEnter(data)) {
+            codePane.showCurrentLine();
         }
     });
     
@@ -173,27 +183,35 @@ async function TermDebugger() {
     
     function scrollUp(data) {
         const x = data[4] - 32;
-        const y = data[5] - 32;
-        if (x < dividerColumn1) {
-            log.write(`Scroll up code pane: (${x}, ${y})\n`);
-        } else if (x < dividerColumn2) {
-            log.write(`Scroll up stack pane: (${x}, ${y})\n`);
-            stackPane.scrollUp();
-        } else {
-            log.write(`Scroll up heap pane: (${x}, ${y})\n`);
-        }
+        const targetPane = pickTargetPane(x);
+        targetPane.textPane.scrollUp();
     }
     
     function scrollDown(data) {
         const x = data[4] - 32;
-        const y = data[5] - 32;
+        const targetPane = pickTargetPane(x);
+        targetPane.textPane.scrollDown();
+    }
+    
+    function scrollLeft(data) {
+        const x = data[4] - 32;
+        const targetPane = pickTargetPane(x);
+        targetPane.textPane.scrollLeft();
+    }
+    
+    function scrollRight(data) {
+        const x = data[4] - 32;
+        const targetPane = pickTargetPane(x);
+        targetPane.textPane.scrollRight();
+    }
+    
+    function pickTargetPane(x) {
         if (x < dividerColumn1) {
-            log.write(`Scroll down code pane: (${x}, ${y})\n`);
+            return codePane;
         } else if (x < dividerColumn2) {
-            log.write(`Scroll down stack pane: (${x}, ${y})\n`);
-            stackPane.scrollDown();
+            return stackPane;
         } else {
-            log.write(`Scroll down heap pane: (${x}, ${y})\n`);
+            return heapPane;
         }
     }
     
@@ -261,6 +279,10 @@ function isDownArrow(data) {
         data[2] === 66;
 }
 
+function isEnter(data) {
+    return data.length === 1 && data[0] === 13;
+}
+
 function isWheelUpEvent(data) {
     return (data.length ===  6 || data.length === 12) && 
         data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 97;
@@ -270,5 +292,17 @@ function isWheelDownEvent(data) {
     return (data.length ===  6 || data.length === 12) && 
         data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 96;
 }
+
+function isWheelUpAltEvent(data) {
+    return (data.length ===  6 || data.length === 12) && 
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 105;
+}
+
+function isWheelDownAltEvent(data) {
+    return (data.length ===  6 || data.length === 12) && 
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 104;
+}
+
+
 
 

@@ -1,30 +1,34 @@
 import {
     renderText
 } from "./term-utils.mjs";
+import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 
 export function HeapPane(db, box) {
     const self = {
-        updateDisplay
+        updateDisplay,
+        get textPane() { return textPane }
     };
     
     const log = db.log;
     const cache = db.cache;
+    const textPane = ScrollableTextPane(db, box);
     
     function updateDisplay() {
         const heap = cache.objectMap.get(db.snapshot.heap);
-        log.write(`Heap: ${JSON.stringify(heap)} \n`);
+        //log.write(`Heap: ${JSON.stringify(heap)} \n`);
         const lines = [];
         for (let id in heap) {
             const object = cache.objectMap.get(heap[id].id);
-            log.write(`Object(${id}): ${JSON.stringify(object)}\n`);
+            //log.write(`Object(${id}): ${JSON.stringify(object)}\n`);
             if (Array.isArray(object)) {
                 renderArray(id, object, lines);
             } else if (object instanceof Object) {
                 renderDictionary(id, object, lines);
             }
         }
-        log.write(`Display lines: ${JSON.stringify(lines)}\n`);
-        renderText(box.left, box.top, box.width, box.height, lines);
+        //log.write(`Display lines: ${JSON.stringify(lines)}\n`);
+        textPane.updateAllLines(lines);
+        //renderText(box.left, box.top, box.width, box.height, lines);
     }
     
     function renderArray(id, array, lines) {
