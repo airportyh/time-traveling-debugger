@@ -4,3 +4,8 @@ build
 *.history
 *.profile.json
 *.db
+*.history-shm
+*.history-wal
+*.sqlite
+*.log
+*.leveldb
