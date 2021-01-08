@@ -49,17 +49,21 @@ export function ScrollableTextPane(db, box) {
     }
     
     function scrollTopTo(offset) {
-        topOffset = Math.min(
-            textLines.length - box.height,
-            Math.max(0, offset)
+        topOffset = Math.max(0, 
+            Math.min(
+                textLines.length - box.height,
+                offset
+            )
         );
         softUpdateDisplay();
     }
     
     function scrollLeftTo(offset) {
-        leftOffset = Math.min(
-            longestLineLength - box.width,
-            Math.max(0, offset)
+        leftOffset = Math.max(0,
+            Math.min(
+                longestLineLength - box.width,
+                offset
+            )
         );
         softUpdateDisplay();
     }

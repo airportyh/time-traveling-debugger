@@ -11,8 +11,8 @@ app.use(session({
     secret: 'ABCDEFG'
 }));
 
-const filename = "ex/tic-tac-toe-speed-test.history";
-// const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
+//const filename = "ex/tic-tac-toe-speed-test.history";
+const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
@@ -99,7 +99,7 @@ app.get("/api/StepOver", (req, res) => {
     const nextSnapshotFunCall = getFunCallStatement.get(nextSnapshot.fun_call_id);
     if (nextSnapshotFunCall.parent_id === snapshot.fun_call_id) {
         let snapshotAfterCall = getNextSnapshotWithFunCallId.get(id, snapshot.fun_call_id);
-        if (snapshotAfterCall.line_no === snapshot.line_no) {
+        if (snapshotAfterCall && snapshotAfterCall.line_no === snapshot.line_no) {
             snapshotAfterCall = getSnapshotById.get(snapshotAfterCall.id + 1);
         }
         if (snapshotAfterCall) {
@@ -125,7 +125,7 @@ app.get("/api/StepOverBackward", (req, res) => {
     const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
     if (prevSnapshotFunCall.parent_id === snapshot.fun_call_id) {
         let snapshotBeforeCall = getPrevSnapshotWithFunCallId.get(prevSnapshot.id, snapshot.fun_call_id);
-        if (snapshotBeforeCall.line_no === snapshot.line_no) {
+        if (snapshotBeforeCall && snapshotBeforeCall.line_no === snapshot.line_no) {
             snapshotBeforeCall = getSnapshotById.get(snapshotBeforeCall.id - 1);
         }
         if (snapshotBeforeCall) {
@@ -221,7 +221,9 @@ function ensureFunCallsFetched(snapshot, objectMap, funCallsAlreadyFetched) {
             if (!stack) {
                 break;
             }
+            // console.log("stack", stack);
             const frame = parse(objectMap[String(stack[0].id)], true);
+            // console.log("frame", frame);
             if (!(frame.funCall in funCallsAlreadyFetched)) {
                 const funCall = getFunCallStatement.get(frame.funCall);
                 funCallMap[funCall.id] = funCall;
@@ -238,6 +240,7 @@ function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
         return;
     }
     const dbObject = getObject(id);
+    
     objectMap[id] = dbObject.data;
     objectsAlreadyFetched[id] = true;
     const object = parse(dbObject.data, true);
