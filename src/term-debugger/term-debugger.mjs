@@ -1,6 +1,8 @@
 /*
 TODO:
+* styled function signatures in stack frame
 * ability to change layout
+* ability to hide a pane (heap pane for when you are not using heap objects for example)
 * re-layout when window resize occurs
 * stack parameter rendering
 * help menu
@@ -42,6 +44,8 @@ import {
     setCursorVisible,
     setMouseButtonTracking
 } from "./term-utils.mjs";
+import { HistoryServer } from "./spawn-history-server.mjs";
+import simpleSleep from "simple-sleep";
 
 async function TermDebugger() {
     const self = {
@@ -51,13 +55,26 @@ async function TermDebugger() {
         get log() { return log }
     };
     
-    const url = process.argv[2] || "http://localhost:3000";
-    if (!url) {
-        console.log("Please provide the URL for the History API.");
+    const log = fs.createWriteStream("term-debug.log");
+    
+    let url;
+    let historyServer;
+    const argument = process.argv[2];
+    if (!argument) {
+        console.log("Please provide either a URL or a file.");
         exit();
     }
     
-    const log = fs.createWriteStream("term-debug.log");
+    if (argument.startsWith("http://")) {
+        url = argument;
+    } else {
+        url = "http://localhost:1337";
+        // start the history server
+        log.write(`Starting history API server\n`);
+        historyServer = HistoryServer(self, argument, 1337);
+        await historyServer.start();
+    }
+     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const topOffset = 1;
     const cache = DataCache();
@@ -219,17 +236,20 @@ async function TermDebugger() {
         }
     }
     
+    function exit() {
+        process.stdin.setRawMode(false);
+        setCursorVisible(true);
+        setMouseButtonTracking(false);
+        if (historyServer) {
+            historyServer.stop();
+        }
+        process.exit(0);
+    }
+    
     return self;
 }
 
 TermDebugger().catch((e) => console.log(e.stack));
-
-function exit() {
-    process.stdin.setRawMode(false);
-    setCursorVisible(true);
-    setMouseButtonTracking(false);
-    process.exit(0);
-}
 
 function isStepOverKey(data) {
     return data.length === 1 && data[0] === 116;

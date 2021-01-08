@@ -4,15 +4,21 @@ const sqlite3 = require("better-sqlite3");
 const session = require('express-session');
 const { parse, Ref, stringify } = require("@airportyh/jsonr");
 
+// const filename = "ex/tic-tac-toe-speed-test.history";
+// const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
+const filename = process.argv[2];
+if (!filename) {
+    console.log("Please provide a SQLite Database file that contains a program's history.");
+    process.exit(-1);
+}
+
 const app = express();
-const port = 3000;
+const port = process.argv[3] || 3000;
 app.use(cors());
 app.use(session({
     secret: 'ABCDEFG'
 }));
 
-//const filename = "ex/tic-tac-toe-speed-test.history";
-const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
@@ -240,7 +246,7 @@ function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
         return;
     }
     const dbObject = getObject(id);
-    
+
     objectMap[id] = dbObject.data;
     objectsAlreadyFetched[id] = true;
     const object = parse(dbObject.data, true);
