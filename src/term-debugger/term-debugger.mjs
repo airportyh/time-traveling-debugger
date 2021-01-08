@@ -1,5 +1,6 @@
 /*
 TODO:
+* make a short alias for node src/term-debugger/term-debugger.mjs
 * styled function signatures in stack frame
 * ability to change layout
 * ability to hide a pane (heap pane for when you are not using heap objects for example)
@@ -44,7 +45,7 @@ import {
     setCursorVisible,
     setMouseButtonTracking
 } from "./term-utils.mjs";
-import { HistoryServer } from "./spawn-history-server.mjs";
+import { HistoryServer } from "../spawn-history-server.mjs";
 import simpleSleep from "simple-sleep";
 
 async function TermDebugger() {
@@ -71,7 +72,7 @@ async function TermDebugger() {
         url = "http://localhost:1337";
         // start the history server
         log.write(`Starting history API server\n`);
-        historyServer = HistoryServer(self, argument, 1337);
+        historyServer = HistoryServer(argument, 1337);
         await historyServer.start();
     }
      

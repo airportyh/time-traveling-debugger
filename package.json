@@ -10,7 +10,7 @@
     "check-parser-js": "node src/play-lang.js # check syntax of embedded JS by running the output file",
     "test": "jest",
     "build-zoom-debugger": "webpack --config zoom-debugger.webpack.lib.config.js",
-    "test-zoom-debugger": "webpack-dev-server --config zoom-debugger.webpack.test.config.js"
+    "test-zoom-debugger": "webpack serve --config zoom-debugger.webpack.test.config.js"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +24,7 @@
     "chokidar": "^3.4.2",
     "colors": "^1.4.0",
     "diff": "^4.0.1",
+    "exit-hook": "^2.2.0",
     "js-yaml": "^3.13.1",
     "leveldown": "^5.6.0",
     "lodash": "^4.17.20",
@@ -44,6 +45,7 @@
     "jest": "^24.9.0",
     "ts-loader": "^8.0.2",
     "tslib": "^2.0.0",
+    "webpack-cli": "^4.3.1",
     "webpack-dev-server": "^3.11.0"
   },
   "jest": {

@@ -17,6 +17,7 @@ module.exports = {
       new HtmlWebpackPlugin()
   ],
   devServer: {
+    open: true,  
     hot: true,
     inline: true
   }

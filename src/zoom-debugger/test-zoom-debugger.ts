@@ -11,6 +11,6 @@ async function main() {
     element.style.width = "100%";
     element.style.height = "100%";
     document.body.appendChild(element);
-    const DEBUGGER_API = "http://localhost:3000/api/";
+    const DEBUGGER_API = "http://localhost:1337/api/";
     await initZoomDebugger(element, DEBUGGER_API);
 }
