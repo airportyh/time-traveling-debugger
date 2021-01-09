@@ -40,14 +40,16 @@ the past state of the program: https://github.com/airportyh/cpython.
 
 ## Todo
 
-* Python version - support lists
+* return value ref count bug when you have multiple calls in arg list: f(g(), h())
 * Terminal Debugger
+    * hover over vars and display the values like Chrome
     * styled function signature
     * different layouts
     * color codes with heap objects
     * keys for QWERTY
-    * hover over vars and display the values like Chrome
-* return value ref count bug when you have multiple calls in arg list: f(g(), h())
+* Python version - support lists
+* language:
+    * support dot syntax
 * do code challenges
 
 ## Older

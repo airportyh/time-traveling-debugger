@@ -5,19 +5,21 @@ def node(tagName, children) [
     }
 ]
 
-def findMatch(node, target, targetIdx, partialMatches, matches) [
+def findMatch(node, target, targetIdx, partialMatches) [
+    matches = []
     if isString(node) [
         text = node
         i = 0
         while true [
-            if i >= length(text) [
-                break
-            ]
             if targetIdx >= length(target) [
                 # completed a match
                 push(partialMatches, node)
                 push(matches, partialMatches)
+                partialMatches = []
                 targetIdx = 0
+            ]
+            if i >= length(text) [
+                break
             ]
             if text[i] == target[targetIdx] [
                 i = i + 1
@@ -29,17 +31,18 @@ def findMatch(node, target, targetIdx, partialMatches, matches) [
         ]
         if targetIdx > 0 [
             # partial match
-            return [[node], targetIdx]
+            return [matches, concat(partialMatches, [node]), targetIdx]
         ] else [
-            return [[], targetIdx]
+            return [matches, partialMatches, targetIdx]
         ]
     ] else [
         for child in node["children"] [
-            result = findMatch(child, target, targetIdx, partialMatches, matches)
-            partialMatches = result[0]
-            targetIdx = result[1]
+            result = findMatch(child, target, targetIdx, partialMatches)
+            matches = concat(matches, result[0])
+            partialMatches = result[1]
+            targetIdx = result[2]
         ]
-        return [partialMatches, targetIdx]
+        return [matches, partialMatches, targetIdx]
     ]
 ]
 
@@ -53,6 +56,8 @@ def main() [
         header,
         para
     ])
-    matches = []
-    findMatch(dom, "hello there", 0, [], matches)
+    matches = findMatch(dom, "hello there", 0, [])
+    matches2 = findMatch(dom, "come", 0, [])
+    matches3 = findMatch(dom, "!", 0, [])
+    matches4 = findMatch(dom, "come! hello there", 0, [])
 ]

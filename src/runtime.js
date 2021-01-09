@@ -771,9 +771,9 @@ function push(thing, item) {
 
 function concat(one, other) {
     if ($isHeapRef(one) && $isHeapRef(other)) {
-        const one = $heap[one.id];
-        const other = $heap[other.id];
-        const result = one.concat(other);
+        const oneArr = $heap[one.id];
+        const otherArr = $heap[other.id];
+        const result = oneArr.concat(otherArr);
         for (let item of result) {
             if ($isHeapRef(item)) {
                 $incRefCount(item);
