@@ -1,0 +1,58 @@
+def node(tagName, children) [
+    return {
+        tagName: tagName,
+        children: children
+    }
+]
+
+def findMatch(node, target, targetIdx, partialMatches, matches) [
+    if isString(node) [
+        text = node
+        i = 0
+        while true [
+            if i >= length(text) [
+                break
+            ]
+            if targetIdx >= length(target) [
+                # completed a match
+                push(partialMatches, node)
+                push(matches, partialMatches)
+                targetIdx = 0
+            ]
+            if text[i] == target[targetIdx] [
+                i = i + 1
+                targetIdx = targetIdx + 1
+            ] else [
+                i = i + 1
+                targetIdx = 0
+            ]
+        ]
+        if targetIdx > 0 [
+            # partial match
+            return [[node], targetIdx]
+        ] else [
+            return [[], targetIdx]
+        ]
+    ] else [
+        for child in node["children"] [
+            result = findMatch(child, target, targetIdx, partialMatches, matches)
+            partialMatches = result[0]
+            targetIdx = result[1]
+        ]
+        return [partialMatches, targetIdx]
+    ]
+]
+
+def main() [
+    header = node("h1", ["Welcome!"])
+    para = node("p", [
+        " hello ",
+        "there!"
+    ])
+    dom = node("div", [
+        header,
+        para
+    ])
+    matches = []
+    findMatch(dom, "hello there", 0, [], matches)
+]

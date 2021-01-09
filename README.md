@@ -33,11 +33,25 @@ about the debugger:
 * [Introducing the Deep-Zoom Debugger (5 minutes)](https://www.youtube.com/watch?v=QE54x1ahHa4)
 * [Deep-Zoom Debugger Demo with Huiqi Zhou (17 minutes)](https://www.youtube.com/watch?v=lVb9bt7wDy8&t).
 
+## Python Implementation
+
+I am also working on a modified version of Python which can log and recreate
+the past state of the program: https://github.com/airportyh/cpython.
+
 ## Todo
 
-* improve speed of logger. Ideas:
-    * compare with file-based logger
-    * try batching insert with different batch sizes
+* Python version - support lists
+* Terminal Debugger
+    * styled function signature
+    * different layouts
+    * color codes with heap objects
+    * keys for QWERTY
+    * hover over vars and display the values like Chrome
+* return value ref count bug when you have multiple calls in arg list: f(g(), h())
+* do code challenges
+
+## Older
+
 * unintentional variable shadowing is a usability problem
 * when a closure variable hasn't been assigned yet, and you try to use it, strange bugs occur
 * passing in a nested style object as an attr in createElement doesn't work
@@ -62,6 +76,9 @@ about the debugger:
 
 ## Done
 
+* improve speed of logger. Ideas: (done)
+    * compare with file-based logger
+    * try batching insert with different batch sizes
 * register objects as they are created so that $save does not have to traverse (done)
 * automatic reference counting
     * count up for function parameters (done)

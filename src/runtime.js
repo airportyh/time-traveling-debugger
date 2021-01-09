@@ -292,7 +292,7 @@ const $emptyObject = {};
 let $heap = $emptyObject;   
 
 // ARC variables
-let $heapRefCount = $emptyObject;
+let $heapRefCount = {}; // not using $emptyObject here because we will mutate it
 let $pendingRetVal = null;
 // ARC variables end
 
@@ -742,7 +742,11 @@ async function prompt(message) {
 
 function pop(thing) {
     if ($isHeapRef(thing)) {
-        return $heapAllocate($heap[thing.id].pop());
+        const retval = $heap[thing.id].pop();
+        if ($isHeapRef(retval)) {
+            $decRefCount(retval);
+        }
+        return retval;
     } else {
         throw new Error("Cannot pop() for a " + (typeof thing));
     }
@@ -751,6 +755,7 @@ function pop(thing) {
 function push(thing, item) {
     if ($isHeapRef(thing)) {
         const array = $heap[thing.id];
+        $incRefCount(item);
         const newArray = [...array, item];
         $heap = {
             ...$heap,
@@ -768,7 +773,13 @@ function concat(one, other) {
     if ($isHeapRef(one) && $isHeapRef(other)) {
         const one = $heap[one.id];
         const other = $heap[other.id];
-        return $heapAllocate(one.concat(other));
+        const result = one.concat(other);
+        for (let item of result) {
+            if ($isHeapRef(item)) {
+                $incRefCount(item);
+            }
+        }
+        return $heapAllocate(result);
     } else {
         throw new Error("Cannot concat() a " + (typeof one) + " and a " + (typeof other));
     }
@@ -777,7 +788,13 @@ function concat(one, other) {
 function map(fn, thing) {
     if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
-        return $heapAllocate(arr.map(fn));
+        const result = arr.map(fn);
+        for (let item of result) {
+            if ($isHeapRef(item)) {
+                $incRefCount(item);
+            }
+        }
+        return $heapAllocate(result);
     } else {
         throw new Error("Cannot map() for a " + (typeof thing));
     }
@@ -786,7 +803,13 @@ function map(fn, thing) {
 function filter(fn, thing) {
     if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
-        return $heapAllocate(arr.filter(fn));
+        const result = arr.filter(fn);
+        for (let item of result) {
+            if ($isHeapRef(item)) {
+                $incRefCount(item);
+            }
+        }
+        return $heapAllocate(result);
     } else {
         throw new Error("Cannot filter() for a " + (typeof thing));
     }
@@ -832,6 +855,14 @@ function parseNumber(string) {
 
 function has(dict, key) {
     return key in dict;
+}
+
+function isString(value) {
+    return typeof value === "string";
+}
+
+function isNumber(value) {
+    return typeof value === "number";
 }
 
 /*
