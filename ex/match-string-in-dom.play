@@ -50,7 +50,8 @@ def main() [
     header = node("h1", ["Welcome!"])
     para = node("p", [
         " hello ",
-        "there!"
+        "there!",
+        "hello is my favorite word."
     ])
     dom = node("div", [
         header,
@@ -60,4 +61,5 @@ def main() [
     matches2 = findMatch(dom, "come", 0, [])
     matches3 = findMatch(dom, "!", 0, [])
     matches4 = findMatch(dom, "come! hello there", 0, [])
+    matches5 = findMatch(dom, "hello", 0, [])
 ]

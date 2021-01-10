@@ -207,11 +207,12 @@ function useFunCallsAlreadyFetched(req) {
 
 function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
     const objectMap = {};
-    //getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
     getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
     getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
     const funCallMap = ensureFunCallsFetched(
         snapshot, objectMap, funCallsAlreadyFetched);
+    const funCall = funCallMap[snapshot.fun_call_id];
+    getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
     return {
         ...snapshot,
         funCallMap,

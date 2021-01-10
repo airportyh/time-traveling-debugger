@@ -1,16 +1,22 @@
 /*
 TODO:
-* make a short alias for node src/term-debugger/term-debugger.mjs
-* styled function signatures in stack frame
+* code challenges
+* option to choose between stack + heap or rich stack
 * ability to change layout
 * ability to hide a pane (heap pane for when you are not using heap objects for example)
 * re-layout when window resize occurs
-* stack parameter rendering
 * help menu
-* color coding of heap ids/objects
 * allow arrow buttons + current mouse position for scrolling as well
-* click to select a stack frame and zoom in and out in the code pane
+* click to select a stack frame and jump out to that frame
+* back button
+* current line query
+* current line where... query
+* color coding of heap ids/objects
 
+* stack parameter rendering (done)
+* styled function signatures in stack frame (done)
+* make a short alias for node src/term-debugger/term-debugger.mjs (done)
+* inlined object display on the stack similar to chrome (done)
 * bring back current line highlight (styled string) (done)
 * horizontal scroll (done)
 * ENTER to re-center code pane to current line (done)
@@ -37,6 +43,7 @@ import fs from "fs";
 import { CodePane } from "./code-pane.mjs";
 import { HeapPane } from "./heap-pane.mjs";
 import { StackPane } from "./stack-pane.mjs";
+import { RichStackPane } from "./rich-stack-pane.mjs";
 import { DataCache } from "./data-cache.mjs";
 import {
     clearScreen,
@@ -79,9 +86,9 @@ async function TermDebugger() {
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const topOffset = 1;
     const cache = DataCache();
-    const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
+    const singlePaneWidth = Math.floor((windowWidth - 2) / 2);
     const dividerColumn1 = singlePaneWidth + 1;
-    const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
+    // const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
     let snapshotId = 1;
     let snapshot = null;
     
@@ -91,18 +98,18 @@ async function TermDebugger() {
         width: dividerColumn1 - 1,
         height: windowHeight
     });
-    const stackPane = StackPane(self, {
+    const stackPane = RichStackPane(self, {
         top: 1,
         left: dividerColumn1 + 1, 
-        width: singlePaneWidth,
+        width: windowWidth - singlePaneWidth - 1,
         height: windowHeight - 1
     });
-    const heapPane = HeapPane(self, {
-        top: 1,
-        left: dividerColumn2 + 1, 
-        width: windowWidth - 2 * singlePaneWidth - 2,
-        height: windowHeight
-    });
+    // const heapPane = HeapPane(self, {
+    //     top: 1,
+    //     left: dividerColumn2 + 1, 
+    //     width: windowWidth - 2 * singlePaneWidth - 2,
+    //     height: windowHeight
+    // });
     
     process.stdin.setRawMode(true);
     process.stdin.on('data', onDataReceived);
@@ -111,11 +118,11 @@ async function TermDebugger() {
     setMouseButtonTracking(true);
     
     drawDivider(dividerColumn1);
-    drawDivider(dividerColumn2);
+    // drawDivider(dividerColumn2);
     await fetchStep();
     codePane.initialDisplay();
     stackPane.updateDisplay();
-    heapPane.updateDisplay();
+    //heapPane.updateDisplay();
     
     function onDataReceived(data) {
         log.write("Data: (");
@@ -198,7 +205,7 @@ async function TermDebugger() {
             cache.update(snapshot);
             snapshotId = snapshot.id;
             stackPane.updateDisplay();
-            heapPane.updateDisplay();
+            //heapPane.updateDisplay();
             codePane.updateDisplay();
         }
     }
@@ -230,11 +237,16 @@ async function TermDebugger() {
     function pickTargetPane(x) {
         if (x < dividerColumn1) {
             return codePane;
-        } else if (x < dividerColumn2) {
-            return stackPane;
         } else {
-            return heapPane;
+            return stackPane;
         }
+        // if (x < dividerColumn1) {
+        //     return codePane;
+        // } else if (x < dividerColumn2) {
+        //     return stackPane;
+        // } else {
+        //     return heapPane;
+        // }
     }
     
     function exit() {
