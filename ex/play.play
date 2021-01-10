@@ -1,0 +1,11 @@
+def main() [
+    i = 1
+    while true [
+        i = i + 10
+        print(i)
+        if i > 100 [
+            break
+        ]
+    ]
+    print("Done")
+]

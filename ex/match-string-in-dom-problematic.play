@@ -1,0 +1,16 @@
+def node(tagName, children) [
+    return {
+        tagName: tagName,
+        children: children
+    }
+]
+
+def main() [
+    dom = node("div", [
+        node("h1", [node("text", "Welcome!")]),
+        node("p", [
+            node("text", "Hello, you are at my website!"),
+            node("text", "Please take a look around and make yourself at home.")
+        ])
+    ])
+]

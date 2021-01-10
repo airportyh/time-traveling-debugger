@@ -1,0 +1,12 @@
+def list_node(value, next) [
+    return {
+        value: value,
+        next: next
+    }
+]
+
+def main() [
+    one = list_node(1, null)
+    two = list_node(2, one)
+    one["next"] = two
+]

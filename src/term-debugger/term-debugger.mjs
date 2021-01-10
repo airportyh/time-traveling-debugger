@@ -1,8 +1,6 @@
 /*
 TODO:
 
-* use i and k for control for qwerty users
-* option to choose between stack + heap or rich stack
 * finish rotate-list.play
 * bug when circular reference (circular-ref.play)
 * play lang: when exception, record it in DB and show it in debugger
@@ -18,6 +16,8 @@ TODO:
 * current line where... query
 * color coding of heap ids/objects
 
+* option to choose between stack + heap or rich stack (done)
+* use i and k for control for qwerty users (done)
 * stack parameter rendering (done)
 * styled function signatures in stack frame (done)
 * make a short alias for node src/term-debugger/term-debugger.mjs (done)
@@ -73,6 +73,8 @@ async function TermDebugger() {
     let url;
     let historyServer;
     const argument = process.argv[2];
+    const mode = process.argv[3];
+    
     if (!argument) {
         console.log("Please provide either a URL or a file.");
         exit();
@@ -87,34 +89,11 @@ async function TermDebugger() {
         historyServer = HistoryServer(argument, 1337);
         await historyServer.start();
     }
-     
-    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
-    const topOffset = 1;
+    
     const cache = DataCache();
-    const singlePaneWidth = Math.floor((windowWidth - 2) / 2);
-    const dividerColumn1 = singlePaneWidth + 1;
-    // const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
+    
     let snapshotId = 1;
     let snapshot = null;
-    
-    const codePane = await CodePane(self, {
-        top: 1,
-        left: 1,
-        width: dividerColumn1 - 1,
-        height: windowHeight
-    });
-    const stackPane = RichStackPane(self, {
-        top: 1,
-        left: dividerColumn1 + 1, 
-        width: windowWidth - singlePaneWidth - 1,
-        height: windowHeight - 1
-    });
-    // const heapPane = HeapPane(self, {
-    //     top: 1,
-    //     left: dividerColumn2 + 1, 
-    //     width: windowWidth - 2 * singlePaneWidth - 2,
-    //     height: windowHeight
-    // });
     
     process.stdin.setRawMode(true);
     process.stdin.on('data', onDataReceived);
@@ -122,12 +101,15 @@ async function TermDebugger() {
     setCursorVisible(false);
     setMouseButtonTracking(true);
     
-    drawDivider(dividerColumn1);
-    // drawDivider(dividerColumn2);
+    let screen;
+    log.write(`mode: ${mode}\n`);
+    if (mode === "low") {
+        screen = await LowLevelScreen(self);
+    } else {
+        screen = await HighLevelScreen(self);
+    }
     await fetchStep();
-    codePane.initialDisplay();
-    stackPane.updateDisplay();
-    //heapPane.updateDisplay();
+    screen.initialDisplay();
     
     function onDataReceived(data) {
         log.write("Data: (");
@@ -203,15 +185,13 @@ async function TermDebugger() {
     
     async function stepWithFetchFun(fetchStep) {
         const response = await fetchStep();
-        codePane.unsetStep();
+        screen.unsetStep();
         const result = await response.json();
         if (result) {
             snapshot = result;
             cache.update(snapshot);
             snapshotId = snapshot.id;
-            stackPane.updateDisplay();
-            //heapPane.updateDisplay();
-            codePane.updateDisplay();
+            screen.updateDisplay();
         }
     }
     
@@ -240,18 +220,7 @@ async function TermDebugger() {
     }
     
     function pickTargetPane(x) {
-        if (x < dividerColumn1) {
-            return codePane;
-        } else {
-            return stackPane;
-        }
-        // if (x < dividerColumn1) {
-        //     return codePane;
-        // } else if (x < dividerColumn2) {
-        //     return stackPane;
-        // } else {
-        //     return heapPane;
-        // }
+        return screen.pickTargetPane(x);
     }
     
     function exit() {
@@ -262,6 +231,130 @@ async function TermDebugger() {
             historyServer.stop();
         }
         process.exit(0);
+    }
+    
+    return self;
+}
+
+async function HighLevelScreen(db) {
+    const self = {
+        initialDisplay,
+        updateDisplay,
+        pickTargetPane,
+        unsetStep
+    };
+    
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    const singlePaneWidth = Math.floor((windowWidth - 2) / 2);
+    const dividerColumn1 = singlePaneWidth + 1;
+    const codePane = await CodePane(db, {
+        top: 1,
+        left: 1,
+        width: dividerColumn1 - 1,
+        height: windowHeight
+    });
+    const stackPane = RichStackPane(db, {
+        top: 1,
+        left: dividerColumn1 + 1, 
+        width: windowWidth - singlePaneWidth - 1,
+        height: windowHeight - 1
+    });
+    drawDivider(dividerColumn1);
+    
+    function drawDivider(leftOffset) {
+        for (let i = 0; i < windowHeight; i++) {
+            printAt(leftOffset, i + 1, "┃");
+        }
+    }
+    
+    function unsetStep() {
+        codePane.unsetStep();
+    }
+    
+    function initialDisplay() {
+        codePane.initialDisplay();
+        stackPane.updateDisplay();
+    }
+    
+    function updateDisplay() {
+        stackPane.updateDisplay();
+        codePane.updateDisplay();
+    }
+    
+    function pickTargetPane(x) {
+        if (x < dividerColumn1) {
+            return codePane;
+        } else {
+            return stackPane;
+        }
+    }
+    
+    return self;
+}
+
+async function LowLevelScreen(db) {
+    const self = {
+        initialDisplay,
+        updateDisplay,
+        pickTargetPane,
+        unsetStep
+    };
+    
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
+    const dividerColumn1 = singlePaneWidth + 1;
+    const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
+    const codePane = await CodePane(db, {
+        top: 1,
+        left: 1,
+        width: dividerColumn1 - 1,
+        height: windowHeight
+    });
+    const stackPane = StackPane(db, {
+        top: 1,
+        left: dividerColumn1 + 1, 
+        width: singlePaneWidth,
+        height: windowHeight - 1
+    });
+    const heapPane = HeapPane(db, {
+        top: 1,
+        left: dividerColumn2 + 1, 
+        width: windowWidth - 2 * singlePaneWidth - 2,
+        height: windowHeight
+    });
+    drawDivider(dividerColumn1);
+    drawDivider(dividerColumn2);
+    
+    function drawDivider(leftOffset) {
+        for (let i = 0; i < windowHeight; i++) {
+            printAt(leftOffset, i + 1, "┃");
+        }
+    }
+    
+    function unsetStep() {
+        codePane.unsetStep();
+    }
+    
+    function initialDisplay() {
+        codePane.initialDisplay();
+        stackPane.updateDisplay();
+        heapPane.updateDisplay();
+    }
+    
+    function updateDisplay() {
+        stackPane.updateDisplay();
+        heapPane.updateDisplay();
+        codePane.updateDisplay();
+    }
+    
+    function pickTargetPane(x) {
+        if (x < dividerColumn1) {
+            return codePane;
+        } else if (x < dividerColumn2) {
+            return stackPane;
+        } else {
+            return heapPane;
+        }
     }
     
     return self;

@@ -1,0 +1,55 @@
+# https://leetcode.com/problems/rotate-list/
+
+def list_node(value, next) [
+    return {
+        value: value,
+        next: next
+    }
+]
+
+def oneToFive() [
+    five = list_node(5, null)
+    four = list_node(4, five)
+    three = list_node(3, four)
+    two = list_node(2, three)
+    one = list_node(1, two)
+    return one
+]
+
+def get_new_tail(list, places) [
+    if list == null [
+        return [null, 0]
+    ]
+    result = get_new_tail(list["next"], places)
+    subList = result[0]
+    count = result[1]
+    if count == places + 1 [
+        return result
+    ] else [
+        return [list, count + 1]
+    ]
+]
+
+def attach_to_end(list1, list2) [
+    if list1["next"] == null [
+        list1["next"] = list2
+    ] else [
+        attach_to_end(list1["next"], list2)
+    ]
+]
+
+def rotate(head, list, places) [
+    result = get_new_tail(list, places)
+    new_tail = result[0]
+    new_head = new_tail["next"]
+    new_tail["next"] = null
+    attach_to_end(new_head, head)
+    return new_head
+]
+
+def main() [
+    list1 = oneToFive()
+    result1 = rotate(list1, list1, 1)
+    list2 = oneToFive()
+    result2 = rotate(list2, list2, 2)
+]
