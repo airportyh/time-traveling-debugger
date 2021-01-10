@@ -1,7 +1,12 @@
 /*
 TODO:
-* code challenges
+
+* use i and k for control for qwerty users
 * option to choose between stack + heap or rich stack
+* finish rotate-list.play
+* bug when circular reference (circular-ref.play)
+* play lang: when exception, record it in DB and show it in debugger
+* code challenges
 * ability to change layout
 * ability to hide a pane (heap pane for when you are not using heap objects for example)
 * re-layout when window resize occurs
@@ -265,27 +270,29 @@ async function TermDebugger() {
 TermDebugger().catch((e) => console.log(e.stack));
 
 function isStepOverKey(data) {
-    return data.length === 1 && data[0] === 116;
+    return data.length === 1 && (data[0] === 116 || data[0] === 107);
 }
 
 function isStepOverBackwardKey(data) {
-    return data.length === 1 && data[0] === 99;
+    return data.length === 1 && (data[0] === 99 || data[0] === 105);
 }
 
 function isStepIntoKey(data) {
-    return data.length === 1 && data[0] === 20;
+    return data.length === 1 && (data[0] === 20 || data[0] === 11);
 }
 
 function isStepIntoBackwardKey(data) {
-    return data.length === 1 && data[0] === 3;
+    return data.length === 1 && (data[0] === 3 || data[0] === 9);
 }
 
 function isStepOutKey(data) {
-    return data.length === 3 && data[0] === 226 && data[1] === 128 && data[2] === 160;
+    return (data.length === 3 && data[0] === 226 && data[1] === 128 && data[2] === 160) ||
+        (data.length === 2 && data[0] === 203 && data[1] === 154);
 }
 
 function isStepOutBackwardKey(data) {
-    return data.length === 2 && data[0] === 195 && data[1] === 167;
+    return (data.length === 2 && data[0] === 195 && data[1] === 167) ||
+        (data.length === 2 && data[0] === 203 && data[1] === 134);
 }
 
 function isLeftArrow(data) {
