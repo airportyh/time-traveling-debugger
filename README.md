@@ -18,7 +18,46 @@ to learn how to make a programming language.
 * `npm run gen-parser`
 * Test out running and debugging a file with:
     * `./run ex/fib.play`
-    * `./debug ex/fib.play`
+    * `./debug ex/fib.history`
+    
+## Running a Program
+
+You run a program you use the `run` command:
+
+        `./run <.play file>`
+
+This should create a history file containing all execution states of the program with
+the `.history` suffix. For example, if you ran `./run fib.play`, then that should create
+the file `fib.history`.
+
+## Running the Step Debugger
+
+To debug a program after having run it:
+
+        `./debug <.history file>`
+        
+You should see a terminal-based GUI appear after a brief moment, which should allow you
+to navigate the history of the program. Here are the commands:
+
+* `k` - step over
+* `i` - step over backwards
+* `Control-k` - step into
+* `Control-i` - step into backwards
+* `Alt-k` - step out
+* `Alt-i` - step out backwards
+
+You also have the ability to scroll using a mouse wheel or track pad gesture within the
+various panes.
+
+Also, you can use low-level mode which allows you to see the heap objects in more detail:
+
+        `./debug <.history file> low`
+        
+## Running the Zoom Debugger
+
+The zoom debugger is an experimental debugger that uses a Zooming User Interface. To run it:
+
+        `./debug-zoom <.history file>`
 
 ## Videos about the Time Traveling Debugger
 
