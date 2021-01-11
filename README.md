@@ -22,13 +22,14 @@ to learn how to make a programming language.
     
 ## Running a Program
 
-You run a program you use the `run` command:
+To run a program you use the `run` command:
 
         `./run <.play file>`
 
-This should create a history file containing all execution states of the program with
-the `.history` suffix. For example, if you ran `./run fib.play`, then that should create
-the file `fib.history`.
+This should create a history file with the `.history` suffix. 
+For example, if you ran `fib.play`, then that should create
+the file `fib.history` in the same directory. The history file contains all
+past execution states of the program.
 
 ## Running the Step Debugger
 
