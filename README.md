@@ -46,9 +46,11 @@ to navigate the history of the program. Here are the commands:
 * `Control-i` - step into backwards
 * `Alt-k` - step out
 * `Alt-i` - step out backwards
+* `q` - quit the debugger
 
 You also have the ability to scroll using a mouse wheel or track pad gesture within the
-various panes.
+various panes. To scroll horizontally, hold down `Alt` while using the mouse wheel or
+track pad gesture.
 
 Also, you can use low-level mode which allows you to see the heap objects in more detail:
 
