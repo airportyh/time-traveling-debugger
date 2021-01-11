@@ -17,6 +17,9 @@
   "license": "ISC",
   "dependencies": {
     "@airportyh/jsonr": "^1.1.6",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1"
     "acorn": "^7.1.0",
     "better-sqlite3": "^7.1.0",
     "bindings": "^1.5.0",

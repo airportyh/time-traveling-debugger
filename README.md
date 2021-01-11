@@ -10,6 +10,16 @@ To learn more about how Play is built:
 * Watch this [video series](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3DasoOa54Vm9Mr8CATyTbLF)
 to learn how to make a programming language.
 
+## Setup
+
+* clone this repo
+* `cd play-lang`
+* `npm install`
+* `npm run gen-parser`
+* Test out running and debugging a file with:
+    * `./run ex/fib.play`
+    * `./debug ex/fib.play`
+
 ## Videos about the Time Traveling Debugger
 
 The current major experimental feature I am going for is the time traveling debugger,

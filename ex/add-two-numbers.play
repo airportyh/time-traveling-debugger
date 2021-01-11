@@ -1,0 +1,67 @@
+def list_node(value, next) [
+    return {
+        value: value,
+        next: next
+    }
+]
+
+def make_num1() [
+    three = list_node(3, null)
+    four = list_node(4, three)
+    two = list_node(2, four)
+    return two
+]
+
+def make_num2() [
+    four = list_node(4, null)
+    six = list_node(6, four)
+    five = list_node(5, six)
+    return five
+]
+
+def add_two_numbers(num1, num2) [
+    if num1 == null and num2 == null [
+        return [null, 0]
+    ] else if num1 == null [
+        digit2 = num2["value"]
+        result = add_two_numbers(null, num2["next"])
+        resultDigitNode = list_node(digit2 + result[1], result[0])
+        return [resultDigitNode, 0]
+    ] else if num2 == null [
+        digit1 = num1["value"]
+        result = add_two_numbers(null, num1["next"])
+        resultDigitNode = list_node(digit1 + result[1], result[0])
+        return [resultDigitNode, 0]
+    ] else [
+        digit1 = num1["value"]
+        digit2 = num2["value"]
+        result = add_two_numbers(num1["next"], num2["next"])
+        resultNum = digit1 + digit2 + result[1]
+        carry = 0
+        if resultNum >= 10 [
+            carry = 1
+            resultNum = resultNum - 10
+        ]
+        resultDigitNode = list_node(resultNum, result[0])
+        return [resultDigitNode, carry]
+    ]
+]
+
+def example1() [
+    num1 = make_num1()
+    num2 = make_num2()
+
+    result = add_two_numbers(num1, num2)
+]
+
+def example2() [
+    num1 = list_node(0, null)
+    num2 = list_node(0, null)
+    
+    result = add_two_numbers(num1, num2)
+]
+
+def main() [
+    example1()
+    example2()
+]
