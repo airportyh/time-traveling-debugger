@@ -1,21 +1,19 @@
 /*
 TODO:
 
-* finish rotate-list.play
 * bug when circular reference (circular-ref.play)
-* play lang: when exception, record it in DB and show it in debugger
-* code challenges
+* allow arrow buttons + current mouse position for scrolling as well
+* click to select a stack frame and jump out to that frame
+* current line query
+* current line where... query
 * ability to change layout
 * ability to hide a pane (heap pane for when you are not using heap objects for example)
 * re-layout when window resize occurs
 * help menu
-* allow arrow buttons + current mouse position for scrolling as well
-* click to select a stack frame and jump out to that frame
 * back button
-* current line query
-* current line where... query
 * color coding of heap ids/objects
 
+* play lang: when exception, record it in DB and show it in debugger (done)
 * option to choose between stack + heap or rich stack (done)
 * use i and k for control for qwerty users (done)
 * stack parameter rendering (done)
