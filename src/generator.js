@@ -31,7 +31,7 @@ exports.generateCode = function generateCode(ast, options) {
             `(async () => {`,
             `  await $initialize();`,
             `  await main();`,
-            `})().catch(err => console.log(err.stack))`,
+            `})().catch(err => $reportError(err))`,
             (options.historyFilePath ?
                 `.finally(() => $cleanUp());` :
                 "")
@@ -305,12 +305,16 @@ function generateFunction(node, closureInfo) {
         ...initLines,
         indent(`try {`),
         indent(indent(body)),
+        indent(`} catch (e) {`),
+        indent(indent([
+            `e.line = e.line || $lastLine;`,
+            `$saveError(e);`,
+            `throw e;`
+        ].join("\n"))),
         indent(`} finally {`),
         indent(indent([
-            `if (!$halted) {`,
-            `   $save(${lastLine});`,
-            `   $popFrame();`,
-            `}`
+            `$save(${lastLine});`,
+            `$popFrame();`,
         ].join("\n"))),
         indent(`}`),
         "}"

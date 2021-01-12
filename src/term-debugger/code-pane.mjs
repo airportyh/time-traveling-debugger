@@ -59,6 +59,7 @@ export async function CodePane(db, box) {
     
     function initialDisplay() {
         updateCodeDisplay();
+        scrollCodeIfNeeded();
         updateStep();
     }
     

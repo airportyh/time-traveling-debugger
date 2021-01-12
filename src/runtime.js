@@ -43,8 +43,11 @@ class $SQLiteDBLogger {
             heap integer,
             interop integer,
             line_no integer,
+            error_id integer,
             constraint Snapshot_fk_fun_call_id foreign key (fun_call_id)
                 references FunCall(id)
+            constraint Snapshot_fk_error_id foreign key (error_id)
+                references Error(id)
         );
 
         create table Object (
@@ -67,12 +70,18 @@ class $SQLiteDBLogger {
             file_path text,
             source text
         );
+        
+        create table Error (
+            id integer primary key,
+            message text
+        );
         `;
         this.db.exec(schema);
 
         this.insertObjectStatement = this.db.prepare(`insert into Object values (?, ?)`);
         this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?)`);
-        this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?)`);
+        this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?, ?)`);
+        this.insertErrorStatement = this.db.prepare(`insert into Error values (?, ?)`);
         this.db
             .prepare(`insert into SourceCode values (1, ?, ?)`)
             .run(SOURCE_FILE_PATH, $code);
@@ -103,12 +112,30 @@ class $SQLiteDBLogger {
             $getObjectId($stack), 
             $getObjectId($heap), 
             $interops && $interops.length && $getObjectId($interops),
-            line
+            line,
+            null
         ];
         this.pendingSnapshots.push(snapshot);
         if (id % 500 === 0) {
             this.flush();
         }
+    }
+    logError(err) {
+        this.flush();
+        const id = $nextSnapshotId++;
+        const errorId = $nextErrorId++;
+        const funCall = $stack ? $stack[0].funCall : null;
+        const snapshot = [
+            id, 
+            funCall, 
+            $getObjectId($stack), 
+            $getObjectId($heap), 
+            $interops && $interops.length && $getObjectId($interops),
+            err.line,
+            errorId
+        ];
+        this.insertErrorStatement.run(errorId, err.message);
+        this.insertSnapshotStatement.run(...snapshot);
     }
     flush() {
         this.db.exec("begin transaction");
@@ -166,6 +193,9 @@ class $FileLogger {
         const heap = $getObjectId($heap);
         const interops = $interops && $interops.length && $getObjectId($interops);
         this.stream.write(`snapshot(${id}, ${funCall}, ${stack}, ${heap}, ${interops}, ${line})\n`);
+    }
+    logError(err) {
+        throw new Error("Unimplemented");
     }
     flush() {
         this.stream.end();
@@ -246,6 +276,9 @@ class $LevelDBLogger {
             this.flush();
         }
     }
+    logError(err) {
+        throw new Error("Unimplemented");
+    }
     flush() {
         const charwise = this.charwise;
         const batch = this.db.batch();
@@ -278,14 +311,15 @@ Level DB Logger implementation ends
 const $isBrowser = typeof document !== "undefined";
 const $objectToIdMap = new WeakMap();
 const $logger = new $SQLiteDBLogger();
-
 let $stack = null;
+let $lastLine = null;
 
 // DB logger variables
 let $nextObjectId = 1;
 let $nextHeapId = 1;
 let $nextFunCallId = 1;
 let $nextSnapshotId = 1;
+let $nextErrorId = 1;
 // DB logger variables end
 
 const $emptyObject = {};
@@ -297,7 +331,6 @@ let $pendingRetVal = null;
 // ARC variables end
 
 let $interops = [];
-let $halted = false;
 let $errorMessage = null;
 const $emptyArray = [];
 
@@ -530,8 +563,6 @@ function $getVariable(varName) {
         return variables[varName];
     } else {
         $errorMessage = `Reference to undefined variable ${varName} encountered.`;
-        alert($errorMessage);
-        $halted = true;
         throw new Error($errorMessage);
     }
 }
@@ -615,6 +646,15 @@ function $heapAllocate(value) {
 function $save(line) {
     $logger.logSnapshot(line);
     $interops = $emptyArray;
+    $lastLine = line;
+}
+
+function $saveError(err) {
+    if (err.saved) {
+        return;
+    }
+    $logger.logError(err);
+    err.saved = true;
 }
 
 function $heapAccess(thing) {
@@ -689,6 +729,13 @@ function $stopProfiler() {
             }
         });
     });
+}
+
+function $reportError(err) {
+    console.log("Error on line " + err.line + ": ");
+    const codeLines = $code.split("\n");
+    console.log(codeLines[err.line - 1]);
+    console.log(err.message);
 }
 
 // Built-in Functions:"

@@ -24,9 +24,11 @@ const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
+const getSnapshotWithError = db.prepare("select * from Snapshot where error_id is not null");
 const getNextSnapshotWithFunCallId = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? limit 1");
 const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
 const getObjectStatement = db.prepare("select * from Object where id = ?");
+const getErrorStatement = db.prepare("select * from Error where id = ?");
 
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
@@ -84,6 +86,18 @@ app.get("/api/SnapshotExpanded", (req, res) => {
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = req.query.id;
     const snapshot = getSnapshotById.get(id);
+    if (!snapshot) {
+        res.json(null);
+        return;
+    }
+    const snapshotExpanded = expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched);
+    res.json(snapshotExpanded);
+});
+
+app.get("/api/SnapshotWithError", (req, res) => {
+    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const snapshot = getSnapshotWithError.get();
     if (!snapshot) {
         res.json(null);
         return;
@@ -211,12 +225,20 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
     getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
     const funCallMap = ensureFunCallsFetched(
         snapshot, objectMap, funCallsAlreadyFetched);
-    const funCall = funCallMap[snapshot.fun_call_id];
+    let funCall = funCallMap[snapshot.fun_call_id];
+    if (!funCall) {
+        funCall = getFunCallStatement.get(snapshot.fun_call_id);
+    }
     getObjectsDeep(funCall.parameters, objectMap, objectsAlreadyFetched);
+    let error = null;
+    if (snapshot.error_id) {
+        error = getErrorStatement.get(snapshot.error_id);
+    }
     return {
         ...snapshot,
         funCallMap,
-        objectMap
+        objectMap,
+        error
     };
 }
 

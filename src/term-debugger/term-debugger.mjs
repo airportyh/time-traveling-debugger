@@ -59,6 +59,7 @@ import {
 } from "./term-utils.mjs";
 import { HistoryServer } from "../spawn-history-server.mjs";
 import simpleSleep from "simple-sleep";
+import StyledString from "styled_string";
 
 async function TermDebugger() {
     const self = {
@@ -92,7 +93,6 @@ async function TermDebugger() {
     
     const cache = DataCache();
     
-    let snapshotId = 1;
     let snapshot = null;
     
     process.stdin.setRawMode(true);
@@ -102,14 +102,16 @@ async function TermDebugger() {
     setMouseButtonTracking(true);
     
     let screen;
-    log.write(`mode: ${mode}\n`);
+    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    
     if (mode === "low") {
         screen = await LowLevelScreen(self);
     } else {
         screen = await HighLevelScreen(self);
     }
-    await fetchStep();
+    await fetchFirstStep();
     screen.initialDisplay();
+    displayError();
     
     function onDataReceived(data) {
         log.write("Data: (");
@@ -153,34 +155,41 @@ async function TermDebugger() {
         }
     }
     
-    async function fetchStep() {
-        const response = await fetch(`${url}/api/SnapshotExpanded?id=${snapshotId}`);
-        snapshot =  await response.json();
-        cache.update(snapshot);
+    async function fetchFirstStep() {
+        const response = await fetch(`${url}/api/SnapshotWithError`);
+        const result =  await response.json();
+        if (result) {
+            snapshot = result;
+            cache.update(snapshot);
+        } else {
+            const response = await fetch(`${url}/api/SnapshotExpanded?id=1`);
+            snapshot =  await response.json();
+            cache.update(snapshot);
+        }
     }
     
     async function stepForward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshotId + 1}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshot.id + 1}`));
     }
     
     async function stepBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshotId - 1}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshot.id - 1}`));
     }
     
     async function stepOver() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOver?id=${snapshotId}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOver?id=${snapshot.id}`));
     }
     
     async function stepOverBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOverBackward?id=${snapshotId}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOverBackward?id=${snapshot.id}`));
     }
     
     async function stepOut() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOut?id=${snapshotId}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOut?id=${snapshot.id}`));
     }
     
     async function stepOutBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOutBackward?id=${snapshotId}`));
+        await stepWithFetchFun(() => fetch(`${url}/api/StepOutBackward?id=${snapshot.id}`));
     }
     
     async function stepWithFetchFun(fetchStep) {
@@ -190,8 +199,20 @@ async function TermDebugger() {
         if (result) {
             snapshot = result;
             cache.update(snapshot);
-            snapshotId = snapshot.id;
             screen.updateDisplay();
+            displayError();
+        }
+    }
+    
+    function displayError() {
+        if (snapshot.error) {
+            const message = "Error: " + snapshot.error.message;
+            const leftPadding = Math.floor((windowWidth - message.length) / 2);
+            const banner = Array(leftPadding + 1).join(" ") + message + Array(windowWidth - leftPadding - message.length + 1).join(" ")
+            printAt(1, windowHeight, 
+                StyledString(banner, { foreground: "red", background: "white" }).toString());
+        } else {
+            printAt(1, windowHeight, Array(windowWidth + 1).join(" "));
         }
     }
     
@@ -251,7 +272,7 @@ async function HighLevelScreen(db) {
         top: 1,
         left: 1,
         width: dividerColumn1 - 1,
-        height: windowHeight
+        height: windowHeight - 1
     });
     const stackPane = RichStackPane(db, {
         top: 1,
@@ -262,7 +283,7 @@ async function HighLevelScreen(db) {
     drawDivider(dividerColumn1);
     
     function drawDivider(leftOffset) {
-        for (let i = 0; i < windowHeight; i++) {
+        for (let i = 0; i < windowHeight - 1; i++) {
             printAt(leftOffset, i + 1, "┃");
         }
     }
@@ -308,7 +329,7 @@ async function LowLevelScreen(db) {
         top: 1,
         left: 1,
         width: dividerColumn1 - 1,
-        height: windowHeight
+        height: windowHeight - 1
     });
     const stackPane = StackPane(db, {
         top: 1,
@@ -320,13 +341,13 @@ async function LowLevelScreen(db) {
         top: 1,
         left: dividerColumn2 + 1, 
         width: windowWidth - 2 * singlePaneWidth - 2,
-        height: windowHeight
+        height: windowHeight - 1
     });
     drawDivider(dividerColumn1);
     drawDivider(dividerColumn2);
     
     function drawDivider(leftOffset) {
-        for (let i = 0; i < windowHeight; i++) {
+        for (let i = 0; i < windowHeight - 1; i++) {
             printAt(leftOffset, i + 1, "┃");
         }
     }
