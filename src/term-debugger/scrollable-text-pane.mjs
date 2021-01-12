@@ -45,7 +45,8 @@ export function ScrollableTextPane(db, box) {
     
     function updateLine(i, line) {
         textLines[i] = line;
-        renderText(box.left, box.top - topOffset + i, box.width, 1, [textLines[i]]);
+        const displayLine = textLines[i].substring(leftOffset);
+        renderText(box.left, box.top - topOffset + i, box.width, 1, [displayLine]);
     }
     
     function scrollTopTo(offset) {
