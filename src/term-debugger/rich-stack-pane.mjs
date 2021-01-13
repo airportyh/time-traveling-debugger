@@ -56,8 +56,12 @@ export function RichStackPane(db, box) {
     
     function renderValue(prefix, indent, value, heap, visited) {
         if (isRef(value)) {
-            const oneLine = renderHeapObjectOneLine(value, heap, new Set());
+            const localVisited = new Set(visited);
+            const oneLine = renderHeapObjectOneLine(value, heap, localVisited);
             if (prefix.length + oneLine.length < box.width) {
+                for (let id of localVisited) {
+                    visited.add(id);
+                }
                 return [indent + prefix + oneLine];
             } else {
                 return renderHeapObjectMultiLine(prefix, indent, value, heap, visited);
@@ -68,6 +72,10 @@ export function RichStackPane(db, box) {
     }
     
     function renderHeapObjectMultiLine(prefix, indent, ref, heap, visited) {
+        if (visited.has(ref.id)) {
+            return "*" + ref.id;
+        }
+        visited.add(ref.id);
         let object = heap[ref.id];
         
         if (isRef(object)) {
@@ -105,10 +113,10 @@ export function RichStackPane(db, box) {
     
     function renderHeapObjectOneLine(ref, heap, visited) {
         log.write(`renderHeapObjectOneLine(${ref.id}, ${JSON.stringify(heap)}, ${Array.from(visited)})\n`);
-        // if (visited.has(ref)) {
-        //     return "*" + ref.id;
-        // }
-        // visited.add(ref);
+        if (visited.has(ref)) {
+            return "*" + ref.id;
+        }
+        visited.add(ref);
         let object = heap[ref.id];
         
         if (isRef(object)) {
