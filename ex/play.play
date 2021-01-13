@@ -1,7 +1,13 @@
 def ListNode(value, next) [
+    return {
+        value: value,
+        next: next
+    }
 ]
 
 def main() [
+    a = ListNode(3, null)
+    print(a.value)
     i = 1
     while true [
         i = i + 10

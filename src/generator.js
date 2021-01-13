@@ -238,6 +238,10 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         const subject = generateCodeForExpression(expression.subject, funNode, closureInfo);
         const index = generateCodeForExpression(expression.index, funNode, closureInfo);
         return `$get(${subject}, ${index})`;
+    } else if (expression.type === "dot_operation") {
+        const subject = generateCodeForExpression(expression.subject, funNode, closureInfo);
+        const property = expression.property.value;
+        return `$get(${subject}, ${quote(property)})`;
     } else if (
         expression.type === "function_expression") {
         return generateFunction(expression, closureInfo);

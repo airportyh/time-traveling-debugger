@@ -143,6 +143,15 @@ var grammar = {
             end: tokenEnd(d[6])
         })
                 },
+    {"name": "dot_operation", "symbols": ["unary_expression", "_", {"literal":"."}, "_", "identifier"], "postprocess": 
+        d => ({
+            type: "dot_operation",
+            subject: d[0],
+            property: d[4],
+            start: d[0].start,
+            end: d[4].end
+        })
+                },
     {"name": "indexed_assignment", "symbols": ["unary_expression", "_", {"literal":"["}, "_", "expression", "_", {"literal":"]"}, "_", {"literal":"="}, "_", "expression"], "postprocess": 
         d => ({
             type: "indexed_assignment",
@@ -281,6 +290,7 @@ var grammar = {
     {"name": "unary_expression", "symbols": ["dictionary_literal"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["boolean_literal"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["indexed_access"], "postprocess": id},
+    {"name": "unary_expression", "symbols": ["dot_operation"], "postprocess": id},
     {"name": "unary_expression", "symbols": ["function_expression"], "postprocess": id},
     {"name": "unary_expression", "symbols": [{"literal":"("}, "expression", {"literal":")"}], "postprocess": 
         data => data[1]

@@ -17,6 +17,7 @@ const lexer = moo.compile({
     rbracket: "]",
     lbrace: "{",
     rbrace: "}",
+    dot: ".",
     assignment: "=",
     number_literal: {
         match: /\-?[0-9]+(?:\.[0-9]+)?/,

@@ -178,6 +178,18 @@ indexed_access
             })
         %}
 
+dot_operation
+    -> unary_expression _ "." _ identifier
+        {%
+            d => ({
+                type: "dot_operation",
+                subject: d[0],
+                property: d[4],
+                start: d[0].start,
+                end: d[4].end
+            })
+        %}
+
 indexed_assignment
     -> unary_expression _ "[" _ expression _ "]" _ "=" _ expression
         {%
@@ -357,6 +369,7 @@ unary_expression
     |  dictionary_literal   {% id %}
     |  boolean_literal      {% id %}
     |  indexed_access       {% id %}
+    |  dot_operation        {% id %}
     |  function_expression  {% id %}
     |  "(" expression ")"
         {%

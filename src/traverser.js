@@ -73,6 +73,10 @@ function traverse(node, visit) {
             traverse(node.subject, visit);
             traverse(node.index, visit);
             break;
+        case "dot_operation":
+            traverse(node.subject, visit);
+            traverse(node.property, visit);
+            break;
         case "binary_operation":
             traverse(node.left, visit);
             traverse(node.right, visit);
