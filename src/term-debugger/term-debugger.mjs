@@ -113,12 +113,12 @@ async function TermDebugger() {
     displayError();
     
     function onDataReceived(data) {
-        log.write("Data: (");
+        log.write("Data: ");
         for (let i = 0; i < data.length; i++) {
             log.write(data[i] + " ");
         }
-        log.write(")\n");
-        log.write("String: " + String(data) + "\n");
+        log.write("\n");
+        log.write("String: " + JSON.stringify(String(data)) + "\n");
         if (String(data) === 'q') {
             clearScreen();
             exit();
@@ -198,9 +198,9 @@ async function TermDebugger() {
         if (result) {
             snapshot = result;
             cache.update(snapshot);
-            screen.updateDisplay();
             displayError();
         }
+        screen.updateDisplay();
     }
     
     function displayError() {

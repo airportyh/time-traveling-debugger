@@ -27,9 +27,10 @@ export async function CodePane(db, box) {
     }
     
     function updateStep() {
+        //log.write(`snapshot: ${JSON.stringify(db.snapshot)}\n`);
         const displayLine = ("→" + codeLines[db.snapshot.line_no - 1])
             .padEnd(textPane.longestLineLength, " ");
-        log.write(`displayLine: ${displayLine}\n`);
+        //log.write(`displayLine: ${displayLine}\n`);
         textPane.updateLine(db.snapshot.line_no - 1, 
             StyledString(displayLine, {
                 background: "white",
