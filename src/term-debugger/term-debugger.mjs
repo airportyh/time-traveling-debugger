@@ -36,9 +36,6 @@ TODO:
 * stack frame (done)
 
 
-Notes:
-
-* Partial success for StepOver, but want to skip one more step after the step over
 */
 
 import path from "path";
@@ -159,10 +156,12 @@ async function TermDebugger() {
         const result =  await response.json();
         if (result) {
             snapshot = result;
+            log.write(`Snapshot ${snapshot.id}\n`);
             cache.update(snapshot);
         } else {
             const response = await fetch(`${url}/api/SnapshotExpanded?id=1`);
             snapshot =  await response.json();
+            log.write(`Snapshot ${snapshot.id}\n`);
             cache.update(snapshot);
         }
     }
@@ -197,6 +196,7 @@ async function TermDebugger() {
         const result = await response.json();
         if (result) {
             snapshot = result;
+            log.write(`Snapshot ${snapshot.id}\n`);
             cache.update(snapshot);
             displayError();
         }

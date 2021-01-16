@@ -43,6 +43,7 @@ export function RichStackPane(db, box) {
             lines.push(StyledString(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
             for (let key in variables) {
                 let value = variables[key];
+                log.write(`Rendering value ${JSON.stringify(value)}\n`);
                 lines.push(...renderValue(key + " = ", "", value, heap, new Set()));
             }
             lines.push(strTimes("─", box.width));
@@ -83,7 +84,9 @@ export function RichStackPane(db, box) {
         }
         
         let lines = [];
-        if (Array.isArray(object)) {
+        if (typeof object === "string") {
+            return JSON.stringify(object);
+        } else if (Array.isArray(object)) {
             lines.push(indent + prefix + "[");
             for (let i = 0; i < object.length; i++) {
                 let item = object[i];
@@ -122,7 +125,9 @@ export function RichStackPane(db, box) {
         if (isRef(object)) {
             object = objectMap.get(object.id);
         }
-        if (Array.isArray(object)) {
+        if (typeof object === "string") {
+            return JSON.stringify(object);
+        } else if (Array.isArray(object)) {
             let outputs = object.map((item) => {
                 if (isRef(item)) {
                     return renderHeapObjectOneLine(item, heap, visited);
