@@ -151,17 +151,21 @@ async function TermDebugger() {
         }
     }
     
+    function logSnapshot(snapshot) {
+        log.write(`Snapshot ${snapshot.id}: ${JSON.stringify(snapshot, null, "  ")}\n`);
+    }
+    
     async function fetchFirstStep() {
         const response = await fetch(`${url}/api/SnapshotWithError`);
         const result =  await response.json();
         if (result) {
             snapshot = result;
-            log.write(`Snapshot ${snapshot.id}\n`);
+            logSnapshot(snapshot);
             cache.update(snapshot);
         } else {
             const response = await fetch(`${url}/api/SnapshotExpanded?id=1`);
             snapshot =  await response.json();
-            log.write(`Snapshot ${snapshot.id}\n`);
+            logSnapshot(snapshot);
             cache.update(snapshot);
         }
     }
@@ -196,7 +200,7 @@ async function TermDebugger() {
         const result = await response.json();
         if (result) {
             snapshot = result;
-            log.write(`Snapshot ${snapshot.id}\n`);
+            logSnapshot(snapshot);
             cache.update(snapshot);
             displayError();
         }

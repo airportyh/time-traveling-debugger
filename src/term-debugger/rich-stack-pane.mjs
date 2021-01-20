@@ -2,8 +2,9 @@ import {
     renderText
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
-import { isRef } from "./language.mjs"
+import { isRef, isHeapRef } from "./language.mjs"
 import StyledString from "styled_string";
+import util from "util";
 
 export function RichStackPane(db, box) {
     const self = {
@@ -11,6 +12,7 @@ export function RichStackPane(db, box) {
         get textPane() { return textPane }
     };
     
+    const inspect = util.inspect;
     const log = db.log;
     const objectMap = db.cache.objectMap;
     const funCallMap = db.cache.funCallMap;
@@ -24,8 +26,9 @@ export function RichStackPane(db, box) {
         while (true) {
             if (!stack) break;
             const frame = objectMap.get(stack[0].id);
-            const variables = objectMap.get(frame.variables.id);
-            const funCall = funCallMap.get(frame.funCall);
+            const variables = objectMap.get(frame.get("variables").id);
+            log.write(`frame: ${frame}, funCall: ${frame.get("funCall")}\n`);
+            const funCall = funCallMap.get(frame.get("funCall"));
             const parameters = objectMap.get(funCall.parameters);
             
             let parametersDisplay = [];
@@ -41,11 +44,9 @@ export function RichStackPane(db, box) {
             }
             
             lines.push(StyledString(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
-            for (let key in variables) {
-                let value = variables[key];
-                log.write(`Rendering value ${JSON.stringify(value)}\n`);
+            variables.forEach((value, key) => {
                 lines.push(...renderValue(key + " = ", "", value, heap, new Set()));
-            }
+            });
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
             stack = stack[1] && objectMap.get(stack[1].id);
@@ -56,28 +57,73 @@ export function RichStackPane(db, box) {
     }
     
     function renderValue(prefix, indent, value, heap, visited) {
-        if (isRef(value)) {
-            const localVisited = new Set(visited);
-            const oneLine = renderHeapObjectOneLine(value, heap, localVisited);
-            if (prefix.length + oneLine.length < box.width) {
-                for (let id of localVisited) {
-                    visited.add(id);
-                }
-                return [indent + prefix + oneLine];
-            } else {
-                return renderHeapObjectMultiLine(prefix, indent, value, heap, visited);
+        //log.write(`renderValue(${prefix}, ${inspect(value)}, ${inspect(heap)})\n`);
+        const localVisited = new Set(visited);
+        const oneLine = renderValueOneLine(value, heap, localVisited);
+        if (prefix.length + oneLine.length < box.width) {
+            for (let id of localVisited) {
+                visited.add(id);
             }
+            return [indent + prefix + oneLine];
         } else {
-            return [indent + prefix + JSON.stringify(value)];
+            return renderValueMultiLine(prefix, indent, value, heap, visited);
         }
     }
     
-    function renderHeapObjectMultiLine(prefix, indent, ref, heap, visited) {
-        if (visited.has(ref.id)) {
-            return "*" + ref.id;
+    
+    function renderValueOneLine(value, heap, visited) {
+        if (!isHeapRef(value)) {
+            return JSON.stringify(value);
         }
-        visited.add(ref.id);
-        let object = heap[ref.id];
+        
+        const ref = value;
+        const refId = ref.get("id");
+        //log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, heap: ${inspect(heap)}, ${inspect(visited)})\n`);
+        if (visited.has(refId)) {
+            return "*" + refId;
+        }
+        visited.add(refId);
+        let object = heap.get(String(refId));
+        if (object === undefined) {
+            return "{}";
+        }
+        if (isRef(object)) {
+            object = objectMap.get(object.id);
+        }
+        if (typeof object === "string") {
+            return JSON.stringify(object);
+        } else if (Array.isArray(object)) {
+            let outputs = object.map((item) => renderValueOneLine(item, heap, visited));
+            return "[" + outputs.join(", ") + "]";
+        } else if (object instanceof Map){
+            // map
+            let outputs = [];
+            object.forEach((value, key) => {
+                const keyDisplay = renderValueOneLine(key, heap, visited);
+                const valueDisplay = renderValueOneLine(value, heap, visited);
+                outputs.push(keyDisplay + ": " + valueDisplay);
+            });
+            return "{" + outputs.join(", ") + "}";
+        } else {
+            throw new Error("Unsupported type: " + inspect(object));
+        }
+    }
+    
+    function renderValueMultiLine(prefix, indent, value, heap, visited) {
+        if (!isHeapRef(value)) {
+            return [indent + prefix + JSON.stringify(value)];
+        }
+        
+        const ref = value;
+        const refId = ref.get("id");
+        if (visited.has(refId)) {
+            return "*" + refId;
+        }
+        visited.add(refId);
+        let object = heap.get(String(refId));
+        if (object === undefined) {
+            return "{}";
+        }
         
         if (isRef(object)) {
             object = objectMap.get(object.id);
@@ -85,7 +131,7 @@ export function RichStackPane(db, box) {
         
         let lines = [];
         if (typeof object === "string") {
-            return JSON.stringify(object);
+            lines.push(indent + prefix + object);
         } else if (Array.isArray(object)) {
             lines.push(indent + prefix + "[");
             for (let i = 0; i < object.length; i++) {
@@ -96,59 +142,32 @@ export function RichStackPane(db, box) {
                 }
             }
             lines.push(indent + "]");
-        } else {
-            // object
+        } else if (object instanceof Map) {
+            // map
+            // log.write(`Rendering map: ${inspect(object)}\n`);
             lines.push(indent + prefix + "{");
-            
-            const keys =  Object.keys(object);
+            const keys = Array.from(object.keys());
+            // log.write(`map keys: ${keys}\n`);
             for (let i = 0; i < keys.length; i++) {
                 let key = keys[i];
-                let value = object[key];
-                lines.push(...renderValue(key + ": ", indent + "  ", value, heap, visited));
+                const keyDisplay = renderValue("", indent + "  ", key, heap, visited);
+                // log.write(`keyDisplay: ${inspect(keyDisplay)}\n`);
+                lines.push(...keyDisplay.slice(0, keyDisplay.length - 1));
+                const keyDisplayLastLine = keyDisplay[keyDisplay.length - 1];
+                let value = object.get(key);
+                const valueDisplay = renderValue(keyDisplayLastLine + ": ", indent + "  ", value, heap, visited);
+                // log.write(`valueDisplay: ${inspect(valueDisplay)}\n`);
+                lines.push(...valueDisplay);
                 if (i !== keys.length - 1) {
                     lines[lines.length - 1] += ", ";
                 }
             }
             lines.push(indent + "}");
-        }
-        return lines;
-    }
-    
-    function renderHeapObjectOneLine(ref, heap, visited) {
-        log.write(`renderHeapObjectOneLine(${ref.id}, ${JSON.stringify(heap)}, ${Array.from(visited)})\n`);
-        if (visited.has(ref)) {
-            return "*" + ref.id;
-        }
-        visited.add(ref);
-        let object = heap[ref.id];
-        
-        if (isRef(object)) {
-            object = objectMap.get(object.id);
-        }
-        if (typeof object === "string") {
-            return JSON.stringify(object);
-        } else if (Array.isArray(object)) {
-            let outputs = object.map((item) => {
-                if (isRef(item)) {
-                    return renderHeapObjectOneLine(item, heap, visited);
-                } else {
-                    return JSON.stringify(item);
-                }
-            });
-            return "[" + outputs.join(", ") + "]";
         } else {
-            // object
-            let outputs = [];
-            for (let key in object) {
-                let value = object[key];
-                if (isRef(value)) {
-                    outputs.push(key + ": " + renderHeapObjectOneLine(value, heap, visited));
-                } else {
-                    outputs.push(key + ": " + JSON.stringify(value));
-                }
-            }
-            return "{" + outputs.join(", ") + "}";
+            throw new Error("Unsupported type: " + inspect(object));
         }
+        
+        return lines;
     }
     
     return self;

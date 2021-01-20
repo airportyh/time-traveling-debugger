@@ -1,4 +1,4 @@
-import jsonr from "@airportyh/jsonr";
+import jsonLike from "../../json-like/json-like-parser.js";
 
 export function DataCache() {
     const self = {
@@ -14,7 +14,7 @@ export function DataCache() {
         // Store new object entries in cache
         for (let key in snapshot.objectMap) {
             const rawValue = snapshot.objectMap[key];
-            const parsed = jsonr.parse(rawValue, true);
+            const parsed = jsonLike.parse(rawValue, true);
             objectMap.set(Number(key), parsed);
         }
         

@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require('cors');
 const sqlite3 = require("better-sqlite3");
 const session = require('express-session');
-const { parse, Ref, stringify } = require("@airportyh/jsonr");
+const { parse, Ref, HeapRef } = require("../json-like/json-like-parser");
 
 // const filename = "ex/tic-tac-toe-speed-test.history";
 // const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
@@ -13,7 +13,7 @@ if (!filename) {
 }
 
 const app = express();
-const port = process.argv[3] || 3000;
+const port = process.argv[3] || 1337;
 app.use(cors());
 app.use(session({
     secret: 'ABCDEFG'
@@ -252,13 +252,18 @@ function ensureFunCallsFetched(snapshot, objectMap, funCallsAlreadyFetched) {
             }
             // console.log("stack", stack);
             const frame = parse(objectMap[String(stack[0].id)], true);
-            // console.log("frame", frame);
-            if (!(frame.funCall in funCallsAlreadyFetched)) {
-                const funCall = getFunCallStatement.get(frame.funCall);
+            // console.log("frame", frame, objectMap[String(stack[0].id)]);
+            if (!(frame.get("funCall") in funCallsAlreadyFetched)) {
+                const funCall = getFunCallStatement.get(frame.get("funCall"));
                 funCallMap[funCall.id] = funCall;
                 funCallsAlreadyFetched[frame.funCall] = true;
             }
-            stack = stack[1] && parse(objectMap[String(stack[1].id)], true);
+            if (stack[1]) {
+                const objectData = objectMap[String(stack[1].id)];
+                stack = parse(objectData, true);
+            } else {
+                stack = null;
+            }
         }
     }
     return funCallMap;
@@ -272,27 +277,22 @@ function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
 
     objectMap[id] = dbObject.data;
     objectsAlreadyFetched[id] = true;
+    // console.log("data", id, dbObject.data);
     const object = parse(dbObject.data, true);
     if (Array.isArray(object)) {
-        const resultArray = [];
         for (let j = 0; j < object.length; j++) {
             let item = object[j];
             if (item instanceof Ref) {
-                item = getObjectsDeep(item.id, objectMap, objectsAlreadyFetched);
+                getObjectsDeep(item.id, objectMap, objectsAlreadyFetched);
             }
-            resultArray.push(item);
         }
-        return resultArray;
-    } else {
-        const resultObject = {};
-        for (let key in object) {
-            let value = object[key];
+    } else if (object instanceof Map) {
+        // it's a map
+        object.forEach((value, key) => {
             if (value instanceof Ref) {
-                value = getObjectsDeep(value.id, objectMap, objectsAlreadyFetched);
+                getObjectsDeep(value.id, objectMap, objectsAlreadyFetched);
             }
-            resultObject[key] = value;
-        }
-        return resultObject;
+        });
     }
 }
 
