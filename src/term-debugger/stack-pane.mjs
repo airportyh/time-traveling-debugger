@@ -2,6 +2,8 @@ import {
     renderText
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
+import { inspect } from "util";
+import { isHeapRef } from "./language.mjs";
 
 export function StackPane(db, box) {
     const self = {
@@ -18,18 +20,20 @@ export function StackPane(db, box) {
         const lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
         let stack = objectMap.get(db.snapshot.stack);
-        //log.write("Stack: " + JSON.stringify(stack) + "\n");
+        // log.write(`Stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
             const frame = objectMap.get(stack[0].id);
-            const variables = objectMap.get(frame.variables.id);
-            const funCall = funCallMap.get(frame.funCall);
+            // log.write(`Frame: ${inspect(frame)}\n`);
+            const variables = objectMap.get(frame.get("variables").id);
+            const funCall = funCallMap.get(frame.get("funCall"));
             lines.push(funCall.fun_name + "()");
-            for (let key in variables) {
-                let value = variables[key];
-                if (value instanceof Object && ("id" in value)) {
-                    value = "*" + value.id;
+            // log.write(`Variables: ${inspect(variables)}\n`);
+            // log.write(`FunCall: ${inspect(funCall)}\n`);
+            for (let [key, value] of variables.entries()) {
+                if (isHeapRef(value)) {
+                    value = "*" + value.get("id");
                 }
                 lines.push(key + " = " + value);
             }

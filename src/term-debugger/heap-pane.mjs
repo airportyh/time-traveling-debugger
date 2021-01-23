@@ -2,6 +2,8 @@ import {
     renderText
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
+import { isHeapRef } from "./language.mjs";
+import { inspect } from "util";
 
 export function HeapPane(db, box) {
     const self = {
@@ -15,18 +17,24 @@ export function HeapPane(db, box) {
     
     function updateDisplay() {
         const heap = cache.objectMap.get(db.snapshot.heap);
-        //log.write(`Heap: ${JSON.stringify(heap)} \n`);
+        // log.write(`Heap: ${inspect(heap)} \n`);
         const lines = [];
-        for (let id in heap) {
-            const object = cache.objectMap.get(heap[id].id);
-            //log.write(`Object(${id}): ${JSON.stringify(object)}\n`);
+        for (let [heapId, ref] of heap.entries()) {
+            const object = cache.objectMap.get(ref.id);
+            // log.write(`Object(${heapId}): ${inspect(object)}\n`);
             if (Array.isArray(object)) {
-                renderArray(id, object, lines);
-            } else if (object instanceof Object) {
-                renderDictionary(id, object, lines);
+                renderArray(heapId, object, lines);
+            } else if (object instanceof Map) {
+                renderDictionary(heapId, object, lines);
+            } else if (typeof object === "string") {
+                lines.push("*" + heapId);
+                lines.push("  " + JSON.stringify(object));
+            } else {
+                
             }
         }
-        //log.write(`Display lines: ${JSON.stringify(lines)}\n`);
+        
+        // log.write(`Display lines: ${JSON.stringify(lines)}\n`);
         textPane.updateAllLines(lines);
         //renderText(box.left, box.top, box.width, box.height, lines);
     }
@@ -48,8 +56,8 @@ export function HeapPane(db, box) {
     
     function renderDictionary(id, dict, lines) {
         const entries = [];
-        for (let key in dict) {
-            entries.push([displayValue(key), displayValue(dict[key])]);
+        for (let [key, value] of dict.entries()) {
+            entries.push([displayValue(key), displayValue(value)]);
         }
         const column1Width = entries.reduce((width, entry) =>
             entry[0].length > width ? entry[0].length : width, 1);
@@ -87,8 +95,8 @@ export function HeapPane(db, box) {
 function displayValue(value) {
     if (value === null) {
         return "null";
-    }else if (typeof value === "object") {
-        return "*" + value.id;
+    }else if (isHeapRef(value)) {
+        return "*" + value.get("id");
     } else if (typeof value === "string") {
         return quote(value);
     } else {
