@@ -23,20 +23,30 @@ export async function CodePane(db, box) {
     let codeFileId = null;
     
     function unsetStep() {
-        textPane.updateLine(db.snapshot.line_no - 1, 
-            " " + codeLines[db.snapshot.line_no - 1]);
+        const codeFile = getCodeFile();
+        if (codeFile) {
+            textPane.updateLine(db.snapshot.line_no - 1, 
+                " " + codeLines[db.snapshot.line_no - 1]);
+        }
     }
     
     function updateStep() {
-        //log.write(`snapshot: ${JSON.stringify(db.snapshot)}\n`);
-        const displayLine = ("→" + codeLines[db.snapshot.line_no - 1])
-            .padEnd(textPane.longestLineLength, " ");
-        //log.write(`displayLine: ${displayLine}\n`);
-        textPane.updateLine(db.snapshot.line_no - 1, 
-            StyledString(displayLine, {
-                background: "white",
-                foreground: "black"
-            }));
+        const codeFile = getCodeFile();
+        if (codeFile) {
+            //log.write(`snapshot: ${JSON.stringify(db.snapshot)}\n`);
+            const displayLine = ("→" + codeLines[db.snapshot.line_no - 1])
+                .padEnd(textPane.longestLineLength, " ");
+            //log.write(`displayLine: ${displayLine}\n`);
+            textPane.updateLine(db.snapshot.line_no - 1, 
+                StyledString(displayLine, {
+                    background: "white",
+                    foreground: "black"
+                }));
+        } else {
+            const funCall = funCallMap.get(db.snapshot.fun_call_id);
+            codeLines = [`${funCall.fun_name}() line ${db.snapshot.line_no}. No source code available :(`];
+            textPane.updateAllLines(codeLines);
+        }
     }
     
     function scrollCodeIfNeeded() {
@@ -55,15 +65,29 @@ export async function CodePane(db, box) {
         textPane.scrollTopTo(offset);
     }
     
+    function getFunCall() {
+        return funCallMap.get(db.snapshot.fun_call_id);
+    }    
+    
+    function getCodeFile() {
+        const funCall = getFunCall();
+        if (funCall.code_file_id) {
+            return codeFileMap.get(funCall.code_file_id);
+        }
+        return null;
+    }
+    
     function updateCodeDisplay() {
-        const funCall = funCallMap.get(db.snapshot.fun_call_id);
+        const funCall = getFunCall();
         if (funCall.code_file_id !== codeFileId) {
-            codeFileId = funCall.code_file_id;
-            if (codeFileId) {
-                const codeFile = codeFileMap.get(funCall.code_file_id);
+            const codeFile = getCodeFile();
+            if (codeFile) {
                 codeLines = codeFile.source.split("\n");
+                codeFileId = codeFile.id;
             } else {
-                codeLines = ["<No source code available>"];
+                const funCall = getFunCall();
+                codeLines = [`${funCall.fun_name}() line ${db.snapshot.line_no}. No source code available :(`];
+                codeFileId = null;
             }
             textPane.updateAllLines(codeLines.map((line) => " " + line));
         }

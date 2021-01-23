@@ -30,6 +30,8 @@ const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id
 const getObjectStatement = db.prepare("select * from Object where id = ?");
 const getErrorStatement = db.prepare("select * from Error where id = ?");
 const getCodeFile = db.prepare("select * from CodeFile where id = ?");
+const getSnapshotForStepOver = db.prepare("select * from Snapshot where id > ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id limit 1");
+const getSnapshotForStepOverBackward = db.prepare("select * from Snapshot where id < ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id desc limit 2");
 
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
@@ -103,7 +105,9 @@ app.get("/api/StepOver", (req, res) => {
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     let id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
-    const result = getNextSnapshotWithFunCallNotOnLine(id, snapshot.fun_call_id, snapshot.line_no);
+    const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
+    const result = getSnapshotForStepOver.get(
+        id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
     res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -112,7 +116,22 @@ app.get("/api/StepOverBackward", (req, res) => {
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
-    const result = getPrevSnapshotWithFunCallNotOnLine(id, snapshot.fun_call_id, snapshot.line_no);
+    const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
+    const results = getSnapshotForStepOverBackward.all(
+        id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
+    let result;
+    
+    if (results.length === 0) {
+        result = null;
+    } if (results.length === 1) {
+        result = results[0];
+    } else { // length is 2
+        if (results[0].line_no === results[1].line_no) {
+            result = results[1];
+        } else {
+            result = results[0];
+        }
+    }
     res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -150,7 +169,7 @@ function useFunCallsAlreadyFetched(req) {
     return req.session.funCallsAlreadyFetched;
 }
 
-function getNextSnapshotWithFunCallNotOnLine(id, funCallId, lineNo) {
+function getNextSnapshotInFunCallNotOnLine(id, funCallId, lineNo) {
     let currSnapshot;
     while (true) {
         currSnapshot = getNextSnapshotWithFunCallId.get(id, funCallId);
@@ -161,7 +180,7 @@ function getNextSnapshotWithFunCallNotOnLine(id, funCallId, lineNo) {
     return currSnapshot;
 }
 
-function getPrevSnapshotWithFunCallNotOnLine(id, funCallId, lineNo) {
+function getPrevSnapshotInFunCallNotOnLine(id, funCallId, lineNo) {
     let currSnapshot;
     while (true) {
         currSnapshot = getPrevSnapshotWithFunCallId.get(id, funCallId);
