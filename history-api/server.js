@@ -29,6 +29,7 @@ const getNextSnapshotWithFunCallId = db.prepare("select * from Snapshot where id
 const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
 const getObjectStatement = db.prepare("select * from Object where id = ?");
 const getErrorStatement = db.prepare("select * from Error where id = ?");
+const getCodeFile = db.prepare("select * from CodeFile where id = ?");
 
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
@@ -55,8 +56,9 @@ app.get("/api/Object", (req, res) => {
     }
 });
 
-app.get("/api/SourceCode", (req, res) => {
-    const result = db.prepare("select * from SourceCode").get();
+app.get("/api/CodeFile", (req, res) => {
+    const id = req.query.id;
+    const result = getCodeFile.get(id);
     res.json(result);
 });
 
@@ -86,50 +88,23 @@ app.get("/api/SnapshotExpanded", (req, res) => {
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = req.query.id;
     const snapshot = getSnapshotById.get(id);
-    if (!snapshot) {
-        res.json(null);
-        return;
-    }
-    const snapshotExpanded = expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched);
-    res.json(snapshotExpanded);
+    res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 app.get("/api/SnapshotWithError", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const snapshot = getSnapshotWithError.get();
-    if (!snapshot) {
-        res.json(null);
-        return;
-    }
-    const snapshotExpanded = expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched);
-    res.json(snapshotExpanded);
+    res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 app.get("/api/StepOver", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
-    const id = Number(req.query.id);
+    let id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
-    const nextSnapshot = getSnapshotById.get(id + 1);
-    if (!nextSnapshot) {
-        res.json(null);
-        return;
-    }
-    const nextSnapshotFunCall = getFunCallStatement.get(nextSnapshot.fun_call_id);
-    if (nextSnapshotFunCall.parent_id === snapshot.fun_call_id) {
-        let snapshotAfterCall = getNextSnapshotWithFunCallId.get(id, snapshot.fun_call_id);
-        if (snapshotAfterCall && snapshotAfterCall.line_no === snapshot.line_no) {
-            snapshotAfterCall = getSnapshotById.get(snapshotAfterCall.id + 1);
-        }
-        if (snapshotAfterCall) {
-            res.json(expandSnapshot(snapshotAfterCall, objectsAlreadyFetched, funCallsAlreadyFetched));
-        } else {
-            res.json(null);
-        }
-    } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-    }
+    const result = getNextSnapshotWithFunCallNotOnLine(id, snapshot.fun_call_id, snapshot.line_no);
+    res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 app.get("/api/StepOverBackward", (req, res) => {
@@ -137,42 +112,8 @@ app.get("/api/StepOverBackward", (req, res) => {
     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
-    const prevSnapshot = getSnapshotById.get(id - 1);
-    if (!prevSnapshot) {
-        res.json(null);
-        return;
-    }
-    const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
-    if (prevSnapshotFunCall.parent_id === snapshot.fun_call_id) {
-        let snapshotBeforeCall = getPrevSnapshotWithFunCallId.get(prevSnapshot.id, snapshot.fun_call_id);
-        if (snapshotBeforeCall && snapshotBeforeCall.line_no === snapshot.line_no) {
-            snapshotBeforeCall = getSnapshotById.get(snapshotBeforeCall.id - 1);
-        }
-        if (snapshotBeforeCall) {
-            res.json(expandSnapshot(snapshotBeforeCall, objectsAlreadyFetched, funCallsAlreadyFetched));
-        } else {
-            res.json(null);
-        }
-    } else {
-        const prevPrevSnapshot = getSnapshotById.get(id - 2);
-        if (prevPrevSnapshot) {
-            const prevPrevSnapshotFunCall = getFunCallStatement.get(prevPrevSnapshot.fun_call_id);
-            if (prevPrevSnapshotFunCall.parent_id === prevSnapshot.fun_call_id) {
-                let snapshotBeforeCall = getPrevSnapshotWithFunCallId.get(prevPrevSnapshot.id, prevSnapshot.fun_call_id);
-                if (snapshotBeforeCall.line_no === snapshot.line_no) {
-                    snapshotBeforeCall = getSnapshotById.get(snapshotBeforeCall.id - 1);
-                }
-                if (snapshotBeforeCall) {
-                    res.json(expandSnapshot(snapshotBeforeCall, objectsAlreadyFetched, funCallsAlreadyFetched));
-                    return;
-                } else {
-                    res.json(null);
-                    return;
-                }
-            }
-        }
-        res.json(expandSnapshot(prevSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-    }
+    const result = getPrevSnapshotWithFunCallNotOnLine(id, snapshot.fun_call_id, snapshot.line_no);
+    res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 app.get("/api/StepOut", (req, res) => {
@@ -182,12 +123,7 @@ app.get("/api/StepOut", (req, res) => {
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
     const nextSnapshot = getNextSnapshotWithFunCallId.get(snapshot.id, snapshotFunCall.parent_id);
-    if (!nextSnapshot) {
-        res.json(null);
-        return;
-    } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-    }
+    res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 app.get("/api/StepOutBackward", (req, res) => {
@@ -197,12 +133,7 @@ app.get("/api/StepOutBackward", (req, res) => {
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
     const nextSnapshot = getPrevSnapshotWithFunCallId.get(snapshot.id, snapshotFunCall.parent_id);
-    if (!nextSnapshot) {
-        res.json(null);
-        return;
-    } else {
-        res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-    }
+    res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 function useObjectsAlreadyFetched(req) {
@@ -219,7 +150,32 @@ function useFunCallsAlreadyFetched(req) {
     return req.session.funCallsAlreadyFetched;
 }
 
+function getNextSnapshotWithFunCallNotOnLine(id, funCallId, lineNo) {
+    let currSnapshot;
+    while (true) {
+        currSnapshot = getNextSnapshotWithFunCallId.get(id, funCallId);
+        if (!currSnapshot) break;
+        if (currSnapshot.line_no !== lineNo) break;
+        id = currSnapshot.id;
+    }
+    return currSnapshot;
+}
+
+function getPrevSnapshotWithFunCallNotOnLine(id, funCallId, lineNo) {
+    let currSnapshot;
+    while (true) {
+        currSnapshot = getPrevSnapshotWithFunCallId.get(id, funCallId);
+        if (!currSnapshot) break;
+        if (currSnapshot.line_no !== lineNo) break;
+        id = currSnapshot.id;
+    }
+    return currSnapshot;
+}
+
 function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
+    if (!snapshot) {
+        return null;
+    }
     const objectMap = {};
     getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
     getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
