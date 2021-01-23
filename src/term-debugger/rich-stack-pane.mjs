@@ -27,7 +27,7 @@ export function RichStackPane(db, box) {
             if (!stack) break;
             const frame = objectMap.get(stack[0].id);
             const variables = objectMap.get(frame.get("variables").id);
-            log.write(`frame: ${frame}, funCall: ${frame.get("funCall")}\n`);
+            //log.write(`frame: ${frame}, funCall: ${frame.get("funCall")}\n`);
             const funCall = funCallMap.get(frame.get("funCall"));
             const parameters = objectMap.get(funCall.parameters);
             
@@ -45,7 +45,9 @@ export function RichStackPane(db, box) {
             
             lines.push(StyledString(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
             variables.forEach((value, key) => {
-                lines.push(...renderValue(key + " = ", "", value, heap, new Set()));
+                const displayValue = renderValue(key + " = ", "", value, heap, new Set());
+                log.write(`value: ${JSON.stringify(displayValue)}\n`);
+                lines.push(...displayValue);
             });
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
@@ -78,7 +80,7 @@ export function RichStackPane(db, box) {
         
         const ref = value;
         const refId = ref.get("id");
-        //log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, heap: ${inspect(heap)}, ${inspect(visited)})\n`);
+        //log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, heap: ${inspect(heap)}\n`);
         if (visited.has(refId)) {
             return "*" + refId;
         }
@@ -131,7 +133,7 @@ export function RichStackPane(db, box) {
         
         let lines = [];
         if (typeof object === "string") {
-            lines.push(indent + prefix + object);
+            lines.push(indent + prefix + JSON.stringify(object));
         } else if (Array.isArray(object)) {
             lines.push(indent + prefix + "[");
             for (let i = 0; i < object.length; i++) {
@@ -162,7 +164,7 @@ export function RichStackPane(db, box) {
                     lines[lines.length - 1] += ", ";
                 }
             }
-            lines.push(indent + "}");
+            lines.push(indent + "  }");
         } else {
             throw new Error("Unsupported type: " + inspect(object));
         }

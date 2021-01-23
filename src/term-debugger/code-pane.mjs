@@ -10,16 +10,17 @@ export async function CodePane(db, box) {
     const self = {
         unsetStep,
         updateStep,
-        initialDisplay,
         updateDisplay,
         get textPane() { return textPane },
         showCurrentLine() { scrollCodeIfNeeded() }
     };
     
     const log = db.log;
-    const sourceCode = await getSourceCode(db.apiUrl);
-    const codeLines = sourceCode.source.split("\n");
     const textPane = ScrollableTextPane(db, box);
+    const funCallMap = db.cache.funCallMap;
+    const codeFileMap = db.cache.codeFileMap;
+    let codeLines = [];
+    let codeFileId = null;
     
     function unsetStep() {
         textPane.updateLine(db.snapshot.line_no - 1, 
@@ -55,16 +56,21 @@ export async function CodePane(db, box) {
     }
     
     function updateCodeDisplay() {
-        textPane.updateAllLines(codeLines.map((line) => " " + line));
-    }
-    
-    function initialDisplay() {
-        updateCodeDisplay();
-        scrollCodeIfNeeded();
-        updateStep();
+        const funCall = funCallMap.get(db.snapshot.fun_call_id);
+        if (funCall.code_file_id !== codeFileId) {
+            codeFileId = funCall.code_file_id;
+            if (codeFileId) {
+                const codeFile = codeFileMap.get(funCall.code_file_id);
+                codeLines = codeFile.source.split("\n");
+            } else {
+                codeLines = ["<No source code available>"];
+            }
+            textPane.updateAllLines(codeLines.map((line) => " " + line));
+        }
     }
     
     function updateDisplay() {
+        updateCodeDisplay();
         scrollCodeIfNeeded();
         updateStep();
     }

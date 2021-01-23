@@ -1,6 +1,7 @@
 /*
 TODO:
 
+* support multiple files
 * current line query
 * current line where... query
 * make use of references when rendering heap objects when it makes sense. Show anchoring ids
@@ -87,7 +88,7 @@ async function TermDebugger() {
         await historyServer.start();
     }
     
-    const cache = DataCache();
+    const cache = DataCache(self);
     
     let snapshot = null;
     
@@ -106,7 +107,7 @@ async function TermDebugger() {
         screen = await HighLevelScreen(self);
     }
     await fetchFirstStep();
-    screen.initialDisplay();
+    screen.updateDisplay();
     displayError();
     
     function onDataReceived(data) {
@@ -152,7 +153,8 @@ async function TermDebugger() {
     }
     
     function logSnapshot(snapshot) {
-        log.write(`Snapshot ${snapshot.id}: ${JSON.stringify(snapshot, null, "  ")}\n`);
+        // log.write(`Snapshot ${snapshot.id}: ${JSON.stringify(snapshot, null, "  ")}\n`);
+        log.write(`Snapshot ${snapshot.id}\n`);
     }
     
     async function fetchFirstStep() {
@@ -161,12 +163,12 @@ async function TermDebugger() {
         if (result) {
             snapshot = result;
             logSnapshot(snapshot);
-            cache.update(snapshot);
+            await cache.update(snapshot);
         } else {
             const response = await fetch(`${url}/api/SnapshotExpanded?id=1`);
             snapshot =  await response.json();
             logSnapshot(snapshot);
-            cache.update(snapshot);
+            await cache.update(snapshot);
         }
     }
     
@@ -201,7 +203,7 @@ async function TermDebugger() {
         if (result) {
             snapshot = result;
             logSnapshot(snapshot);
-            cache.update(snapshot);
+            await cache.update(snapshot);
             displayError();
         }
         screen.updateDisplay();
