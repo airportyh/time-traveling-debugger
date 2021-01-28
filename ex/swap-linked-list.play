@@ -1,0 +1,39 @@
+def main() [
+    list = getList1234()
+    newList = swap(list, true)
+]
+
+def swap(list) [
+  if (list == null) [
+    return null
+  ]
+  if (list.next == null) [
+    return list
+  ]
+  node = list.data
+  nextNode = list.next.data
+  newListSecondLevelInner = swap(list.next.next)
+  newListInner = linkedList(node, newListSecondLevelInner)
+  newList = linkedList(nextNode, newListInner)
+  return newList
+]
+
+def getList1() [
+  list = linkedList(1, null)
+  return list
+]
+
+def getList1234() [
+  list = linkedList(4, null)
+  list1 = linkedList(3, list)
+  list2 = linkedList(2, list1)
+  list3 = linkedList(1, list2)
+  return list3
+]
+
+def linkedList(data, next) [
+    return {
+        data: data,
+        next: next
+    }
+]

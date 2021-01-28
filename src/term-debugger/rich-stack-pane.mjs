@@ -3,7 +3,7 @@ import {
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 import { isRef, isHeapRef } from "./language.mjs"
-import StyledString from "styled_string";
+import $s from "styled_string";
 import util from "util";
 
 export function RichStackPane(db, box) {
@@ -44,11 +44,12 @@ export function RichStackPane(db, box) {
                 parametersDisplay.push(key + "=" + display);
             }
             
-            lines.push(StyledString(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
+            lines.push($s(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
             variables.forEach((value, key) => {
-                const displayValue = renderValue(key + " = ", "", value, heap, new Set());
-                //log.write(`value: ${JSON.stringify(displayValue)}\n`);
-                lines.push(...displayValue);
+            const prefix = $s(key, {foreground: 'green'}).concat(" = ");
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            log.write(`rendervalue: ${inspect(renderedValue)}\n`)
+            lines.push(...renderedValue);
             });
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
@@ -67,7 +68,7 @@ export function RichStackPane(db, box) {
             for (let id of localVisited) {
                 visited.add(id);
             }
-            return [indent + prefix + oneLine];
+            return [$s(indent).concat(prefix).concat(oneLine)];
         } else {
             return renderValueMultiLine(prefix, indent, value, heap, visited);
         }
@@ -112,7 +113,7 @@ export function RichStackPane(db, box) {
     
     function renderValueMultiLine(prefix, indent, value, heap, visited) {
         if (!isHeapRef(value)) {
-            return [indent + prefix + JSON.stringify(value)];
+            return [$s(indent).concat(prefix).concat(JSON.stringify(value))];
         }
         const ref = value;
         const refId = ref.get("id");
@@ -127,9 +128,9 @@ export function RichStackPane(db, box) {
         visited.add(refId);
         let lines = [];
         if (typeof object === "string") {
-            lines.push(indent + prefix + JSON.stringify(object));
+        lines.push($s(indent).concat(prefix).concat(JSON.stringify(object)));
         } else if (Array.isArray(object)) {
-            lines.push(indent + prefix + "[");
+            lines.push($s(indent).concat(prefix).concat("["));
             for (let i = 0; i < object.length; i++) {
                 let item = object[i];
                 lines.push(...renderValue("", indent + "  ", item, heap, visited));
@@ -141,7 +142,7 @@ export function RichStackPane(db, box) {
         } else if (object instanceof Map) {
             // map
             // log.write(`Rendering map: ${inspect(object)}\n`);
-            lines.push(indent + prefix + "{");
+            lines.push($s(indent).concat(prefix).concat("{"));
             const keys = Array.from(object.keys());
             // log.write(`map keys: ${keys}\n`);
             for (let i = 0; i < keys.length; i++) {
