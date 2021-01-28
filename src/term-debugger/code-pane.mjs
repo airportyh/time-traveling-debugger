@@ -34,7 +34,8 @@ export async function CodePane(db, box) {
         const codeFile = getCodeFile();
         if (codeFile) {
             //log.write(`snapshot: ${JSON.stringify(db.snapshot)}\n`);
-            const displayLine = ("→" + codeLines[db.snapshot.line_no - 1])
+            const arrow = getArrow(db.snapshot);
+            const displayLine = (arrow + codeLines[db.snapshot.line_no - 1])
                 .padEnd(textPane.longestLineLength, " ");
             //log.write(`displayLine: ${displayLine}\n`);
             textPane.updateLine(db.snapshot.line_no - 1, 
@@ -46,6 +47,18 @@ export async function CodePane(db, box) {
             const funCall = funCallMap.get(db.snapshot.fun_call_id);
             codeLines = [`${funCall.fun_name}() line ${db.snapshot.line_no}. No source code available :(`];
             textPane.updateAllLines(codeLines);
+        }
+    }
+    
+    function getArrow(snapshot) {
+        if (snapshot.state === "normal") {
+            return "→";
+        } else if (snapshot.state === "before_call") {
+            return "↗";
+        } else if (snapshot.state === "after_call") {
+            return "↘";
+        } else {
+            throw new Error("Unknown snapshot state: " + snapshot.state);
         }
     }
     

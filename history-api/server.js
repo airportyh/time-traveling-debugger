@@ -30,8 +30,10 @@ const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id
 const getObjectStatement = db.prepare("select * from Object where id = ?");
 const getErrorStatement = db.prepare("select * from Error where id = ?");
 const getCodeFile = db.prepare("select * from CodeFile where id = ?");
-const getSnapshotForStepOver = db.prepare("select * from Snapshot where id > ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id limit 1");
-const getSnapshotForStepOverBackward = db.prepare("select * from Snapshot where id < ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id desc limit 2");
+const getSnapshotForStepOver = db.prepare("select * from Snapshot where id > ? and ((fun_call_id = ?) or (fun_call_id == ?)) order by id limit 1");
+const getSnapshotForStepOver2 = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? order by id limit 1");
+const getSnapshotForStepOverBackward = db.prepare("select * from Snapshot where id < ? and ((fun_call_id = ?) or (fun_call_id == ?)) order by id desc limit 1");
+const getHeapByVersion = db.prepare("select id, max(object_id) as oid from HeapRef where heap_version <= ? group by id");
 
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
@@ -106,8 +108,11 @@ app.get("/api/StepOver", (req, res) => {
     let id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
-    const result = getSnapshotForStepOver.get(
-        id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
+    let result = getSnapshotForStepOver.get(
+        id, snapshot.fun_call_id, snapshotFunCall.parent_id);
+    if (!result) {
+        result = getSnapshotForStepOver2.get(id, snapshot.fun_call_id);
+    }
     res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -117,21 +122,8 @@ app.get("/api/StepOverBackward", (req, res) => {
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
-    const results = getSnapshotForStepOverBackward.all(
-        id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
-    let result;
-    
-    if (results.length === 0) {
-        result = null;
-    } if (results.length === 1) {
-        result = results[0];
-    } else { // length is 2
-        if (results[0].line_no === results[1].line_no) {
-            result = results[1];
-        } else {
-            result = results[0];
-        }
-    }
+    const result = getSnapshotForStepOverBackward.get(
+        id, snapshot.fun_call_id, snapshotFunCall.parent_id);
     res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -169,35 +161,35 @@ function useFunCallsAlreadyFetched(req) {
     return req.session.funCallsAlreadyFetched;
 }
 
-function getNextSnapshotInFunCallNotOnLine(id, funCallId, lineNo) {
-    let currSnapshot;
-    while (true) {
-        currSnapshot = getNextSnapshotWithFunCallId.get(id, funCallId);
-        if (!currSnapshot) break;
-        if (currSnapshot.line_no !== lineNo) break;
-        id = currSnapshot.id;
-    }
-    return currSnapshot;
-}
-
-function getPrevSnapshotInFunCallNotOnLine(id, funCallId, lineNo) {
-    let currSnapshot;
-    while (true) {
-        currSnapshot = getPrevSnapshotWithFunCallId.get(id, funCallId);
-        if (!currSnapshot) break;
-        if (currSnapshot.line_no !== lineNo) break;
-        id = currSnapshot.id;
-    }
-    return currSnapshot;
-}
-
 function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
     if (!snapshot) {
         return null;
     }
     const objectMap = {};
+    let snapshotState = "normal";
+    const nextSnapshot = getSnapshotById.get(snapshot.id + 1);
+    if (nextSnapshot) {
+        const nextSnapshotFunCall = getFunCallStatement.get(nextSnapshot.fun_call_id);
+        if (nextSnapshotFunCall && nextSnapshotFunCall.parent_id === snapshot.fun_call_id) {
+            snapshotState = "before_call";
+        }
+    }
+    const prevSnapshot = getSnapshotById.get(snapshot.id - 1);
+    if (prevSnapshot) {
+        const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
+        if (prevSnapshotFunCall && prevSnapshotFunCall.parent_id === snapshot.fun_call_id) {
+            snapshotState = "after_call";
+        }
+    }
+    
     getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
-    getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
+    // getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
+    const heapResults = getHeapByVersion.all(snapshot.heap);
+    const heap = {};
+    for (let heapRef of heapResults) {
+        heap[heapRef.id] = heapRef.oid;
+        getObjectsDeep(heapRef.oid, objectMap, objectsAlreadyFetched);
+    }
     const funCallMap = ensureFunCallsFetched(
         snapshot, objectMap, funCallsAlreadyFetched);
     let funCall = funCallMap[snapshot.fun_call_id];
@@ -213,7 +205,9 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
         ...snapshot,
         funCallMap,
         objectMap,
-        error
+        error,
+        heap,
+        state: snapshotState
     };
 }
 
@@ -252,7 +246,7 @@ function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
 
     objectMap[id] = dbObject.data;
     objectsAlreadyFetched[id] = true;
-    // console.log("data", id, dbObject.data);
+    console.log("data", id, dbObject.data);
     const object = parse(dbObject.data, true);
     if (Array.isArray(object)) {
         for (let j = 0; j < object.length; j++) {

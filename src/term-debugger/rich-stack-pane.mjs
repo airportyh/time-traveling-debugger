@@ -21,7 +21,8 @@ export function RichStackPane(db, box) {
     function updateDisplay() {
         const lines = [];
         let stack = objectMap.get(db.snapshot.stack);
-        let heap = objectMap.get(db.snapshot.heap);
+        let heap = db.snapshot.heap;
+        log.write(`Heap: ${inspect(heap)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
@@ -46,7 +47,7 @@ export function RichStackPane(db, box) {
             lines.push(StyledString(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
             variables.forEach((value, key) => {
                 const displayValue = renderValue(key + " = ", "", value, heap, new Set());
-                log.write(`value: ${JSON.stringify(displayValue)}\n`);
+                //log.write(`value: ${JSON.stringify(displayValue)}\n`);
                 lines.push(...displayValue);
             });
             lines.push(strTimes("─", box.width));
@@ -80,18 +81,16 @@ export function RichStackPane(db, box) {
         
         const ref = value;
         const refId = ref.get("id");
-        //log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, heap: ${inspect(heap)}\n`);
-        if (visited.has(refId)) {
+        if (!(refId in heap)) {
+            return "{}";
+        }
+        let object = objectMap.get(heap[refId]);
+        // log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}\n`);
+        if (visited.has(refId) && (typeof object !== "string")) {
             return "*" + refId;
         }
         visited.add(refId);
-        let object = heap.get(String(refId));
-        if (object === undefined) {
-            return "{}";
-        }
-        if (isRef(object)) {
-            object = objectMap.get(object.id);
-        }
+        
         if (typeof object === "string") {
             return JSON.stringify(object);
         } else if (Array.isArray(object)) {
@@ -115,22 +114,17 @@ export function RichStackPane(db, box) {
         if (!isHeapRef(value)) {
             return [indent + prefix + JSON.stringify(value)];
         }
-        
         const ref = value;
         const refId = ref.get("id");
-        if (visited.has(refId)) {
+        if (!(refId in heap)) {
+            return "{}";
+        }
+        let object = objectMap.get(heap[refId]);
+        // log.write(`RenderValueMultiline(${inspect(value)}, ${inspect(object)})\n`);
+        if (visited.has(refId) && (typeof object !== "string")) {
             return "*" + refId;
         }
         visited.add(refId);
-        let object = heap.get(String(refId));
-        if (object === undefined) {
-            return "{}";
-        }
-        
-        if (isRef(object)) {
-            object = objectMap.get(object.id);
-        }
-        
         let lines = [];
         if (typeof object === "string") {
             lines.push(indent + prefix + JSON.stringify(object));

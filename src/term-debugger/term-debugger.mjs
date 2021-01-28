@@ -1,9 +1,12 @@
 /*
 TODO:
 
-* support multiple files
+* bug: no parameters
+* fix bugs/perfect stepping
 * current line query
+* zoom-in/zoom-out effect when going into or coming out of frame
 * current line where... query
+* last-mutation-of query
 * make use of references when rendering heap objects when it makes sense. Show anchoring ids
 * allow arrow buttons + current mouse position for scrolling as well
 * click to select a stack frame and jump out to that frame
@@ -14,6 +17,10 @@ TODO:
 * back button
 * color coding of heap ids/objects
 
+* indicator on the side to show whether you are before or after the line (done)
+* bug in heap string rendering (two_sum.py) (done)
+* bug shape_calculator.py floats showing as {} (done)
+* support multiple files (done)
 * bug when circular reference (circular-ref.play) (done)
 * play lang: when exception, record it in DB and show it in debugger (done)
 * option to choose between stack + heap or rich stack (done)
@@ -154,7 +161,7 @@ async function TermDebugger() {
     
     function logSnapshot(snapshot) {
         // log.write(`Snapshot ${snapshot.id}: ${JSON.stringify(snapshot, null, "  ")}\n`);
-        log.write(`Snapshot ${snapshot.id}\n`);
+        log.write(`Snapshot ${snapshot && snapshot.id}, ${snapshot && snapshot.state}\n`);
     }
     
     async function fetchFirstStep() {
@@ -200,9 +207,9 @@ async function TermDebugger() {
         const response = await fetchStep();
         screen.unsetStep();
         const result = await response.json();
+        logSnapshot(result);
         if (result) {
             snapshot = result;
-            logSnapshot(snapshot);
             await cache.update(snapshot);
             displayError();
         }
