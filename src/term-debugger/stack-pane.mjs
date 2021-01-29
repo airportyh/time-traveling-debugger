@@ -24,22 +24,21 @@ export function StackPane(db, box) {
         let i = 1;
         while (true) {
             if (!stack) break;
-            const frame = objectMap.get(stack[0].id);
             // log.write(`Frame: ${inspect(frame)}\n`);
-            const variables = objectMap.get(frame.get("variables").id);
-            const funCall = funCallMap.get(frame.get("funCall"));
+            const variables = objectMap.get(stack.get("variables").id);
+            const funCall = funCallMap.get(stack.get("funCall"));
             lines.push(funCall.fun_name + "()");
             // log.write(`Variables: ${inspect(variables)}\n`);
             // log.write(`FunCall: ${inspect(funCall)}\n`);
             for (let [key, value] of variables.entries()) {
                 if (isHeapRef(value)) {
-                    value = "*" + value.get("id");
+                    value = "*" + value.id;
                 }
                 lines.push(key + " = " + value);
             }
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
-            stack = stack[1] && objectMap.get(stack[1].id);
+            stack = stack && stack.get("parent") && objectMap.get(stack.get("parent").id);
             i += 2;
         }
         textPane.updateAllLines(lines);

@@ -16,12 +16,13 @@ export function HeapPane(db, box) {
     const textPane = ScrollableTextPane(db, box);
     
     function updateDisplay() {
-        const heap = cache.objectMap.get(db.snapshot.heap);
+        const heap = db.snapshot.heapMap;
         // log.write(`Heap: ${inspect(heap)} \n`);
         const lines = [];
-        for (let [heapId, ref] of heap.entries()) {
-            const object = cache.objectMap.get(ref.id);
-            // log.write(`Object(${heapId}): ${inspect(object)}\n`);
+        for (let heapId in heap) {
+            const id = heap[heapId];
+            const object = cache.objectMap.get(id);
+            //log.write(`Object(${heapId}): ${inspect(object)}\n`);
             if (Array.isArray(object)) {
                 renderArray(heapId, object, lines);
             } else if (object instanceof Map) {
@@ -96,7 +97,7 @@ function displayValue(value) {
     if (value === null) {
         return "null";
     }else if (isHeapRef(value)) {
-        return "*" + value.get("id");
+        return "*" + value.id;
     } else if (typeof value === "string") {
         return quote(value);
     } else {
