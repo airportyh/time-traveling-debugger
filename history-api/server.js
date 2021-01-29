@@ -4,8 +4,6 @@ const sqlite3 = require("better-sqlite3");
 const session = require('express-session');
 const { parse, Ref, HeapRef } = require("../json-like/json-like-parser");
 
-// const filename = "ex/tic-tac-toe-speed-test.history";
-// const filename = "/Users/airportyh/Home/OpenSource/cpython/rewind.sqlite";
 const filename = process.argv[2];
 if (!filename) {
     console.log("Please provide a SQLite Database file that contains a program's history.");
@@ -215,20 +213,21 @@ function ensureFunCallsFetched(snapshot, objectMap, funCallsAlreadyFetched) {
     const funCallMap = {};
     if (snapshot.stack in objectMap) {
         let stack = parse(objectMap[snapshot.stack], true);
+        
         while (true) {
             if (!stack) {
                 break;
             }
-            // console.log("stack", stack);
-            const frame = parse(objectMap[String(stack[0].id)], true);
             // console.log("frame", frame, objectMap[String(stack[0].id)]);
-            if (!(frame.get("funCall") in funCallsAlreadyFetched)) {
-                const funCall = getFunCallStatement.get(frame.get("funCall"));
+            if (!(stack.get("funCall") in funCallsAlreadyFetched)) {
+                const funCall = getFunCallStatement.get(stack.get("funCall"));
                 funCallMap[funCall.id] = funCall;
-                funCallsAlreadyFetched[frame.funCall] = true;
+                funCallsAlreadyFetched[funCall.id] = true;
             }
-            if (stack[1]) {
-                const objectData = objectMap[String(stack[1].id)];
+            const parent = stack.get("parent");
+            if (parent) {
+                console.log("parent", parent);
+                const objectData = objectMap[String(parent.id)];
                 stack = parse(objectData, true);
             } else {
                 stack = null;
@@ -246,7 +245,6 @@ function getObjectsDeep(id, objectMap, objectsAlreadyFetched) {
 
     objectMap[id] = dbObject.data;
     objectsAlreadyFetched[id] = true;
-    console.log("data", id, dbObject.data);
     const object = parse(dbObject.data, true);
     if (Array.isArray(object)) {
         for (let j = 0; j < object.length; j++) {

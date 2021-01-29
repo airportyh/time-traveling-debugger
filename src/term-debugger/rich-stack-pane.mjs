@@ -22,14 +22,13 @@ export function RichStackPane(db, box) {
         const lines = [];
         let stack = objectMap.get(db.snapshot.stack);
         let heap = db.snapshot.heap;
-        log.write(`Heap: ${inspect(heap)}\n`);
+        log.write(`stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
-            const frame = objectMap.get(stack[0].id);
-            const variables = objectMap.get(frame.get("variables").id);
+            const variables = objectMap.get(stack.get("variables").id);
             //log.write(`frame: ${frame}, funCall: ${frame.get("funCall")}\n`);
-            const funCall = funCallMap.get(frame.get("funCall"));
+            const funCall = funCallMap.get(stack.get("funCall"));
             const parameters = objectMap.get(funCall.parameters);
             
             let parametersDisplay = [];
@@ -81,7 +80,7 @@ export function RichStackPane(db, box) {
         }
         
         const ref = value;
-        const refId = ref.get("id");
+        const refId = ref.id;
         if (!(refId in heap)) {
             return "{}";
         }
@@ -116,7 +115,7 @@ export function RichStackPane(db, box) {
             return [$s(indent).concat(prefix).concat(JSON.stringify(value))];
         }
         const ref = value;
-        const refId = ref.get("id");
+        const refId = ref.id;
         if (!(refId in heap)) {
             return "{}";
         }
