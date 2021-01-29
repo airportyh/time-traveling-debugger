@@ -21,7 +21,7 @@ export function RichStackPane(db, box) {
     function updateDisplay() {
         const lines = [];
         let stack = objectMap.get(db.snapshot.stack);
-        let heap = db.snapshot.heap;
+        let heap = db.snapshot.heapMap;
         log.write(`stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {

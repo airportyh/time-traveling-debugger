@@ -183,9 +183,9 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
     getObjectsDeep(snapshot.stack, objectMap, objectsAlreadyFetched);
     // getObjectsDeep(snapshot.heap, objectMap, objectsAlreadyFetched);
     const heapResults = getHeapByVersion.all(snapshot.heap);
-    const heap = {};
+    const heapMap = {};
     for (let heapRef of heapResults) {
-        heap[heapRef.id] = heapRef.oid;
+        heapMap[heapRef.id] = heapRef.oid;
         getObjectsDeep(heapRef.oid, objectMap, objectsAlreadyFetched);
     }
     const funCallMap = ensureFunCallsFetched(
@@ -204,7 +204,7 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
         funCallMap,
         objectMap,
         error,
-        heap,
+        heapMap,
         state: snapshotState
     };
 }
