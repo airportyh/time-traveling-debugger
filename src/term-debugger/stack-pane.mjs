@@ -20,7 +20,7 @@ export function StackPane(db, box) {
         const lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
         let stack = objectMap.get(db.snapshot.stack);
-        // log.write(`Stack: ${inspect(stack)}\n`);
+        log.write(`Stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;

@@ -52,7 +52,7 @@ export function RichStackPane(db, box) {
             });
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
-            stack = stack[1] && objectMap.get(stack[1].id);
+            stack = stack.get("parent") && objectMap.get(stack.get("parent").id);
             i += 2;
         }
         

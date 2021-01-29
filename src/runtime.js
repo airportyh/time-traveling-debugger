@@ -60,15 +60,28 @@ class $SQLiteDBLogger {
             fun_name text,
             parameters integer,
             parent_id integer,
+            code_file_id integer,
             
             constraint FunCall_fk_parent_id foreign key (parent_id)
                 references FunCall(id)
+            constraint FunCall_fk_code_file_id foreign key (code_file_id)
+                references CodeFile(id)
         );
         
-        create table SourceCode (
+        create table CodeFile (
             id integer primary key,
             file_path text,
             source text
+        );
+        
+        create table HeapRef (
+            id integer,
+            heap_version integer,
+            object_id integer,
+
+            constraint HeapRef_pk PRIMARY KEY (id, heap_version)
+            constraint HeapRef_fk_object_id foreign key (object_id)
+                references Object(id)
         );
         
         create table Error (
@@ -79,11 +92,11 @@ class $SQLiteDBLogger {
         this.db.exec(schema);
 
         this.insertObjectStatement = this.db.prepare(`insert into Object values (?, ?)`);
-        this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?)`);
+        this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?, ?)`);
         this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?, ?)`);
         this.insertErrorStatement = this.db.prepare(`insert into Error values (?, ?)`);
         this.db
-            .prepare(`insert into SourceCode values (1, ?, ?)`)
+            .prepare(`insert into CodeFile values (1, ?, ?)`)
             .run(SOURCE_FILE_PATH, $code);
 
         this.pendingNewObjects = [];
@@ -105,7 +118,7 @@ class $SQLiteDBLogger {
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
+        const funCall = $stack ? $stack.funCall : null;
         const snapshot = [
             id, 
             funCall, 
@@ -124,7 +137,7 @@ class $SQLiteDBLogger {
         this.flush();
         const id = $nextSnapshotId++;
         const errorId = $nextErrorId++;
-        const funCall = $stack ? $stack[0].funCall : null;
+        const funCall = $stack ? $stack.funCall : null;
         const snapshot = [
             id, 
             funCall, 
@@ -149,7 +162,8 @@ class $SQLiteDBLogger {
                 call.id, 
                 call.funName, 
                 $getObjectId(call.parameters), 
-                call.parentId
+                call.parentId,
+                1
             );
         }
         this.pendingFunCalls = [];
@@ -188,7 +202,7 @@ class $FileLogger {
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
+        const funCall = $stack ? $stack.funCall : null;
         const stack = $getObjectId($stack);
         const heap = $getObjectId($heap);
         const interops = $interops && $interops.length && $getObjectId($interops);
@@ -262,7 +276,7 @@ class $LevelDBLogger {
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack[0].funCall : null;
+        const funCall = $stack ? $stack.funCall : null;
         const snapshot = [
             id, 
             funCall, 
@@ -470,7 +484,7 @@ function $stringify(object) {
             } else if (typeof value === "number") {
                 objectString += value;
             } else if ($isHeapRef(value)) {
-                objectString += `{"id": ${value.id}}`;
+                objectString += `^${value.id}`;
             } else {
                 objectString += "*" + $getObjectId(value);
             }
@@ -504,24 +518,22 @@ function $pushFrame(funName, variables, closures) {
             $incRefCount(varValue);
         }
     }
-    const parentId = $stack && $stack[0] && $stack[0].funCall || null;
+    const parentId = $stack && $stack.funCall || null;
     const id = $logger.logFunCall(funName, variables, parentId);
-    const newFrame = {
+    $stack = {
         funCall: id,
-        variables
+        variables,
+        parent: $stack
     };
-    $logger.logNewObject(newFrame);
     if (closures) {
-        newFrame.closures = closures;
+        $stack.closures = closures;
     }
-    $stack = [newFrame, $stack];
     $logger.logNewObject($stack);
 }
 
 function $popFrame() {
-    let frame = $stack[0];
-    for (let varName in frame.variables) {
-        let varValue = frame.variables[varName];
+    for (let varName in $stack.variables) {
+        let varValue = $stack.variables[varName];
         if ($isHeapRef(varValue)) {
             $decRefCount(varValue);
             if ($heapRefCount[varValue.id] <= 0) {
@@ -538,7 +550,7 @@ function $popFrame() {
             }
         }
     }
-    $stack = $stack[1];
+    $stack = $stack.parent;
 }
 
 function $removeFromHeap(heapRef) {
@@ -558,7 +570,7 @@ function $removeFromHeap(heapRef) {
 }
 
 function $getVariable(varName) {
-    const variables = $stack[0].variables;
+    const variables = $stack.variables;
     if (varName in variables) {
         return variables[varName];
     } else {
@@ -568,15 +580,9 @@ function $getVariable(varName) {
 }
 
 function $setVariable(varName, value) {
-    const frame = $stack[0];
-    const oldValue = frame.variables[varName];
-    const newVariables = { ...frame.variables, [varName]: value };
-    const newFrame = {
-        ...frame,
-        variables: newVariables
-    };
+    const oldValue = $stack.variables[varName];
+    const newVariables = { ...$stack.variables, [varName]: value };
     $logger.logNewObject(newVariables);
-    $logger.logNewObject(newFrame);
     if (value !== oldValue) {
         if ($isHeapRef(value)) {
             $incRefCount(value);
@@ -585,7 +591,10 @@ function $setVariable(varName, value) {
             $decRefCountAndCleanup(oldValue);
         }
     }
-    $stack = [newFrame, $stack[1]];
+    $stack = {
+        ...$stack,
+        variables: newVariables
+    };
     $logger.logNewObject($stack);
 }
 
