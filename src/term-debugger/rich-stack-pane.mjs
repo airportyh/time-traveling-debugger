@@ -22,7 +22,7 @@ export function RichStackPane(db, box) {
         const lines = [];
         let stack = objectMap.get(db.snapshot.stack);
         let heap = db.snapshot.heapMap;
-        log.write(`stack: ${inspect(stack)}\n`);
+        // log.write(`stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
@@ -46,8 +46,9 @@ export function RichStackPane(db, box) {
             lines.push($s(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
             variables.forEach((value, key) => {
             const prefix = $s(key, {foreground: 'green'}).concat(" = ");
+            
+            // log.write(`rendervalue: ${inspect(value)}\n`)
             const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
-            log.write(`rendervalue: ${inspect(renderedValue)}\n`)
             lines.push(...renderedValue);
             });
             lines.push(strTimes("─", box.width));
@@ -84,8 +85,13 @@ export function RichStackPane(db, box) {
         if (!(refId in heap)) {
             return "{}";
         }
+        const oid = heap[refId];
         let object = objectMap.get(heap[refId]);
-        // log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}\n`);
+        if (object === undefined) {
+            return "{}";
+        }
+        // log.write(`heap: ${inspect(heap)}`);
+        // log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, ${oid}, ${inspect(object)}\n`);
         if (visited.has(refId) && (typeof object !== "string")) {
             return "*" + refId;
         }

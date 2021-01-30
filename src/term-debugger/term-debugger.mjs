@@ -109,9 +109,9 @@ async function TermDebugger() {
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     
     if (mode === "low") {
-        screen = await LowLevelScreen(self);
+        screen = LowLevelScreen(self);
     } else {
-        screen = await HighLevelScreen(self);
+        screen = HighLevelScreen(self);
     }
     await fetchFirstStep();
     screen.updateDisplay();
@@ -165,48 +165,57 @@ async function TermDebugger() {
     }
     
     async function fetchFirstStep() {
+        let start = new Date();
         const response = await fetch(`${url}/api/SnapshotWithError`);
         const result =  await response.json();
+        let end = new Date();
+        log.write(`${`${url}/api/SnapshotWithError`} took ${end - start}ms.\n`);
         if (result) {
             snapshot = result;
             logSnapshot(snapshot);
             await cache.update(snapshot);
         } else {
+            let start = new Date();
             const response = await fetch(`${url}/api/SnapshotExpanded?id=1`);
             snapshot =  await response.json();
+            let end = new Date();
+            log.write(`${`${url}/api/SnapshotExpanded?id=1`} took ${end - start}ms.\n`);
             logSnapshot(snapshot);
             await cache.update(snapshot);
         }
     }
     
     async function stepForward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshot.id + 1}`));
+        await stepWithFetch(`${url}/api/SnapshotExpanded?id=${snapshot.id + 1}`);
     }
     
     async function stepBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/SnapshotExpanded?id=${snapshot.id - 1}`));
+        await stepWithFetch(`${url}/api/SnapshotExpanded?id=${snapshot.id - 1}`);
     }
     
     async function stepOver() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOver?id=${snapshot.id}`));
+        await stepWithFetch(`${url}/api/StepOver?id=${snapshot.id}`);
     }
     
     async function stepOverBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOverBackward?id=${snapshot.id}`));
+        await stepWithFetch(`${url}/api/StepOverBackward?id=${snapshot.id}`);
     }
     
     async function stepOut() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOut?id=${snapshot.id}`));
+        await stepWithFetch(`${url}/api/StepOut?id=${snapshot.id}`);
     }
     
     async function stepOutBackward() {
-        await stepWithFetchFun(() => fetch(`${url}/api/StepOutBackward?id=${snapshot.id}`));
+        await stepWithFetch(`${url}/api/StepOutBackward?id=${snapshot.id}`);
     }
     
-    async function stepWithFetchFun(fetchStep) {
-        const response = await fetchStep();
+    async function stepWithFetch(url) {
+        let start = new Date();
+        const response = await fetch(url);
         screen.unsetStep();
         const result = await response.json();
+        let end = new Date();
+        log.write(`${url} took ${end - start}ms.\n`);
         logSnapshot(result);
         if (result) {
             snapshot = result;
@@ -269,7 +278,7 @@ async function TermDebugger() {
     return self;
 }
 
-async function HighLevelScreen(db) {
+function HighLevelScreen(db) {
     const self = {
         initialDisplay,
         updateDisplay,
@@ -280,7 +289,7 @@ async function HighLevelScreen(db) {
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
     const singlePaneWidth = Math.floor((windowWidth - 2) / 2);
     const dividerColumn1 = singlePaneWidth + 1;
-    const codePane = await CodePane(db, {
+    const codePane = CodePane(db, {
         top: 1,
         left: 1,
         width: dividerColumn1 - 1,
@@ -325,7 +334,7 @@ async function HighLevelScreen(db) {
     return self;
 }
 
-async function LowLevelScreen(db) {
+function LowLevelScreen(db) {
     const self = {
         initialDisplay,
         updateDisplay,
@@ -337,7 +346,7 @@ async function LowLevelScreen(db) {
     const singlePaneWidth = Math.floor((windowWidth - 2) / 3);
     const dividerColumn1 = singlePaneWidth + 1;
     const dividerColumn2 = dividerColumn1 + singlePaneWidth + 1;
-    const codePane = await CodePane(db, {
+    const codePane = CodePane(db, {
         top: 1,
         left: 1,
         width: dividerColumn1 - 1,

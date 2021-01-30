@@ -6,7 +6,7 @@ import {
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 import StyledString from "styled_string";
 
-export async function CodePane(db, box) {
+export function CodePane(db, box) {
     const self = {
         unsetStep,
         updateStep,
@@ -110,12 +110,6 @@ export async function CodePane(db, box) {
         updateCodeDisplay();
         scrollCodeIfNeeded();
         updateStep();
-    }
-    
-    async function getSourceCode(url) {
-        const response = await fetch(`${url}/api/SourceCode`);
-        const data = await response.json();
-        return data;
     }
     
     return self;
