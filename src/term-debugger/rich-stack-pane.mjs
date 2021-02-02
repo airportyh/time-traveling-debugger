@@ -3,6 +3,7 @@ import {
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 import { isRef, isHeapRef } from "./language.mjs"
+import jsonLike from "../../json-like/json-like-parser.js";
 import $s from "styled_string";
 import util from "util";
 
@@ -20,44 +21,89 @@ export function RichStackPane(db, box) {
     
     function updateDisplay() {
         const lines = [];
-        let stack = objectMap.get(db.snapshot.stack);
+        let stack = funCallMap.get(db.snapshot.fun_call_id);
         let heap = db.snapshot.heapMap;
         // log.write(`stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
-            const variables = objectMap.get(stack.get("variables").id);
-            //log.write(`frame: ${frame}, funCall: ${frame.get("funCall")}\n`);
-            const funCall = funCallMap.get(stack.get("funCall"));
-            const parameters = objectMap.get(funCall.parameters);
+            lines.push($s(stack.fun_name + "()", { display: 'underscore' }));
+            renderLocals(stack.locals, heap, lines);
+            renderClosureVariables(stack, heap, lines);
+            renderGlobals(stack.globals, heap, lines);
             
-            let parametersDisplay = [];
-            for (let key in parameters) {
-                let display;
-                let value = parameters[key];
-                if (isRef(value)) {
-                    display = "*" + value.id;
-                } else {
-                    display = JSON.stringify(value);
-                }
-                parametersDisplay.push(key + "=" + display);
-            }
-            
-            lines.push($s(funCall.fun_name + "(" + parametersDisplay.join(", ") + ")", { display: 'underscore' }));
-            variables.forEach((value, key) => {
-            const prefix = $s(key, {foreground: 'green'}).concat(" = ");
-            
-            // log.write(`rendervalue: ${inspect(value)}\n`)
-            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
-            lines.push(...renderedValue);
-            });
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
-            stack = stack.get("parent") && objectMap.get(stack.get("parent").id);
+            stack = stack.parent_id && funCallMap.get(stack.parent_id);
             i += 2;
         }
         
         textPane.updateAllLines(lines);
+    }
+    
+    function resolve(value, heap) {
+        if (isHeapRef(value)) {
+            return objectMap.get(heap[value.id]);
+        } else {
+            return value;
+        }
+    }
+    
+    function renderLocals(locals, heap, lines) {
+        const variables = objectMap.get(heap[locals]);
+        variables.forEach((value, key) => {
+            const prefix = $s(key, {foreground: 'green'}).concat(" = ");
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            lines.push(...renderedValue);
+        });
+    }
+    
+    function renderClosureVariables(stack, heap, lines) {
+        const cellvars = jsonLike.parse(stack.closure_cellvars);
+        const freevars = jsonLike.parse(stack.closure_freevars);
+        const cellvarsEntries = cellvars.entries();
+        for (let [key, value] of cellvarsEntries) {
+            value = resolve(value, heap).get("ob_ref") || null;
+            const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            lines.push(...renderedValue);
+        }
+        
+        const freevarsEntries = freevars.entries();
+        for (let [key, value] of freevarsEntries) {
+            value = resolve(value, heap).get("ob_ref") || null;
+            const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            lines.push(...renderedValue);
+        }
+    }
+    
+    function renderGlobals(globals, heap, lines) {
+        globals = objectMap.get(heap[globals]);
+        if (!globals) {
+            return;
+        }
+        let entries = Array.from(globals.entries());
+        entries = entries.filter(([key, value]) => !resolve(key, heap).startsWith("__"));
+        entries.sort((one, other) => {
+            let oneKey = resolve(one[0], heap);
+            let otherKey = resolve(other[0], heap);
+            if (oneKey > otherKey) {
+                return 1;
+            } else if (oneKey === otherKey) {
+                return 0;
+            } else {
+                return -1;
+            }   
+        });
+        for (let [key, value] of entries) {
+            if (isHeapRef(key)) {
+                key = objectMap.get(heap[key.id]);
+            }
+            const prefix = $s(key, {foreground: 'cyan'}).concat(" = ");
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            lines.push(...renderedValue);
+        }
     }
     
     function renderValue(prefix, indent, value, heap, visited) {
@@ -73,7 +119,6 @@ export function RichStackPane(db, box) {
             return renderValueMultiLine(prefix, indent, value, heap, visited);
         }
     }
-    
     
     function renderValueOneLine(value, heap, visited) {
         if (!isHeapRef(value)) {
@@ -164,7 +209,7 @@ export function RichStackPane(db, box) {
                     lines[lines.length - 1] += ", ";
                 }
             }
-            lines.push(indent + "  }");
+            lines.push(indent + "    }");
         } else {
             throw new Error("Unsupported type: " + inspect(object));
         }

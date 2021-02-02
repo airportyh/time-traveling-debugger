@@ -189,14 +189,42 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
     
     const heapMap = {};
     
-    getObjectsDeep(new Ref(snapshot.stack), objectMap, snapshot.heap, heapMap, objectsAlreadyFetched);
-    const funCallMap = ensureFunCallsFetched(
-        snapshot, objectMap, funCallsAlreadyFetched);
+    const funCallMap = ensureFunCallsFetched(snapshot.fun_call_id, funCallsAlreadyFetched);
     let funCall = funCallMap[snapshot.fun_call_id];
-    if (!funCall) {
-        funCall = getFunCallStatement.get(snapshot.fun_call_id);
+    
+    for (let funCall of Object.values(funCallMap)) {
+        getObjectsDeep(
+            new HeapRef(funCall.locals), 
+            objectMap, 
+            snapshot.heap,
+            heapMap,
+            objectsAlreadyFetched);
+        getObjectsDeep(
+            new HeapRef(funCall.globals), 
+            objectMap, 
+            snapshot.heap,
+            heapMap,
+            objectsAlreadyFetched);
+        const cellvars = parse(funCall.closure_cellvars);
+        for (let cellvar of cellvars.values()) {
+            getObjectsDeep(
+                cellvar,
+                objectMap, 
+                snapshot.heap,
+                heapMap,
+                objectsAlreadyFetched);
+        }
+        const freevars = parse(funCall.closure_freevars);
+        for (let freevar of freevars.values()) {
+            getObjectsDeep(
+                freevar,
+                objectMap, 
+                snapshot.heap,
+                heapMap,
+                objectsAlreadyFetched);
+        }
     }
-    getObjectsDeep(new Ref(funCall.parameters), objectMap, snapshot.heap, heapMap, objectsAlreadyFetched);
+    
     let error = null;
     if (snapshot.error_id) {
         error = getErrorStatement.get(snapshot.error_id);
@@ -211,29 +239,16 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
     };
 }
 
-function ensureFunCallsFetched(snapshot, objectMap, funCallsAlreadyFetched) {
+function ensureFunCallsFetched(funCallId, funCallsAlreadyFetched) {
     const funCallMap = {};
-    if (snapshot.stack in objectMap) {
-        let stack = parse(objectMap[snapshot.stack], true);
-        
-        while (true) {
-            if (!stack) {
-                break;
-            }
-            // console.log("frame", frame, objectMap[String(stack[0].id)]);
-            if (!(stack.get("funCall") in funCallsAlreadyFetched)) {
-                const funCall = getFunCallStatement.get(stack.get("funCall"));
-                funCallMap[funCall.id] = funCall;
-                funCallsAlreadyFetched[funCall.id] = true;
-            }
-            const parent = stack.get("parent");
-            if (parent) {
-                const objectData = objectMap[String(parent.id)];
-                stack = parse(objectData, true);
-            } else {
-                stack = null;
-            }
+    while (true) {
+        if (!funCallId || (funCallId in funCallsAlreadyFetched)) {
+            break;
         }
+        let funCall = getFunCallStatement.get(funCallId);
+        funCallMap[funCall.id] = funCall;
+        funCallsAlreadyFetched[funCall.id] = true;
+        funCallId = funCall.parent_id;
     }
     return funCallMap;
 }
