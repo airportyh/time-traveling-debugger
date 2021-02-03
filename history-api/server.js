@@ -23,7 +23,6 @@ const getFunCallByParentStatement = db.prepare("select * from FunCall where pare
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
 const getError = db.prepare("select * from Error limit 1");
-const getSnapshotWithError = db.prepare("select * from Snapshot where error_id = ?");
 const getNextSnapshotWithFunCallId = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? limit 1");
 const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
 const getObjectStatement = db.prepare("select * from Object where id = ?");
@@ -103,7 +102,8 @@ app.get("/api/SnapshotWithError", (req, res) => {
         res.json(null);
         return;
     }
-    const snapshot = getSnapshotWithError.get(error.id);
+    const snapshot = getSnapshotById.get(error.snapshot_id);
+    snapshot.error = error;
     res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -226,14 +226,10 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
     }
     
     let error = null;
-    if (snapshot.error_id) {
-        error = getErrorStatement.get(snapshot.error_id);
-    }
     return {
         ...snapshot,
         funCallMap,
         objectMap,
-        error,
         heapMap,
         state: snapshotState
     };
