@@ -1,6 +1,8 @@
 /*
 TODO:
 
+* allow hiding superfluous variables
+* hover over source to see value
 * bug: no parameters
 * fix bugs/perfect stepping
 * current line query
@@ -115,7 +117,7 @@ async function TermDebugger() {
     }
     await fetchFirstStep();
     screen.updateDisplay();
-    displayError();
+    updateStatusBar();
     
     function onDataReceived(data) {
         log.write("Data: ");
@@ -220,21 +222,25 @@ async function TermDebugger() {
         if (result) {
             snapshot = result;
             await cache.update(snapshot);
-            displayError();
+            updateStatusBar();
         }
         screen.updateDisplay();
     }
     
-    function displayError() {
+    function updateStatusBar() {
+        let funCall = cache.funCallMap.get(snapshot.fun_call_id);
+        let message = `Snapshot ${snapshot.id}  ${funCall.fun_name}()  line ${snapshot.line_no}`;
+        let color;
         if (snapshot.error) {
-            const message = "Error: " + snapshot.error.message;
-            const leftPadding = Math.floor((windowWidth - message.length) / 2);
-            const banner = Array(leftPadding + 1).join(" ") + message + Array(windowWidth - leftPadding - message.length + 1).join(" ")
-            printAt(1, windowHeight, 
-                StyledString(banner, { foreground: "red", background: "white" }).toString());
+            message += `, Error: ${snapshot.error.message}`;
+            color = "red";
         } else {
-            printAt(1, windowHeight, Array(windowWidth + 1).join(" "));
+            color = "blue";
         }
+        const leftPadding = Math.floor((windowWidth - message.length) / 2);
+        const banner = Array(leftPadding + 1).join(" ") + message + Array(windowWidth - leftPadding - message.length + 1).join(" ")
+        printAt(1, windowHeight, 
+            StyledString(banner, { foreground: color, background: "white" }).toString());
     }
     
     function scrollUp(data) {
