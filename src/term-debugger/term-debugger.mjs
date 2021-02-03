@@ -3,8 +3,6 @@ TODO:
 
 * allow hiding superfluous variables
 * hover over source to see value
-* bug: no parameters
-* fix bugs/perfect stepping
 * current line query
 * zoom-in/zoom-out effect when going into or coming out of frame
 * current line where... query
@@ -19,6 +17,7 @@ TODO:
 * back button
 * color coding of heap ids/objects
 
+* show current snapshot number and other info in status bar
 * indicator on the side to show whether you are before or after the line (done)
 * bug in heap string rendering (two_sum.py) (done)
 * bug shape_calculator.py floats showing as {} (done)
