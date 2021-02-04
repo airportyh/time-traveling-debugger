@@ -1,0 +1,5 @@
+def main() [
+    arr = [1, 2, 3, 4, 5]
+    idx = 2
+    arr[idx] = 13
+]

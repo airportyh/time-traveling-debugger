@@ -1,0 +1,7 @@
+def main() [
+    greeting = "Aloha"
+    names = ["Bob", "Allen", "Jess", "Unit"]
+    result = map(def (name) [
+        return greeting + ", " + name
+    ], names)
+]

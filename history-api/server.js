@@ -23,6 +23,7 @@ const getFunCallByParentStatement = db.prepare("select * from FunCall where pare
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
 const getError = db.prepare("select * from Error limit 1");
+const getErrorBySnapshotId = db.prepare("select * from Error where snapshot_id = ?");
 const getNextSnapshotWithFunCallId = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? limit 1");
 const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
 const getObjectStatement = db.prepare("select * from Object where id = ?");
@@ -103,7 +104,6 @@ app.get("/api/SnapshotWithError", (req, res) => {
         return;
     }
     const snapshot = getSnapshotById.get(error.snapshot_id);
-    snapshot.error = error;
     res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
@@ -171,22 +171,6 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
         return null;
     }
     const objectMap = {};
-    let snapshotState = "normal";
-    const nextSnapshot = getSnapshotById.get(snapshot.id + 1);
-    if (nextSnapshot) {
-        const nextSnapshotFunCall = getFunCallStatement.get(nextSnapshot.fun_call_id);
-        if (nextSnapshotFunCall && nextSnapshotFunCall.parent_id === snapshot.fun_call_id) {
-            snapshotState = "before_call";
-        }
-    }
-    const prevSnapshot = getSnapshotById.get(snapshot.id - 1);
-    if (prevSnapshot) {
-        const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
-        if (prevSnapshotFunCall && prevSnapshotFunCall.parent_id === snapshot.fun_call_id) {
-            snapshotState = "after_call";
-        }
-    }
-    
     const heapMap = {};
     
     const funCallMap = ensureFunCallsFetched(snapshot.fun_call_id, funCallsAlreadyFetched);
@@ -199,39 +183,45 @@ function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched)
             snapshot.heap,
             heapMap,
             objectsAlreadyFetched);
-        getObjectsDeep(
-            new HeapRef(funCall.globals), 
-            objectMap, 
-            snapshot.heap,
-            heapMap,
-            objectsAlreadyFetched);
-        const cellvars = parse(funCall.closure_cellvars);
-        for (let cellvar of cellvars.values()) {
+        if (funCall.globals) {
             getObjectsDeep(
-                cellvar,
+                new HeapRef(funCall.globals), 
                 objectMap, 
                 snapshot.heap,
                 heapMap,
                 objectsAlreadyFetched);
         }
-        const freevars = parse(funCall.closure_freevars);
-        for (let freevar of freevars.values()) {
-            getObjectsDeep(
-                freevar,
-                objectMap, 
-                snapshot.heap,
-                heapMap,
-                objectsAlreadyFetched);
+        if (funCall.closure_cellvars) {
+            const cellvars = parse(funCall.closure_cellvars);
+            for (let cellvar of cellvars.values()) {
+                getObjectsDeep(
+                    cellvar,
+                    objectMap, 
+                    snapshot.heap,
+                    heapMap,
+                    objectsAlreadyFetched);
+            }
+        }
+        if (funCall.closure_freevars) {
+            const freevars = parse(funCall.closure_freevars);
+            for (let freevar of freevars.values()) {
+                getObjectsDeep(
+                    freevar,
+                    objectMap, 
+                    snapshot.heap,
+                    heapMap,
+                    objectsAlreadyFetched);
+            }
         }
     }
     
-    let error = null;
+    let error = getErrorBySnapshotId.get(snapshot.id);
     return {
         ...snapshot,
         funCallMap,
         objectMap,
         heapMap,
-        state: snapshotState
+        error
     };
 }
 

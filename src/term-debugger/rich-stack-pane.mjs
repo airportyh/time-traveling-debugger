@@ -59,22 +59,26 @@ export function RichStackPane(db, box) {
     }
     
     function renderClosureVariables(stack, heap, lines) {
-        const cellvars = jsonLike.parse(stack.closure_cellvars);
-        const freevars = jsonLike.parse(stack.closure_freevars);
-        const cellvarsEntries = cellvars.entries();
-        for (let [key, value] of cellvarsEntries) {
-            value = resolve(value, heap).get("ob_ref") || null;
-            const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
-            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
-            lines.push(...renderedValue);
+        if (stack.closure_cellvars) {
+            const cellvars = jsonLike.parse(stack.closure_cellvars);
+            const cellvarsEntries = cellvars.entries();
+            for (let [key, value] of cellvarsEntries) {
+                value = resolve(value, heap).get("ob_ref") || null;
+                const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
+                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+                lines.push(...renderedValue);
+            }
         }
         
-        const freevarsEntries = freevars.entries();
-        for (let [key, value] of freevarsEntries) {
-            value = resolve(value, heap).get("ob_ref") || null;
-            const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
-            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
-            lines.push(...renderedValue);
+        if (stack.closure_freevars) {
+            const freevars = jsonLike.parse(stack.closure_freevars);
+            const freevarsEntries = freevars.entries();
+            for (let [key, value] of freevarsEntries) {
+                value = resolve(value, heap).get("ob_ref") || null;
+                const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
+                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+                lines.push(...renderedValue);
+            }
         }
     }
     

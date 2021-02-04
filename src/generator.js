@@ -64,14 +64,14 @@ function generateCodeForStatement(statement, funNode, closureInfo) {
         let setVarStatement;
         if (closureProvider && closureProvider.has(varName)) {
             const closureVar = `$${funNode.name.value}_closure`;
-            setVarStatement = `$setHeapVariable("${varName}", ${value}, ${closureVar});`;
+            setVarStatement = `$setClosureVariable("${varName}", ${value}, ${closureVar});`;
         } else {
             if (closureDependencies) {
                 for (let funName in closureDependencies) {
                     const set = closureDependencies[funName];
                     if (set.has(varName)) {
                         const closureVar = `$${funName}_closure`;
-                        setVarStatement = `$setHeapVariable("${varName}", ${value}, ${closureVar});`;
+                        setVarStatement = `$setClosureVariable("${varName}", ${value}, ${closureVar});`;
                     }
                 }
             }
@@ -215,14 +215,14 @@ function generateCodeForExpression(expression, funNode, closureInfo) {
         const varName = expression.var_name.value;
         if (closureProvider && closureProvider.has(varName)) {
             const closureVar = `$${funNode.name.value}_closure`;
-            return `$getHeapVariable("${varName}", ${closureVar})`;
+            return `$getClosureVariable("${varName}", ${closureVar})`;
         } else {
             if (closureDependencies) {
                 for (let funName in closureDependencies) {
                     const set = closureDependencies[funName];
                     if (set.has(varName)) {
                         const closureVar = `$${funName}_closure`;
-                        return `$getHeapVariable("${varName}", ${closureVar})`;
+                        return `$getClosureVariable("${varName}", ${closureVar})`;
                     }
                 }
             }
@@ -279,31 +279,34 @@ function generateFunction(node, closureInfo) {
         ].join("\n");
     }
     const initLines = [`var $immediateReturnValue;`];
-    const closuresArray = [];
+    let closureCellVars = null;
+    const closureFreeVars = [];
     if (closureProvider) {
         const closureVar = `$${funName}_closure`;
-        initLines.push(indent(`var ${closureVar} = $heapAllocate({});`));
-        closuresArray.push(closureVar);
+        closureCellVars = closureVar;
+        initLines.push(indent(`var ${closureVar} = {`));
+        for (let varname of closureProvider) {
+            initLines.push(indent(indent(`${varname}: $heapAllocate({ ob_ref: null }),`)));
+        }
+        initLines.push(indent(`};`));
         stackParameters = parameters.filter((param) => !closureProvider.has(param));
         for (let param of parameters) {
             if (closureProvider.has(param)) {
-                initLines.push(indent(`$setHeapVariable("${param}", ${param}, ${closureVar});`));
+                initLines.push(indent(`$setClosureVariable("${param}", ${param}, ${closureVar});`));
             }
         }
     }
     if (closureDependencies) {
         for (let funName in closureDependencies) {
             const closureVar = `$${funName}_closure`;
-            closuresArray.push(closureVar);
+            closureFreeVars.push(closureVar);
         }
     }
-    if (closuresArray.length === 0) {
-        initLines.push(indent(`$pushFrame("${funName || '<anonymous>'}", { ${stackParameters.join(", ")} });`));
-    } else {
-        initLines.push(
-            indent(`$pushFrame("${funName || '<anonymous>'}", { ${stackParameters.join(", ")} }, [${closuresArray.join(", ")}]);`)
-        );
-    }
+    initLines.push(
+        indent(`$pushFrame("${funName || '<anonymous>'}", ` +
+            `$heapAllocate({ ${stackParameters.join(", ")} }), ` +
+            `${closureCellVars}, [${closureFreeVars.join(", ")}]);`)
+    );
     return [
         line1,
         ...initLines,

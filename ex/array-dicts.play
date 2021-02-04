@@ -8,4 +8,5 @@ def main() [
     
     arr = [3, 4, 5]
     dict = { d: 1, e: 2 }
+    print(arr[5].blah)
 ]

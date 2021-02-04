@@ -1,11 +1,5 @@
 // Runtime functions
-
-// VDOM functionality temporarily disabled
-//const $nativeToVirtualDomMap = new WeakMap();
-//const $virtualDomToNativeMap = new Map();
-
 // HISTORY_FILE_PATH should be predefined by the emitted code
-
 // Inspector used for profiler
 
 const inspector = require("inspector");
@@ -13,18 +7,21 @@ const $inspectorSession = new inspector.Session();
 const readline = require('readline');
 const fs = require('fs');
 
+class $HeapRef {
+    constructor(id) {
+        this.id = id;
+    }
+}
+
 class $NullLogger {
     initialize() {}
     logNewObject(object) {}
     logFunCall(call) {}
     logSnapshot(line) {}
+    logHeapUpdate(heapId, object) {}
     flush() {}
     close() {}
 }
-
-/*
-Database Logger Implementation
-*/
 
 class $SQLiteDBLogger {
     async initialize() {
@@ -38,27 +35,25 @@ class $SQLiteDBLogger {
         const schema = `
         create table Snapshot (
             id integer primary key,
-            fun_call_id integer not null,
-            stack integer,
+            fun_call_id integer,
             heap integer,
-            interop integer,
             line_no integer,
-            error_id integer,
             constraint Snapshot_fk_fun_call_id foreign key (fun_call_id)
                 references FunCall(id)
-            constraint Snapshot_fk_error_id foreign key (error_id)
-                references Error(id)
         );
 
         create table Object (
             id integer primary key,
-            data text  -- JSONR format
+            data text  -- JSON-like format
         );
 
         create table FunCall (
             id integer primary key,
             fun_name text,
-            parameters integer,
+            locals integer, -- heap ID
+            globals integer, -- heap ID
+            closure_cellvars text, -- json-like object
+            closure_freevars text, -- json-like object
             parent_id integer,
             code_file_id integer,
             
@@ -86,15 +81,21 @@ class $SQLiteDBLogger {
         
         create table Error (
             id integer primary key,
-            message text
+            type text,
+            message text,
+            snapshot_id integer,
+
+            constraint Error_fk_snapshot_id foreign key (snapshot_id)
+                references Snapshot(id)
         );
         `;
         this.db.exec(schema);
 
         this.insertObjectStatement = this.db.prepare(`insert into Object values (?, ?)`);
-        this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?, ?)`);
-        this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?, ?, ?, ?)`);
-        this.insertErrorStatement = this.db.prepare(`insert into Error values (?, ?)`);
+        this.insertFunCallStatement = this.db.prepare(`insert into FunCall values (?, ?, ?, ?, ?, ?, ?, ?)`);
+        this.insertSnapshotStatement = this.db.prepare(`insert into Snapshot values (?, ?, ?, ?)`);
+        this.insertHeapRefStatement = this.db.prepare(`insert into HeapRef values (?, ?, ?)`);
+        this.insertErrorStatement = this.db.prepare(`insert into Error values (?, ?, ?, ?)`);
         this.db
             .prepare(`insert into CodeFile values (1, ?, ?)`)
             .run(SOURCE_FILE_PATH, $code);
@@ -102,6 +103,7 @@ class $SQLiteDBLogger {
         this.pendingNewObjects = [];
         this.pendingFunCalls = [];
         this.pendingSnapshots = [];
+        this.pendingHeapUpdates = [];
     }
     logNewObject(object) {
         const id = $nextObjectId++;
@@ -109,46 +111,61 @@ class $SQLiteDBLogger {
         this.pendingNewObjects.push(object);
         return object;
     }
-    logFunCall(funName, parameters, parentId) {
+    serializeClosureCellVars(cellvars) {
+        let parts = [];
+        for (let varname in cellvars) {
+            parts.push('"' + varname + '": ^' + cellvars[varname].id);
+        }
+        return "{" + parts.join(", ") + "}";
+    }
+    serializeClosureFreeVars(freevarsArr) {
+        let parts = [];
+        for (let freevars of freevarsArr) {
+            for (let varname in freevars) {
+                parts.push('"' + varname + '": ^' + freevars[varname].id);
+            }
+        }
+        return "{" + parts.join(", ") + "}";
+    }
+    logFunCall(funCall) {
         const id = $nextFunCallId++;
-        this.pendingFunCalls.push({
-            id, funName, parameters, parentId
-        });
+        this.pendingFunCalls.push([
+            funCall.id, 
+            funCall.funName, 
+            funCall.locals.id,
+            null,
+            this.serializeClosureCellVars(funCall.closureCellVars),
+            this.serializeClosureFreeVars(funCall.closureFreeVars),
+            funCall.parent && funCall.parent.id || null,
+            1
+        ]);
         return id;
     }
     logSnapshot(line) {
         const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack.funCall : null;
-        const snapshot = [
+        const funCallId = $stack ? $stack.id : null;
+        this.pendingSnapshots.push([
             id, 
-            funCall, 
-            $getObjectId($stack), 
-            $getObjectId($heap), 
-            $interops && $interops.length && $getObjectId($interops),
-            line,
-            null
-        ];
-        this.pendingSnapshots.push(snapshot);
+            funCallId, 
+            $heapVersion, 
+            line
+        ]);
         if (id % 500 === 0) {
             this.flush();
         }
+    }
+    logHeapUpdate(heapId, object) {
+        $heapVersion++;
+        this.pendingHeapUpdates.push([heapId, $heapVersion, $getObjectId(object)]);
     }
     logError(err) {
         this.flush();
         const id = $nextSnapshotId++;
         const errorId = $nextErrorId++;
-        const funCall = $stack ? $stack.funCall : null;
-        const snapshot = [
-            id, 
-            funCall, 
-            $getObjectId($stack), 
-            $getObjectId($heap), 
-            $interops && $interops.length && $getObjectId($interops),
-            err.line,
-            errorId
-        ];
-        this.insertErrorStatement.run(errorId, err.message);
-        this.insertSnapshotStatement.run(...snapshot);
+        const funCallId = $stack ? $stack.id : null;
+
+        this.insertSnapshotStatement.run(id, funCallId, $heapVersion, err.line);
+        this.insertErrorStatement.run(errorId, 'Error', err.message, id);
     }
     flush() {
         this.db.exec("begin transaction");
@@ -158,169 +175,21 @@ class $SQLiteDBLogger {
         }
         this.pendingNewObjects = [];
         for (let call of this.pendingFunCalls) {
-            this.insertFunCallStatement.run(
-                call.id, 
-                call.funName, 
-                $getObjectId(call.parameters), 
-                call.parentId,
-                1
-            );
+            this.insertFunCallStatement.run(...call);
         }
         this.pendingFunCalls = [];
         for (let snapshot of this.pendingSnapshots) {
             this.insertSnapshotStatement.run(...snapshot);
         }
         this.pendingSnapshots = [];
+        for (let heapUpdate of this.pendingHeapUpdates) {
+            this.insertHeapRefStatement.run(...heapUpdate);
+        }
+        this.pendingHeapUpdates = [];
         this.db.exec("end transaction");
     }
     close() {}
 }
-
-/*
-Database Logger Implementation ends
-*/
-
-/*
-File-based Logger Implementation
-*/
-class $FileLogger {
-    constructor() {
-        this.stream = null;
-    }
-    async initialize() {
-        this.stream = fs.createWriteStream(HISTORY_FILE_PATH);
-    }
-    logNewObject(object) {
-        const id = $nextObjectId++;
-        $objectToIdMap.set(object, id);
-        this.stream.write(`object(${id}): ${$stringify(object)}\n`);
-    }
-    logFunCall(funName, parameters, parentId) {
-        const id = $nextFunCallId++;
-        this.stream.write(`funcall(${id}, ${funName}, ${$getObjectId(parameters)}, ${parentId})\n`);
-        return id;
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack.funCall : null;
-        const stack = $getObjectId($stack);
-        const heap = $getObjectId($heap);
-        const interops = $interops && $interops.length && $getObjectId($interops);
-        this.stream.write(`snapshot(${id}, ${funCall}, ${stack}, ${heap}, ${interops}, ${line})\n`);
-    }
-    logError(err) {
-        throw new Error("Unimplemented");
-    }
-    flush() {
-        this.stream.end();
-    }
-    close() {}
-}
-/*
-File-based Logger Implementation ends
-*/
-
-/*
-Level DB Logger implementation
-*/
-class $LevelDBLogger {
-    constructor() {
-        this.pendingNewObjects = [];
-        this.pendingFunCalls = [];
-        this.pendingSnapshots = [];
-    }
-    openDB() {
-        return new Promise((accept, reject) => {
-            this.db.open((error) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    accept();
-                }
-            });
-        });
-    }
-    put(key, value) {
-        return new Promise((accept, reject) => {
-            this.db.put(key, value, (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                } else {
-                    accept();
-                }
-            });
-        });
-    }
-    async initialize() {
-        const leveldown = require('leveldown');
-        const charwise = require('charwise');
-        this.charwise = charwise;
-        this.db = leveldown(HISTORY_FILE_PATH, {
-            keyEncoding: charwise
-        });
-        await this.openDB();
-        await this.put("sourcecode", JSON.stringify({ file_path: SOURCE_FILE_PATH, source: $code }));
-    }
-    logNewObject(object) {
-        const id = $nextObjectId++;
-        $objectToIdMap.set(object, id);
-        this.pendingNewObjects.push(object);
-    }
-    logFunCall(funName, parameters, parentId) {
-        const id = $nextFunCallId++;
-        this.pendingFunCalls.push({
-            id, funName, parameters, parentId
-        });
-        return id;
-    }
-    logSnapshot(line) {
-        const id = $nextSnapshotId++;
-        const funCall = $stack ? $stack.funCall : null;
-        const snapshot = [
-            id, 
-            funCall, 
-            $getObjectId($stack), 
-            $getObjectId($heap), 
-            $interops && $interops.length && $getObjectId($interops),
-            line
-        ];
-        this.pendingSnapshots.push(snapshot);
-        if (id % 100 === 0) {
-            this.flush();
-        }
-    }
-    logError(err) {
-        throw new Error("Unimplemented");
-    }
-    flush() {
-        const charwise = this.charwise;
-        const batch = this.db.batch();
-        for (let newObject of this.pendingNewObjects) {
-            const id = $objectToIdMap.get(newObject);
-            batch.put(charwise.encode(["object", id]), $stringify(newObject));
-        }
-        this.pendingNewObjects = [];
-        for (let call of this.pendingFunCalls) {
-            batch.put(charwise.encode(["funcall", call.id]), `${call.funName}, ${$getObjectId(call.parameters)}, ${call.parentId}`);
-            batch.put(charwise.encode(["funcall", "parentId", call.parentId, call.id]), call.id);
-        }
-        this.pendingFunCalls = [];
-        for (let snapshot of this.pendingSnapshots) {
-            let [id, funCall, stack, heap, interops, line] = snapshot;
-            batch.put(charwise.encode(["snapshot", id]), `${funCall}, ${stack}, ${heap}, ${interops}, ${line}`);
-            batch.put(charwise.encode(["snapshot", "funcall", funCall, id]), id);
-        }
-        this.pendingSnapshots = [];
-        batch.write(() => undefined);
-    }
-    close() {
-        this.db.close(() => undefined);
-    }
-}
-/*
-Level DB Logger implementation ends
-*/
 
 const $isBrowser = typeof document !== "undefined";
 const $objectToIdMap = new WeakMap();
@@ -337,7 +206,8 @@ let $nextErrorId = 1;
 // DB logger variables end
 
 const $emptyObject = {};
-let $heap = $emptyObject;   
+let $heap = $emptyObject;
+let $heapVersion = 1;
 
 // ARC variables
 let $heapRefCount = {}; // not using $emptyObject here because we will mutate it
@@ -348,83 +218,9 @@ let $interops = [];
 let $errorMessage = null;
 const $emptyArray = [];
 
-// let $body = $isBrowser && $nativeDomToVDom(document.body);
-// let $heapOfLastDomSync = $heap;
-let $canvas;
-let $canvasContext;
-let $canvasXY;
-
 async function $initialize() {
     $inspectorSession.connect();
-    if ($isBrowser) {
-        $initStyles();
-        $initCanvas();
-    }
-
     await $logger.initialize();
-    $logger.logNewObject($heap);
-}
-
-function $initStyles() {
-    const stylesText = `
-    * {
-        box-sizing: border-box;
-    }
-    
-    body {
-        margin: 0;
-        padding: 0;
-    }
-    
-    #canvas {
-        border: 1px solid black;
-        margin: 0;
-    }
-    
-    #canvas-xy {
-        font-family: Helvetica, sans-serif;
-    }
-    
-    .current-line {
-        background-color: yellow;
-        color: black;
-    }
-    
-    .heap-id {
-        color: blue;
-    }
-    
-    .heap-object {
-        margin-right: 5px;
-        margin-bottom: 5px;
-    }
-    
-    .heap-object td {
-        padding: 2px;
-    }
-    
-    .error-message {
-        color: #e35e54;
-        font-family: Helvetica, sans-serif;
-    }
-    
-    .code-line {
-        padding: 0 1em;
-    }
-    
-    .stack-frame {
-    }
-    
-    .stack-frame label {
-        display: block;
-        background-color: gray;
-        color: white;
-        padding: 0 1em;
-    }
-    `;
-    const style = document.createElement("style");
-    style.textContent = stylesText;
-    document.body.appendChild(style);
 }
 
 function $getObjectId(object) {
@@ -455,7 +251,7 @@ function $stringify(object) {
             } else if (typeof value === "number") {
                 arrayString += value;
             } else if ($isHeapRef(value)) {
-                arrayString += `{"id": ${value.id}}`;
+                arrayString += `^${value.id}`;
             } else {
                 arrayString += "*" + $getObjectId(value);
             }
@@ -496,49 +292,39 @@ function $stringify(object) {
     }
 }
 
-function $initCanvas() {
-    $canvas = document.getElementById("canvas");
-    if ($canvas) {
-        $canvasContext = $canvas.getContext("2d");
-        $canvasContext.textBaseline = "top";
-        $canvasContext.textBaseLine = "top";
-        $canvasXY = document.getElementById("canvas-xy");
-        $canvas.addEventListener("mousemove", (e) => {
-            $canvasXY.textContent = 
-                `x = ${e.offsetX.toFixed(0)}   y = ${e.offsetY.toFixed(0)}`;
-        });
-    }
-}
-
-function $pushFrame(funName, variables, closures) {
-    $logger.logNewObject(variables);
+function $pushFrame(funName, variablesRef, closureCellVars, closureFreeVars) {
+    variables = $heapAccess(variablesRef);
     for (let varName in variables) {
         const varValue = variables[varName];
         if ($isHeapRef(varValue)) {
             $incRefCount(varValue);
         }
     }
-    const parentId = $stack && $stack.funCall || null;
-    const id = $logger.logFunCall(funName, variables, parentId);
     $stack = {
-        funCall: id,
-        variables,
-        parent: $stack
+        funName,
+        locals: variablesRef,
+        parent: $stack,
+        closureCellVars,
+        closureFreeVars
     };
-    if (closures) {
-        $stack.closures = closures;
-    }
-    $logger.logNewObject($stack);
+    const id = $logger.logFunCall($stack);
+    $stack.id = id;
+    // TODO: closures
+    // if (closures) {
+    //     $stack.closures = closures;
+    // }
 }
 
 function $popFrame() {
-    for (let varName in $stack.variables) {
-        let varValue = $stack.variables[varName];
+    const variables = $heapAccess($stack.locals);
+    for (let varName in variables) {
+        let varValue = variables[varName];
         if ($isHeapRef(varValue)) {
             $decRefCount(varValue);
             if ($heapRefCount[varValue.id] <= 0) {
                 if (varName === "<ret val>") {
-                    if ($pendingRetVal && $pendingRetVal.id !== varValue.id && $pendingRetVal.id in $heap) {
+                    if ($pendingRetVal && $pendingRetVal.id !== varValue.id && 
+                        $pendingRetVal.id in $heap) {
                         if ($heapRefCount[$pendingRetVal.id] <= 0) {
                             $removeFromHeap($pendingRetVal);
                         }
@@ -555,10 +341,7 @@ function $popFrame() {
 
 function $removeFromHeap(heapRef) {
     const object = $heap[heapRef.id];
-    let newHeap = { ...$heap };
-    delete newHeap[heapRef.id];
-    $heap = newHeap;
-    $logger.logNewObject($heap);
+    delete $heap[heapRef.id];
     delete $heapRefCount[heapRef.id];
     // for either arrays or objects
     for (let key in object) {
@@ -570,7 +353,7 @@ function $removeFromHeap(heapRef) {
 }
 
 function $getVariable(varName) {
-    const variables = $stack.variables;
+    const variables = $heapAccess($stack.locals);
     if (varName in variables) {
         return variables[varName];
     } else {
@@ -580,9 +363,11 @@ function $getVariable(varName) {
 }
 
 function $setVariable(varName, value) {
-    const oldValue = $stack.variables[varName];
-    const newVariables = { ...$stack.variables, [varName]: value };
+    const variables = $heapAccess($stack.locals);
+    const oldValue = variables[varName];
+    const newVariables = { ...variables, [varName]: value };
     $logger.logNewObject(newVariables);
+    $heapUpdate($stack.locals.id, newVariables);
     if (value !== oldValue) {
         if ($isHeapRef(value)) {
             $incRefCount(value);
@@ -591,11 +376,6 @@ function $setVariable(varName, value) {
             $decRefCountAndCleanup(oldValue);
         }
     }
-    $stack = {
-        ...$stack,
-        variables: newVariables
-    };
-    $logger.logNewObject($stack);
 }
 
 function $incRefCount(heapRef) {
@@ -614,34 +394,31 @@ function $decRefCountAndCleanup(heapRef) {
     }
 }
 
-function $getHeapVariable(varName, closureId) {
-    const dict = $heapAccess(closureId);
-    return dict[varName];
+function $getClosureVariable(varName, closure) {
+    const cellRef = closure[varName];
+    return $heapAccess(cellRef).ob_ref;
 }
 
-function $setHeapVariable(varName, value, closureId) {
-    const dict = $heapAccess(closureId);
-    const newDict = {
-        ...dict,
-        [varName]: value
+function $setClosureVariable(varName, value, closure) {
+    const cellRef = closure[varName];
+    const cell = $heapAccess(cellRef);
+    const newCell = {
+        ...cell,
+        ob_ref: value
     };
-    $logger.logNewObject(newDict);
-    $heap[closureId] = newDict;
+    $logger.logNewObject(newCell);
+    $heapUpdate(cellRef.id, newCell);
 }
 
 function $isHeapRef(thing) {
-    return thing && typeof thing === "object" && typeof thing.id === "number";
+    return thing instanceof $HeapRef;
 }
 
 function $heapAllocate(value) {
     $logger.logNewObject(value);
     const heapId = $nextHeapId;
     $nextHeapId++;
-    $heap = {
-        ...$heap,
-        [heapId]: value
-    };
-    $logger.logNewObject($heap);
+    $heapUpdate(heapId, value);
     // For either an array or object
     for (let key in value) {
         let entryValue = value[key];
@@ -649,7 +426,12 @@ function $heapAllocate(value) {
             $incRefCount(entryValue);
         }
     }
-    return { id: heapId };
+    return new $HeapRef(heapId);
+}
+
+function $heapUpdate(heapId, newObject) {
+    $heap[heapId] = newObject;
+    $logger.logHeapUpdate(heapId, newObject);
 }
 
 function $save(line) {
@@ -684,6 +466,7 @@ function $set(thing, index, value) {
     if ($isHeapRef(thing)) {
         object = $heap[thing.id];
     } else {
+        // TODO: Do we really handle this??
         object = thing;
     }
     const oldValue = object[index];
@@ -702,12 +485,10 @@ function $set(thing, index, value) {
     if ($isHeapRef(oldValue)) {
         $decRefCountAndCleanup(oldValue);
     }
-    $heap = {
-        ...$heap,
-        [thing.id]: newObject
-    };
-    $logger.logNewObject(newObject);
-    $logger.logNewObject($heap);
+    if ($isHeapRef(thing)) {
+        $logger.logNewObject(newObject);
+        $heapUpdate(thing.id, newObject);
+    }
 }
 
 async function $cleanUp() {
@@ -813,12 +594,8 @@ function push(thing, item) {
         const array = $heap[thing.id];
         $incRefCount(item);
         const newArray = [...array, item];
-        $heap = {
-            ...$heap,
-            [thing.id]: newArray
-        };
         $logger.logNewObject(newArray);
-        $logger.logNewObject($heap);
+        $heapUpdate(thing.id, newArray);
         return newArray.length;
     } else {
         throw new Error("Cannot push() for a " + (typeof thing));
@@ -841,16 +618,20 @@ function concat(one, other) {
     }
 }
 
-function map(fn, thing) {
+async function map(fn, thing) {
     if ($isHeapRef(thing)) {
         const arr = $heap[thing.id];
-        const result = arr.map(fn);
-        for (let item of result) {
+        const results = [];
+        for (let item of arr) {
+            const result = await fn(item);
+            results.push(result);
+        }
+        for (let item of results) {
             if ($isHeapRef(item)) {
                 $incRefCount(item);
             }
         }
-        return $heapAllocate(result);
+        return $heapAllocate(results);
     } else {
         throw new Error("Cannot map() for a " + (typeof thing));
     }
@@ -921,536 +702,9 @@ function isNumber(value) {
     return typeof value === "number";
 }
 
-/*
-==  Virtual DOM temporarily disabled ==
-
-function getElementById(id) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    return document.getElementById(id);
-}
-
-function addStyle(element, stylesId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const styles = $heap[stylesId];
-    for (let prop in styles) {
-        element.style[prop] = styles[prop];
-    }
-}
-
-function createElement(tag, attrs, children) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const element = { tag };
-    if (attrs) {
-        element.attrs = attrs;
-    }
-    if (children) {
-        element.children = children;
-    }
-    return $heapAllocate(element);
-}
-
-function getDocumentBody() {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    return $body;
-}
-
-function appendTo(parentId, childId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const parent = $heapAccess(parentId);
-    const children = $heapAccess(parent.children) || [];
-    const newChildren = $heapAllocate([...children, childId]);
-    const newParent = {
-        ...parent,
-        children: newChildren
-    };
-    $heap = {
-        ...$heap,
-        [parentId]: newParent
-    };
-    syncVDomToDom()
-}
-
-function removeFrom(parentId, childId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const parent = $heapAccess(parentId);
-    const children = $heapAccess(parent.children) || [];
-    const newChildren = $heapAllocate(children.filter((child) => child !== childId));
-    const newParent = {
-        ...parent,
-        children: newChildren
-    };
-    $heap = {
-        ...$heap,
-        [parentId]: newParent
-    };
-    syncVDomToDom()
-}
-
-function setText(elementId, text) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const element = $heapAccess(elementId);
-    const newChildren = $heapAllocate([text]);
-    const newElement = {
-        ...element,
-        children: newChildren
-    };
-    $heap = {
-        ...$heap,
-        [elementId]: newElement
-    };
-    syncVDomToDom()
-}
-
-function setAttribute(elementId, attrName, attrValue) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const element = $heapAccess(elementId);
-    const attrs = $heapAccess(element.attrs);
-    const newAttrs = $heapAllocate({
-        ...attrs,
-        [attrName]: attrValue
-    });
-    const newElement = {
-        ...element,
-        attrs: newAttrs
-    };
-    $heap = {
-        ...$heap,
-        [elementId]: newElement
-    };
-    syncVDomToDom()
-}
-
-function setStyle(elementId, stylesId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const styles = $heapAccess(stylesId);
-    const element = $heapAccess(elementId);
-    const attrs = $heapAccess(element.attrs);
-    const oldStyles = attrs && $heapAccess(attrs.style);
-    const newAttrs = $heapAllocate({
-        ...attrs,
-        style: {
-            ...oldStyles,
-            ...styles
-        }
-    });
-    const newElement = {
-        ...element,
-        attrs: newAttrs
-    };
-    $heap = {
-        ...$heap,
-        [elementId]: newElement
-    };
-    syncVDomToDom()
-}
-
-function listenTo(elementId, event, listener) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    document.body.addEventListener(event, (event) => {
-        const targetId = $nativeToVirtualDomMap.get(event.target);
-        if (targetId === elementId) {
-            listener(event);
-        }
-    });
-}
-
-function getKey(keyEvent) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    return keyEvent.key;
-}
-
-function getValue(inputId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const input = $virtualDomToNativeMap.get(inputId);
-    return input.value;
-}
-
-function setValue(inputId, value) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const input = $virtualDomToNativeMap.get(inputId);
-    input.value = value;
-}
-
-function getChecked(inputId) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const input = $virtualDomToNativeMap.get(inputId);
-    return input.checked;
-}
-
-function setChecked(inputId, checked) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const input = $virtualDomToNativeMap.get(inputId);
-    return input.checked = checked;
-}
-
-function addClass(elementId, clazz) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const element = $virtualDomToNativeMap.get(elementId);
-    element.classList.add(clazz);
-}
-
-function removeClass(elementId, clazz) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    const element = $virtualDomToNativeMap.get(elementId);
-    element.classList.remove(clazz);
-}
-
-
-function $nativeDomToVDom(node) {
-    throw new Error("DOM and VDOM functions are likely broken do the heap object update.");
-    if (node.nodeType === Node.ELEMENT_NODE) {
-        const tag = node.tagName.toLowerCase();
-        const element = { tag };
-        const elementId = $heapAllocate(element);
-        const attributeNames = node.getAttributeNames();
-        if (attributeNames.length > 0) {
-            const attrs = {};
-            for (let i = 0; i < attributeNames.length; i++) {
-                const attrName = attributeNames[i];
-                attrs[attrName] = node.getAttribute(attrName);
-            }
-            element.attrs = $heapAllocate(attrs);
-        }
-        const childNodes = node.childNodes;
-        if (childNodes.length > 0) {
-            const childNodeResults = [];
-            for (let i = 0; i < childNodes.length; i++) {
-                childNodeResults[i] = $nativeDomToVDom(childNodes[i]);
-            }
-            element.children = $heapAllocate(childNodeResults);
-        }
-        $virtualDomToNativeMap.set(elementId, node);
-        $nativeToVirtualDomMap.set(node, elementId);
-        return elementId;
-    } else if (node.nodeType === Node.TEXT_NODE) {
-        return node.data;
-    } else {
-        throw new Error("Unsupported node type: " + node.nodeType);
-    }
-}
-
-// Generates a Native DOM element out of a Virtual DOM element.
-function $vdomToNativeDom(elementId) {
-    const element = $heapAccess(elementId);
-    if (typeof element === "string") {
-        const retval = document.createTextNode(element);
-        return retval;
-    } else {
-        const native = document.createElement(element.tag);
-        const attrs = $heapAccess(element.attrs);
-        $domSetAttrs(native, attrs);
-        const children = $heapAccess(element.children);
-        if (children) {
-            for (let i = 0; i < children.length; i++) {
-                native.appendChild($vdomToNativeDom(children[i]));
-            }
-        }
-        $virtualDomToNativeMap.set(elementId, native);
-        $nativeToVirtualDomMap.set(native, elementId);
-        return native;
-    }
-}
-
-// Synchronises the current virtual DOM state contained in `$body` to `document.body`.
-// This works by calculating the difference of `$body` between its state since the
-// last time it was synchronised and its current state, this is done with the `compare`
-// function. Then, for each difference, we mutate the native DOM with that difference.
-function syncVDomToDom() {
-    const diff = compare(1, $heapOfLastDomSync, 1, $heap);
-    const mutations = [];
-    for (let i = 0; i < diff.length; i++) {
-        const update = diff[i];
-        mutations.push(...collectNativeDomMutations(document.body, update));
-    }
-    for (let action of mutations) {
-        action();
-    }
-    $heapOfLastDomSync = $heap;
-
-    function collectNativeDomMutations(element, update) {
-        const { path, value } = update;
-        if (path.length === 0) {
-            throw new Error("Unexpected state, path elements should have been consumed.");
-        }
-        const [prop, ...restPath] = path;
-        if (prop === "children") {
-            if (restPath.length === 0) {
-                if (update.type === "addition") {
-                    const children = $heapAccess(value);
-                    if (!Array.isArray(children)) {
-                        throw new Error("Expected value to be an array");
-                    }
-                    return children.map(
-                        (child) =>
-                            () =>
-                                element.appendChild($vdomToNativeDom(child))
-                    );
-                } else if (update.type === "deletion") {
-                    return [() => element.innerHTML = ""];
-                }
-            } else {
-                const [idx, ...restRestPath] = restPath;
-                if (restRestPath.length === 0) {
-                    if (update.type === "deletion") {
-                        if (element.childNodes[idx]) {
-                            const childElement = element.childNodes[idx];
-                            return [() => element.removeChild(childElement)];
-                        } else {
-                            throw new Error("Unhandled case");
-                        }
-                    } else if (update.type === "addition") {
-                        return [() => element.insertBefore($vdomToNativeDom(value), element.childNodes[idx])];
-                    } else if (update.type === "replacement") {
-                        return [() => element.replaceChild($vdomToNativeDom(value), element.childNodes[idx])];
-                    } else {
-                        throw new Error("Unknown update type: " + update.type);
-                    }
-                } else {
-                    return collectNativeDomMutations(element.childNodes[idx], {
-                        type: update.type,
-                        path: restRestPath,
-                        value: value
-                    });
-                }
-            }
-        } else if (prop === "attrs") {
-            if (restPath.length === 1) {
-                const [prop] = restPath;
-                return [() => $domSetAttrs(element, { [prop]: value })];
-            } else if (restPath.length === 0) {
-                return [() => $domSetAttrs(element, value)];
-            } else {
-                throw new Error("Attributes should not be nested deeper than 1 level as is the case with 'styles'.");
-            }
-        } else { // it's a number
-            throw new Error("Not handling this case yet");
-        }
-    }
-}
-
-// Sets the attributes on a native DOM element. The second parameter `attrs` is assumed
-// to be an object with attribute name/attribute value pairs, with the exception that
-// if the attribute name is style, then the attribute value is assumed to be a nested
-// object containing style name/style value pairs.
-function $domSetAttrs(native, attrs) {
-    if (attrs) {
-        for (let key in attrs) {
-            if (key === "style") {
-                const styles = attrs.style;
-                const styleStrings = [];
-                for (let prop in styles) {
-                    styleStrings.push(prop + ": " + styles[prop]);
-                }
-                native.setAttribute("style", styleStrings.join("; "));
-            } else {
-                native.setAttribute(key, attrs[key]);
-            }
-        }
-    }
-}
-
-// Deep compare of two objects within two different heaps. This is for
-// the virtual DOM difference calculation.
-function compare(source, heap1, destination, heap2) {
-    return compareAt([], source, destination);
-
-    function isObject(value) {
-        const type = typeof value
-        return value != null && (type === 'object' || type === 'function')
-    }
-
-    function difference(arr1, arr2) {
-        const result = [];
-        for (let i = 0; i < arr1.length; i++) {
-            if (arr2.indexOf(arr1[i]) === -1) {
-                result.push(arr1[i]);
-            }
-        }
-        return result;
-    }
-
-    function intersection(arr1, arr2) {
-        const result = [];
-        for (let i = 0; i < arr1.length; i++) {
-            if (arr2.indexOf(arr1[i]) !== -1) {
-                result.push(arr1[i]);
-            }
-        }
-        return result;
-    }
-
-    function heapAccess(id, heap) {
-        if (typeof id === "string") {
-            return id;
-        }
-        return heap[id];
-    }
-
-    function compareAt(path, source, destination) {
-        if (isObject(heapAccess(source, heap1)) && isObject(heapAccess(destination, heap2))) {
-            return compareObjectsAt(path, source, destination);
-        } else {
-            if (source === destination) {
-                return [];
-            } else {
-                return [
-                    {
-                        type: "replacement",
-                        path: path,
-                        oldValue: source,
-                        value: destination
-                    }
-                ];
-            }
-        }
-    }
-
-    function compareObjectsAt(path, source, destination) {
-        source = heapAccess(source, heap1);
-        destination = heapAccess(destination, heap2);
-        const sourceKeys = Object.keys(source);
-        const destinationKeys = Object.keys(destination);
-        const sourceOnlyKeys = difference(sourceKeys, destinationKeys);
-        const commonKeys = intersection(sourceKeys, destinationKeys);
-        const destinationOnlyKeys = difference(destinationKeys, sourceKeys);
-        const additions = destinationOnlyKeys.map((key) => ({
-            type: "addition",
-            path: [...path, key],
-            value: destination[key]
-        }));
-        const removals = sourceOnlyKeys.map((key) => ({
-            type: "deletion",
-            path: [...path, key]
-        }));
-
-        const childDiffs = [];
-        for (let i = 0; i < commonKeys.length; i++) {
-            const key = commonKeys[i];
-            const result = compareAt([...path, key], source[key], destination[key]);
-            childDiffs.push(...result);
-        }
-
-        return [
-            ...additions,
-            ...removals,
-            ...childDiffs
-        ];
-    }
-
-}
-*/
-
-// Time-Traveling Debugger UI
 async function sleep(ms) {
     return new Promise((accept) => {
         setTimeout(() => accept(), ms);
-    });
-}
-
-// Canvas
-
-
-// interop functions
-
-function fillRect(x, y, width, height) {
-    $canvasContext.fillRect(x, y, width, height);
-}
-fillRect = $interop(fillRect);
-
-function fillCircle(x, y, radius) {
-    $canvasContext.beginPath();
-    $canvasContext.arc(x, y, radius, 0, 2 * Math.PI);
-    $canvasContext.fill();
-}
-fillCircle = $interop(fillCircle);
-
-function drawLine(x1, y1, x2, y2) {
-    $canvasContext.beginPath();
-    $canvasContext.moveTo(x1, y1);
-    $canvasContext.lineTo(x2, y2);
-    $canvasContext.stroke(); 
-}
-drawLine = $interop(drawLine);
-
-function setFont(font) {
-    $canvasContext.font = font;
-}
-setFont = $interop(setFont);
-
-function fillText(text, x, y) {
-    $canvasContext.fillText(text, x, y);
-}
-fillText = $interop(fillText);
-
-function setLineWidth(width) {
-    $canvasContext.lineWidth = width;
-}
-setLineWidth = $interop(setLineWidth);
-
-function setLineColor(color) {
-    $canvasContext.strokeStyle = color;
-}
-setLineColor = $interop(setLineColor);
-
-function clear() {
-    $canvasContext.clearRect(0, 0, $canvas.width, $canvas.height);
-}
-clear = $interop(clear, true);
-
-function drawText(text, x, y) {
-    $canvasContext.fillText(text, x, y);
-}
-drawText = $interop(drawText);
-
-function setColor(color) {
-    $canvasContext.fillStyle = color;
-}
-setColor = $interop(setColor);
-
-function setLineCap(lineCap) {
-    $canvasContext.lineCap = lineCap;
-}
-setLineCap = $interop(setLineCap);
-
-function drawArc(x, y, radius, startDegree, endDegree) {
-    $canvasContext.beginPath();
-    startRadian = (startDegree - 90) / 180 * Math.PI;
-    endRadian = (endDegree - 90) / 180 * Math.PI;
-    $canvasContext.arc(x, y, radius, startRadian, endRadian);
-    $canvasContext.stroke();
-}
-drawArc = $interop(drawArc);
-
-function $interop(fun, reset) {
-    const ret = function(...args) {
-        const result = fun(...args);
-        const entry = {
-            type: "interop",
-            fun: fun.name,
-            arguments: args
-        };
-        if (reset) {
-            entry.reset = reset;
-        }
-        $interops.push(entry);
-        return result;
-    };
-    ret.original = fun;
-    return ret;
-}
-
-async function waitForEvent(eventName) {
-    return new Promise((accept) => {
-        const callback = (event) => {
-            $canvas.removeEventListener(eventName, callback);
-            const eventObject = $heapAllocate({
-                type: event.type,
-                x: event.x,
-                y: event.y
-            });
-            accept(eventObject);
-        };
-        $canvas.addEventListener(eventName, callback);
     });
 }
 

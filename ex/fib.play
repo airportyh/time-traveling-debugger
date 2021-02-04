@@ -11,5 +11,5 @@ def fib(n) [
 ]
 
 def main() [
-    print(fib(5))
+    print(fib(8))
 ]
