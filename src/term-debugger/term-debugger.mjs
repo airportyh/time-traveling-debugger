@@ -129,18 +129,14 @@ async function TermDebugger() {
             clearScreen();
             exit();
         }
-        if (isStepIntoBackwardKey(data)) {
-            stepBackward();
+        if (isDownArrow(data)) {
+            stepOver();
+        } else if (isUpArrow(data)) {
+            stepOverBackward();
         } else if (isStepIntoKey(data)) {
             stepForward();
-        } else if (isStepOverKey(data)) {
-            stepOver();
-        } else if (isStepOverBackwardKey(data)) {
-            stepOverBackward();
         } else if (isStepOutKey(data)) {
             stepOut();
-        } else if (isStepOutBackwardKey(data)) {
-            stepOutBackward();
         } else if (isWheelUpEvent(data)) {
             scrollUp(data);
         } else if (isWheelDownEvent(data)) {
@@ -409,30 +405,12 @@ function LowLevelScreen(db) {
 
 TermDebugger().catch((e) => console.log(e.stack));
 
-function isStepOverKey(data) {
-    return data.length === 1 && (data[0] === 116 || data[0] === 107);
-}
-
-function isStepOverBackwardKey(data) {
-    return data.length === 1 && (data[0] === 99 || data[0] === 105);
-}
-
 function isStepIntoKey(data) {
-    return data.length === 1 && (data[0] === 20 || data[0] === 11);
-}
-
-function isStepIntoBackwardKey(data) {
-    return data.length === 1 && (data[0] === 3 || data[0] === 9);
+    return String(data) === "i";
 }
 
 function isStepOutKey(data) {
-    return (data.length === 3 && data[0] === 226 && data[1] === 128 && data[2] === 160) ||
-        (data.length === 2 && data[0] === 203 && data[1] === 154);
-}
-
-function isStepOutBackwardKey(data) {
-    return (data.length === 2 && data[0] === 195 && data[1] === 167) ||
-        (data.length === 2 && data[0] === 203 && data[1] === 134);
+    return String(data) === "o";
 }
 
 function isLeftArrow(data) {
