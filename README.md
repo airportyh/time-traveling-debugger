@@ -40,12 +40,10 @@ To debug a program after having run it:
 You should see a terminal-based GUI appear after a brief moment, which should allow you
 to navigate the history of the program. Here are the commands:
 
-* `k` - step over
-* `i` - step over backwards
-* `Control-k` - step into
-* `Control-i` - step into backwards
-* `Alt-k` - step out
-* `Alt-i` - step out backwards
+* `Down Arrow` - step over
+* `Up Arrow` - step over backwards
+* `i` - step into
+* `o` - step out
 * `q` - quit the debugger
 
 You also have the ability to scroll using a mouse wheel or track pad gesture within the
