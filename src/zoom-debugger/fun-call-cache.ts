@@ -27,7 +27,8 @@ export class FunCallCache {
             const expanded: FunCallExpanded = {
                 ...funCall,
                 snapshots,
-                childFunCalls
+                childFunCalls,
+                heapMap: {}
             };
             this.map.set(funCall.id, expanded);
             this.onDataFetched();

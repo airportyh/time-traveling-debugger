@@ -1,6 +1,6 @@
 import { DBObject } from "./play-lang";
 import { fetchJson } from "./fetch-json";
-import { parse } from "@airportyh/jsonr";
+const { parse } = require("../../json-like/json-like-parser.js");
 
 export class ObjectCache {
     map: Map<number, any | "pending">;

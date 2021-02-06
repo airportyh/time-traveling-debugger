@@ -75,18 +75,60 @@ app.get("/api/FunCallExpanded", (req, res) => {
     const childFunCalls = getFunCallByParentStatement.all(id);
     const snapshots = getSnapshotsByFunCall.all(id);
     const objectMap = {};
-    for (let i = 0; i < snapshots.length; i++) {
-        const snapshot = snapshots[i];
-        snapshots[i] = expandSnapshot(snapshot, objectMap, objectsAlreadyFetched, funCallsAlreadyFetched);
-    }
+    const heapMap = {};
+    fetchObjectsForFunCall(funCall, objectMap, heapMap, objectsAlreadyFetched);
     const retval = {
         ...funCall,
         childFunCalls,
         snapshots,
-        objectMap
+        objectMap,
+        heapMap
     };
     res.json(retval);
 });
+
+function fetchObjectsForFunCall(funCall, objectMap, heapMap, objectsAlreadyFetched) {
+    const snapshots = getSnapshotsByFunCall.all(funCall.id);
+    for (let i = 0; i < snapshots.length; i++) {
+        const snapshot = snapshots[i];
+        getObjectsDeep2(
+            new HeapRef(funCall.locals), 
+            objectMap, 
+            snapshot.heap,
+            heapMap,
+            objectsAlreadyFetched);
+        if (funCall.globals) {
+            getObjectsDeep2(
+                new HeapRef(funCall.globals), 
+                objectMap, 
+                snapshot.heap,
+                heapMap,
+                objectsAlreadyFetched);
+        }
+        if (funCall.closure_cellvars) {
+            const cellvars = parse(funCall.closure_cellvars);
+            for (let cellvar of cellvars.values()) {
+                getObjectsDeep2(
+                    cellvar,
+                    objectMap, 
+                    snapshot.heap,
+                    heapMap,
+                    objectsAlreadyFetched);
+            }
+        }
+        if (funCall.closure_freevars) {
+            const freevars = parse(funCall.closure_freevars);
+            for (let freevar of freevars.values()) {
+                getObjectsDeep2(
+                    freevar,
+                    objectMap, 
+                    snapshot.heap,
+                    heapMap,
+                    objectsAlreadyFetched);
+            }
+        }
+    }
+}
 
 app.get("/api/SnapshotExpanded", (req, res) => {
     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
@@ -186,9 +228,6 @@ function useFunCallsAlreadyFetched(req) {
         req.session.funCallsAlreadyFetched = {};
     };
     return req.session.funCallsAlreadyFetched;
-}
-
-function expandHeapObjectsForSnapshot(snapshot, objectsAlreadyFetched) {
 }
 
 function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
@@ -305,6 +344,51 @@ function getObjectsDeep(ref, objectMap, heapVersion, heapMap, objectsAlreadyFetc
         object.forEach((value, key) => {
             getObjectsDeep(key, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
             getObjectsDeep(value, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
+        });
+    }
+}
+
+function getObjectsDeep2(ref, objectMap, heapVersion, heapMap, objectsAlreadyFetched) {
+    let dbObject;
+    let id;
+    if (ref instanceof Ref) {
+        id = ref.id;
+        if (objectsAlreadyFetched[id]) {
+            return;
+        } else {
+            dbObject = getObject(id);    
+        }
+    } else if (ref instanceof HeapRef) {
+        if (ref.id in heapMap) {
+            return;
+        } else {
+            // console.log("heap ref", ref.id, "heapVersion", heapVersion);
+            const dbHeapRef = getHeapRef.get(ref.id, heapVersion);
+            if (!dbHeapRef) {
+                heapMap[heapVersion + "/" + ref.id] = null;
+                // console.log("no dbHeapRef found");
+                return;
+            }
+            // console.log("got dbHeapRef:", dbHeapRef);
+            id = dbHeapRef.object_id;
+            heapMap[heapVersion + "/" + ref.id] = id;
+            dbObject = getObject(id);
+        }
+    } else {
+        return;
+    }
+    objectMap[id] = dbObject.data;
+    objectsAlreadyFetched[id] = true;
+    const object = parse(dbObject.data, true);
+    if (Array.isArray(object)) {
+        for (let j = 0; j < object.length; j++) {
+            let item = object[j];
+            getObjectsDeep2(item, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
+        }
+    } else if (object instanceof Map) {
+        object.forEach((value, key) => {
+            getObjectsDeep2(key, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
+            getObjectsDeep2(value, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
         });
     }
 }

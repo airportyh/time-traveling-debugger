@@ -1,6 +1,6 @@
 import { FunCallExpanded } from "./play-lang";
 import { fetchJson } from "./fetch-json";
-import { parse } from "@airportyh/jsonr";
+const { parse } = require("../../json-like/json-like-parser.js");
 
 export class DataCache {
     objectMap: Map<number, any> = new Map();
@@ -33,10 +33,15 @@ export class DataCache {
             const funCallExpanded: FunCallExpanded = {
                 id: reply.id,
                 fun_name: reply.fun_name,
-                parameters: reply.parameters,
+                locals: reply.locals,
+                globals: reply.globals,
+                closure_cellvars: reply.closure_cellvars,
+                closure_freevars: reply.closure_freevars,
                 parent_id: reply.parent_id,
                 snapshots: reply.snapshots,
-                childFunCalls: reply.childFunCalls
+                code_file_id: reply.code_file_id,
+                childFunCalls: reply.childFunCalls,
+                heapMap: reply.heapMap
             };
             this.loadObjects(reply.objectMap);
             this.funCallMap.set(funCallId, funCallExpanded);

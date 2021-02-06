@@ -14,8 +14,12 @@ export type HistoryEntry = {
 export type FunCall = {
     id: number,
     fun_name: string,
-    parameters: number,
-    parent_id: number
+    locals: number,
+    globals: number | null,
+    closure_cellvars: string,
+    closure_freevars: string,
+    parent_id: number,
+    code_file_id: number
 };
 
 export type Snapshot = {
@@ -34,5 +38,6 @@ export type DBObject = {
 
 export type FunCallExpanded = FunCall & {
     snapshots: Snapshot[],
-    childFunCalls: FunCall[]
+    childFunCalls: FunCall[],
+    heapMap: { [key: string]: number }
 };
