@@ -3,6 +3,7 @@ const cors = require('cors');
 const sqlite3 = require("better-sqlite3");
 const session = require('express-session');
 const { parse, Ref, HeapRef } = require("../json-like/json-like-parser");
+const { spawn } = require('child_process');
 
 const filename = process.argv[2];
 if (!filename) {
@@ -206,6 +207,34 @@ app.get("/api/StepOut", (req, res) => {
     res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
+function getPythonAST(code) {
+    return new Promise((accept, reject) => {
+        const p = spawn("python3", [__dirname + "/get_python_ast.py"]);
+        let output = "";
+        p.stdout.on("data", (chunk) => {
+            output += chunk;
+        });
+        p.stdin.write(code);
+        p.stdin.end();
+        p.on("exit", (code) => {
+            if (code === 0) {
+                accept(output);
+            } else {
+                reject(new Error("Process exited with " + code));
+            }
+        });
+    });
+}
+
+app.get("/api/PythonAST", async (req, res) => {
+    const code_file_id = req.query.id;
+    const file = getCodeFile.get(code_file_id);
+    const ast = await getPythonAST(file.source);
+    res.set('Content-Type', 'application/json');
+    res.write(ast);
+    res.end();
+});
+
 // app.get("/api/StepOutBackward", (req, res) => {
 //     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
 //     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
@@ -362,7 +391,6 @@ function getObjectsDeep2(ref, objectMap, heapVersion, heapMap, objectsAlreadyFet
         if (ref.id in heapMap) {
             return;
         } else {
-            // console.log("heap ref", ref.id, "heapVersion", heapVersion);
             const dbHeapRef = getHeapRef.get(ref.id, heapVersion);
             if (!dbHeapRef) {
                 heapMap[heapVersion + "/" + ref.id] = null;

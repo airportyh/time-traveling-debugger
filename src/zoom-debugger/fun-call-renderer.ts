@@ -1,10 +1,10 @@
 import { ZoomRenderable, BoundingBox } from "./zui";
 import { FunCall, DBObject, Snapshot, FunCallExpanded } from "./play-lang";
 import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
-import { traverse } from "../traverser";
 import { ZoomDebuggerContext } from "./zoom-debugger";
 import { DataCache } from "./data-cache";
-const { Ref } = require("../../json-like/json-like-parser.js");
+import { ASTInfo } from "./ast-info";
+const { Ref, HeapRef, parse } = require("../../json-like/json-like-parser.js");
 
 const CODE_LINE_HEIGHT = 1.5;
 const CODE_FONT_FAMILY = "Monaco";
@@ -18,35 +18,30 @@ type SubEntryGroup = {
     funCall: FunCall
 };
 
-type HeapRef = { id: number };
-
 export class FunCallRenderer implements ZoomRenderable {
     funCall: FunCall;
     callExpr: any;
     callExprCode: string;
     context: ZoomDebuggerContext;
-    
     userDefinedFunctionNames: string[];
+    astInfo: ASTInfo;
     
     constructor(
         funCall: FunCall, 
         callExpr: any, 
+        astInfo: ASTInfo,
         context: ZoomDebuggerContext) {
         this.funCall = funCall;
         this.callExpr = callExpr;
+        this.astInfo = astInfo;
         if (callExpr === context.ast) {
             // main()
             this.callExprCode = "main()";
         } else {
-            const line = context.codeLines[callExpr.start.line - 1];
-            const startIdx = callExpr.start.col;
-            const endIdx = callExpr.end.col;
-            const callExprCode = line.slice(startIdx, endIdx);
-            this.callExprCode = callExprCode;
+            this.callExprCode = this.astInfo.getSource(callExpr);
         }
         this.context = context;
-        const userDefinedFunctions = findNodesOfType(this.context.ast, "function_definition");
-        this.userDefinedFunctionNames = userDefinedFunctions.map(fun => fun.name.value);
+        this.userDefinedFunctionNames = this.astInfo.getUserDefinedFunctions();
     }
     
     id(): string {
@@ -71,9 +66,8 @@ export class FunCallRenderer implements ZoomRenderable {
         }
         const myArea = bbox.width * bbox.height;
         const myAreaRatio = myArea / (viewport.width * viewport.height);
-        //const stackFrame = firstEntry.stack[firstEntry.stack.length - 1];
         const funName = this.funCall.fun_name;
-        const funNode = findFunction(this.context.ast, funName);
+        const funNode = this.astInfo.getFunNode(funName);
         if (!funNode) {
             console.log("Could not find funNode for", funName, "in", this.callExpr);
         }
@@ -106,17 +100,20 @@ export class FunCallRenderer implements ZoomRenderable {
             type: "text",
             text: this.callExprCode
         };
-        fitBox(textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, this.context.textMeasurer, CODE_LINE_HEIGHT, ctx);
+        fitBox(
+            textBox, bbox, viewport, CODE_FONT_FAMILY, "normal", true, 
+            this.context.textMeasurer, CODE_LINE_HEIGHT, ctx
+        );
         return new Map();
     }
 
     getCodeBox(
         funCallExpanded: FunCallExpanded,
         childEntries: Map<Snapshot, SubEntryGroup[]>
-        ): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
+    ): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
         // rendering children
         const funName = this.funCall.fun_name;
-        const funNode = findFunction(this.context.ast, funName);
+        const funNode = this.astInfo.getFunNode(funName);
         if (!funNode) {
             throw new Error("Could not find funNode for " + funName);
         }
@@ -128,9 +125,12 @@ export class FunCallRenderer implements ZoomRenderable {
             direction: "vertical",
             children: []
         };
-        // layout the function signature
-        codeBox.children.push(this.layoutFunctionSignature(
-            funNode, funCallExpanded, lineNumberWidth, childMap));
+        
+        if (this.astInfo.hasSignature(funNode)) {
+            // layout the function signature
+            codeBox.children.push(this.layoutFunctionSignature(
+                funNode, funCallExpanded, lineNumberWidth, childMap));
+        }
         
         const snapshots = funCallExpanded.snapshots;
         // Go through current entries and layout the code line by line
@@ -141,6 +141,7 @@ export class FunCallRenderer implements ZoomRenderable {
                 continue;
             }
             const line = this.context.codeLines[entry.line_no - 1];
+            
             const lineNumberBox: TextBox = {
                 type: "text",
                 text: String(entry.line_no).padEnd(lineNumberWidth) + "  ",
@@ -258,9 +259,8 @@ export class FunCallRenderer implements ZoomRenderable {
             if (nextSnapshot && snapshot.line_no === nextSnapshot.line_no) {
                 continue;
             }
-            let callExprs: any[] = 
-                findNodesOfTypeOnLine(funNode, "call_expression", snapshot.line_no);
-            callExprs = callExprs.filter(expr => this.userDefinedFunctionNames.includes(expr.fun_name.value));
+            let callExprs: any[] = this.astInfo.getCallExpressionsOnLine(funNode, snapshot.line_no);
+            callExprs = callExprs.filter(expr => this.userDefinedFunctionNames.includes(this.astInfo.getFunNameForCallExpr(expr)));
             for (let j = 0; j < callExprs.length; j++) {
                 const callExpr = callExprs[j];
                 if (!childCallMap.has(snapshot)) {
@@ -302,8 +302,9 @@ export class FunCallRenderer implements ZoomRenderable {
         for (let i = 0; i < subEntryGroups.length; i++) {
             const subEntryGroup = subEntryGroups[i];
             const callExprNode = subEntryGroup.callExpr;
-            const startIdx = callExprNode.start.col;
-            const endIdx = callExprNode.end.col;
+            const startIdx = this.astInfo.getStartPos(callExprNode).col;
+            const endIdx = this.astInfo.getEndPos(callExprNode).col;
+            // console.log("callExprNode", callExprNode, "startIdx", startIdx, "endIdx", endIdx);
             const previousCode = line.slice(pos, startIdx);
             pos = endIdx;
             
@@ -331,6 +332,7 @@ export class FunCallRenderer implements ZoomRenderable {
                 new FunCallRenderer(
                     subEntryGroup.funCall,
                     callExprNode,
+                    this.astInfo,
                     this.context
                 )
             );
@@ -348,13 +350,43 @@ export class FunCallRenderer implements ZoomRenderable {
     
     renderVariableAssignmentValues(snapshot: Snapshot, funNode: any, funCallExpanded: FunCallExpanded, nextSnapshot: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         // Display variable values for assignments
-        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", snapshot.line_no)[0];
-        if (assignmentNode) {
-            const varName = assignmentNode.var_name.value;
+        
+        const varName = this.astInfo.getVarAssignmentOnLine(funNode, snapshot.line_no);
+        if (varName) {
             if (nextSnapshot) {
-                const variables = this.context.dataCache.getObject(
+                let varValue: any;
+                const locals = this.context.dataCache.getObject(
                     funCallExpanded.heapMap[nextSnapshot.heap + "/" + funCallExpanded.locals]);
-                const varValue = variables.get(varName);
+                if (locals.has(varName)) {
+                    varValue = locals.get(varName);
+                }
+                const globals = this.context.dataCache.getObject(
+                    funCallExpanded.heapMap[nextSnapshot.heap + "/" + funCallExpanded.globals]);
+                if (globals.has(varName)) {
+                    varValue = globals.get(varName);
+                }
+                if (funCallExpanded.closure_cellvars) {
+                    const cellvars = funCallExpanded.closure_cellvars;
+                    if (cellvars.has(varName)) {
+                        varValue = cellvars.get(varName);
+                        if (isHeapRef(varValue)) {
+                            varValue = this.context.dataCache.getObject(
+                                funCallExpanded.heapMap[nextSnapshot.heap + "/" + varValue.id]);
+                            varValue = varValue.get("ob_ref");
+                        }
+                    }
+                }
+                if (funCallExpanded.closure_freevars) {
+                    const freevars = funCallExpanded.closure_freevars;
+                    if (freevars.has(varName)) {
+                        varValue = freevars.get(varName);
+                        if (isHeapRef(varValue)) {
+                            varValue = this.context.dataCache.getObject(
+                                funCallExpanded.heapMap[nextSnapshot.heap + "/" + varValue.id]);
+                            varValue = varValue.get("ob_ref");
+                        }
+                    }
+                }
                 const varValueDisplay = this.getVarValueDisplay(nextSnapshot, varValue, childMap, funCallExpanded.heapMap);
                 const prefix = `${varName} = `;
                 const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
@@ -385,11 +417,7 @@ export class FunCallRenderer implements ZoomRenderable {
     }
     
     renderUpdatedHeapObjects(funNode: any, funCallExpanded: FunCallExpanded, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
-        let varNameAssigned: any;
-        const assignmentNode = findNodesOfTypeOnLine(funNode, "var_assignment", entry.line_no)[0];
-        if (assignmentNode) {
-            varNameAssigned = assignmentNode.var_name.value;
-        }
+        let varNameAssigned = this.astInfo.getVarAssignmentOnLine(funNode, entry.line_no);
         const locals = funCallExpanded.locals;
         const heapMap = funCallExpanded.heapMap;
         if (nextEntry) {
@@ -449,12 +477,13 @@ export class FunCallRenderer implements ZoomRenderable {
         valueDisplayStrings: Box[][]
     ) {
         // Display variable values for return statements
-        const returnStatement = findNodesOfTypeOnLine(funNode, "return_statement", entry.line_no)[0];
+        const returnStatement = this.astInfo.getReturnStatementOnLine(funNode, entry.line_no);
         
         if (returnStatement) {
-            const variables = this.context.dataCache.getObject(funCallExpanded.heapMap[nextEntry.heap + "/" + funCallExpanded.locals]);
+            const entryToUse = nextEntry || entry;
+            const variables = this.context.dataCache.getObject(funCallExpanded.heapMap[entryToUse.heap + "/" + funCallExpanded.locals]);
             const varValue = variables.get("<ret val>");
-            const valueDisplay = this.getVarValueDisplay(nextEntry, varValue, childMap, funCallExpanded.heapMap);
+            const valueDisplay = this.getVarValueDisplay(entryToUse, varValue, childMap, funCallExpanded.heapMap);
             const tagged: Box[][] = valueDisplay.map((line, idx) => {
                 if (idx === 0) {
                     return [
@@ -481,18 +510,19 @@ export class FunCallRenderer implements ZoomRenderable {
     }
 
     layoutFunctionSignature(funNode: any, funCallExpanded: FunCallExpanded, lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>) {
+        const startPos = this.astInfo.getStartPos(funNode);
         const funSigBox: ContainerBox = {
             type: "container",
             direction: "horizontal",
             children: [
                 {
                     type: "text",
-                    text: String(funNode.start.line).padEnd(lineNumberWidth) + "  ",
+                    text: String(startPos.line).padEnd(lineNumberWidth) + "  ",
                     color: LINE_NUMBER_COLOR
                 },
                 {
                     type: "text",
-                    text: this.context.codeLines[funNode.start.line - 1],
+                    text: this.context.codeLines[startPos.line - 1],
                     color: CODE_COLOR
                 }
             ]
@@ -500,8 +530,8 @@ export class FunCallRenderer implements ZoomRenderable {
         const snapshot = funCallExpanded.snapshots[0];
         const variables = this.context.dataCache.getObject(funCallExpanded.heapMap[snapshot.heap + "/" + funCallExpanded.locals]);
         
-        for (let param of funNode.parameters) {
-            const paramName = param.value;
+        const parameters = this.astInfo.getFunNodeParameters(funNode);
+        for (let paramName of parameters) {
             let value = variables.get(paramName);
             const rows = this.getVarValueDisplay(snapshot, value, childMap, funCallExpanded.heapMap);
             funSigBox.children.push({
@@ -526,7 +556,7 @@ export class FunCallRenderer implements ZoomRenderable {
     
     getVarValueDisplay(snapshot: Snapshot, value: any, childMap: Map<Box, ZoomRenderable>, heapMap: any): Box[][] {
         let objectId: any = null;
-        if (isJsonrRef(value)) {
+        if (isObjectRef(value)) {
             objectId = value.id;
             value = this.context.dataCache.getObject(value.id);
         }
@@ -535,7 +565,9 @@ export class FunCallRenderer implements ZoomRenderable {
             if (object === undefined) {
                 throw new Error("Could not find entry in heap map for: " + snapshot.heap + "/" + value.id);
             }
-            if (Array.isArray(object)) {
+            if (typeof object === "string") {
+                return [[getValueDisplay(snapshot, object, childMap, heapMap, this.context.textMeasurer)]];
+            } else if (Array.isArray(object)) {
                 const row: Box[] = [];
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
@@ -569,19 +601,12 @@ export class FunCallRenderer implements ZoomRenderable {
         return [[getValueDisplay(snapshot, value, childMap, heapMap, this.context.textMeasurer)]];
     }
     
-    deref(object: any) {
-        if (isJsonrRef(object)) {
-            object = this.context.dataCache.getObject(object.id);
-        }
-        return object;
-    }
-    
 }
 
 class HeapObjectRenderer implements ZoomRenderable {
     constructor(
         public snapshot: Snapshot,
-        public value: HeapRef, 
+        public value: any, 
         public textMeasurer: TextMeasurer, 
         public heap: any) {
     }
@@ -668,41 +693,13 @@ class HeapObjectRenderer implements ZoomRenderable {
     }
 }
 
-function findFunction(ast, name) {
-    let fun;
-    traverse(ast, (node) => {
-        if (node.type === "function_definition" && node.name.value === name) {
-            fun = node;
-        }
-    });
-    return fun;
+
+
+function isHeapRef(thing): boolean {
+    return thing instanceof HeapRef;
 }
 
-function findNodesOfType(node, type) {
-    let defs = [];
-    traverse(node, (childNode) => {
-        if (childNode.type === type) {
-            defs.push(childNode);
-        }
-    });
-    return defs;
-}
-
-function findNodesOfTypeOnLine(node, type, lineNo): any[] {
-    let defs = [];
-    traverse(node, (childNode) => {
-        if (childNode.type === type && childNode.start.line === lineNo) {
-            defs.push(childNode);
-        }
-    });
-    return defs;
-}
-
-function isHeapRef(thing): thing is HeapRef {
-    return thing && typeof thing === "object" && typeof thing.id === "number";
-}
-
-function isJsonrRef(thing): boolean {
+function isObjectRef(thing): boolean {
     return thing instanceof Ref;
 }
 

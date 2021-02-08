@@ -16,8 +16,8 @@ export type FunCall = {
     fun_name: string,
     locals: number,
     globals: number | null,
-    closure_cellvars: string,
-    closure_freevars: string,
+    closure_cellvars: Map<string, any>,
+    closure_freevars: Map<string, any>,
     parent_id: number,
     code_file_id: number
 };

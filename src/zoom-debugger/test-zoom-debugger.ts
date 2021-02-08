@@ -1,6 +1,9 @@
 import { initZoomDebugger } from "./zoom-debugger";
+import { PythonASTInfo } from "./python-ast-info";
 
 main().catch(err => console.log(err.stack));
+
+
 
 async function main() {
     document.body.style.margin = "0";
@@ -13,4 +16,5 @@ async function main() {
     document.body.appendChild(element);
     const DEBUGGER_API = "http://localhost:1337/api/";
     await initZoomDebugger(element, DEBUGGER_API);
+    // await PythonASTInfo.test();
 }
