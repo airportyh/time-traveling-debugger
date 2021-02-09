@@ -65,6 +65,7 @@ import {
 import { HistoryServer } from "../spawn-history-server.mjs";
 import simpleSleep from "simple-sleep";
 import StyledString from "styled_string";
+import { inspect } from "util";
 
 async function TermDebugger() {
     const self = {
@@ -227,13 +228,16 @@ async function TermDebugger() {
         let message = `Snapshot ${snapshot.id}  ${funCall.fun_name}()  line ${snapshot.line_no}`;
         let color;
         if (snapshot.error) {
-            message += `, Error: ${snapshot.error.message}`;
+            message += `, Error: ${snapshot.error.message || snapshot.error.type}`;
             color = "red";
         } else {
             color = "blue";
         }
-        const leftPadding = Math.floor((windowWidth - message.length) / 2);
-        const banner = Array(leftPadding + 1).join(" ") + message + Array(windowWidth - leftPadding - message.length + 1).join(" ")
+        const leftPadding = Math.max(0, Math.floor((windowWidth - message.length) / 2));
+        log.write(`updateStatesBar ${inspect({ windowWidth, leftPadding, message })}\n`);
+        const banner = (Array(leftPadding + 1).join(" ") + message + 
+            Array(Math.max(0, windowWidth - leftPadding - message.length + 1)).join(" "))
+            .substring(0, windowWidth);
         printAt(1, windowHeight, 
             StyledString(banner, { foreground: color, background: "white" }).toString());
     }

@@ -184,7 +184,8 @@ app.get("/api/StepOverBackward", (req, res) => {
             if (prevPrevSnapshot) {
                 const prevPrevSnapshotFunCall = getFunCallStatement.get(prevPrevSnapshot.fun_call_id);
                 result = getSnapshotForStepOver.get(
-                    prevPrevSnapshot.id, prevPrevSnapshot.fun_call_id, prevPrevSnapshot.line_no, snapshotFunCall.parent_id);
+                    prevPrevSnapshot.id, prevPrevSnapshot.fun_call_id, prevPrevSnapshot.line_no, snapshotFunCall.parent_id) || 
+                    prevPrevSnapshot;
             } else {
                 result = prevSnapshot;
             }
@@ -400,7 +401,11 @@ function getObjectsDeep2(ref, objectMap, heapVersion, heapMap, objectsAlreadyFet
             // console.log("got dbHeapRef:", dbHeapRef);
             id = dbHeapRef.object_id;
             heapMap[heapVersion + "/" + ref.id] = id;
-            dbObject = getObject(id);
+            if (objectsAlreadyFetched[id]) {
+                return;
+            } else {
+                dbObject = getObject(id);    
+            }
         }
     } else {
         return;
