@@ -234,7 +234,6 @@ async function TermDebugger() {
             color = "blue";
         }
         const leftPadding = Math.max(0, Math.floor((windowWidth - message.length) / 2));
-        log.write(`updateStatesBar ${inspect({ windowWidth, leftPadding, message })}\n`);
         const banner = (Array(leftPadding + 1).join(" ") + message + 
             Array(Math.max(0, windowWidth - leftPadding - message.length + 1)).join(" "))
             .substring(0, windowWidth);

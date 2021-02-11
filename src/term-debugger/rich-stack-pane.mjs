@@ -23,7 +23,6 @@ export function RichStackPane(db, box) {
         const lines = [];
         let stack = funCallMap.get(db.snapshot.fun_call_id);
         let heap = db.snapshot.heapMap;
-        // log.write(`stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
@@ -98,7 +97,7 @@ export function RichStackPane(db, box) {
                 return 0;
             } else {
                 return -1;
-            }   
+            }
         });
         for (let [key, value] of entries) {
             if (isHeapRef(key)) {
@@ -150,7 +149,11 @@ export function RichStackPane(db, box) {
             return JSON.stringify(object);
         } else if (Array.isArray(object)) {
             let outputs = object.map((item) => renderValueOneLine(item, heap, visited));
-            return "[" + outputs.join(", ") + "]";
+            let output = "[" + outputs.join(", ") + "]";
+            if (object.__tag__) {
+                output = `<${object.__tag__}>${output}`;
+            }
+            return output;
         } else if (object instanceof Map){
             // map
             let outputs = [];
@@ -159,13 +162,18 @@ export function RichStackPane(db, box) {
                 const valueDisplay = renderValueOneLine(value, heap, visited);
                 outputs.push(keyDisplay + ": " + valueDisplay);
             });
-            return "{" + outputs.join(", ") + "}";
+            let output = "{" + outputs.join(", ") + "}";
+            if (object.__tag__) {
+                output = `<${object.__tag__}>${output}`;
+            }
+            return output;
         } else {
             throw new Error("Unsupported type: " + inspect(object));
         }
     }
     
     function renderValueMultiLine(prefix, indent, value, heap, visited) {
+        log.write(`RenderValueMultiline(${inspect(prefix)}, ${inspect(indent)}, ${inspect(value)})\n`);
         if (!isHeapRef(value)) {
             return [$s(indent).concat(prefix).concat(JSON.stringify(value))];
         }
@@ -175,34 +183,41 @@ export function RichStackPane(db, box) {
             return "{}";
         }
         let object = objectMap.get(heap[refId]);
-        // log.write(`RenderValueMultiline(${inspect(value)}, ${inspect(object)})\n`);
+        
         if (visited.has(refId) && (typeof object !== "string")) {
             return "*" + refId;
         }
         visited.add(refId);
         let lines = [];
         if (typeof object === "string") {
-        lines.push($s(indent).concat(prefix).concat(JSON.stringify(object)));
+            lines.push($s(indent).concat(prefix).concat(JSON.stringify(object)));
         } else if (Array.isArray(object)) {
-            lines.push($s(indent).concat(prefix).concat("["));
+            let begin = "[";
+            if (object.__tag__) {
+                begin = `<${object.__tag__}>[`;
+            }
+            lines.push($s(indent).concat(prefix).concat(begin));
             for (let i = 0; i < object.length; i++) {
                 let item = object[i];
-                lines.push(...renderValue("", indent + "  ", item, heap, visited));
+                lines.push(...renderValue($s(""), $s(indent).concat("  "), item, heap, visited));
                 if (i !== object.length - 1) {
                     lines[lines.length - 1] += ", ";
                 }
             }
-            lines.push(indent + "]");
+            lines.push($s(indent).concat("]"));
         } else if (object instanceof Map) {
-            // map
+            let begin = "{";
+            if (object.__tag__) {
+                begin = `<${object.__tag__}>{`;
+            }
             // log.write(`Rendering map: ${inspect(object)}\n`);
-            lines.push($s(indent).concat(prefix).concat("{"));
+            lines.push($s(indent).concat(prefix).concat(begin));
             const keys = Array.from(object.keys());
             // log.write(`map keys: ${keys}\n`);
             for (let i = 0; i < keys.length; i++) {
                 let key = keys[i];
-                const keyDisplay = renderValue("", indent + "  ", key, heap, visited);
-                // log.write(`keyDisplay: ${inspect(keyDisplay)}\n`);
+                const keyDisplay = renderValue($s(""), "", key, heap, visited);
+                //log.write(`keyDisplay: ${inspect(keyDisplay)}\n`);
                 lines.push(...keyDisplay.slice(0, keyDisplay.length - 1));
                 const keyDisplayLastLine = keyDisplay[keyDisplay.length - 1];
                 let value = object.get(key);
@@ -213,7 +228,7 @@ export function RichStackPane(db, box) {
                     lines[lines.length - 1] += ", ";
                 }
             }
-            lines.push(indent + "    }");
+            lines.push(indent + "}");
         } else {
             throw new Error("Unsupported type: " + inspect(object));
         }

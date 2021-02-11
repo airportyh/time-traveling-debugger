@@ -39,8 +39,28 @@ function parse(input) {
     let string = sequence([literal('"'), characters, literal('"')], (data) => {
         return data[1].join("");
     });
-    let nonEmptyArray = sequence(() => [literal("["), elements, literal("]")], (data) => data[1]);
-    let emptyArray = sequence([literal("["), ws, literal("]")], () => []);
+    let identifier = sequence([characterMatching(/[a-zA-Z_]/), zeroOrMore(characterMatching(/[a-zA-Z_0-9.]/))],
+        (data) => data[0] + data[1].join(""));
+    let tag = sequence([literal("<"), identifier, literal(">")], (data) => data[1]);
+    let nonEmptyArray = sequence(() => [zeroOrOne(tag), literal("["), elements, literal("]")], (data) => {
+        if (data[0] === "[") {
+            // no tag
+            return data[1];
+        } else {
+            // has tag
+            const array = data[2];
+            array.__tag__ = data[0][0];
+            return array;
+        }
+    });
+    let emptyArray = sequence([zeroOrOne(tag), literal("["), ws, literal("]")], (data) => {
+        let array = [];
+        if (data[0] !== "[") {
+            // has tag
+            array.__tag__ = data[0][0];
+        }
+        return array;
+    });
     let array = choice([emptyArray, nonEmptyArray], (data) => data[0]);
     let value = choice(() => [
         array, 
@@ -59,10 +79,26 @@ function parse(input) {
         zeroOrMore(sequence([literal(","), element], (data) => data[1]))
     ], (data) => [data[0], ...data[1]]);
     let object = choice([
-        sequence([literal("{"), ws, literal("}")], (data) => (new Map())),
-        sequence(() => [literal("{"), members, literal("}")], (data) => {
+        sequence([zeroOrOne(tag), literal("{"), ws, literal("}")], (data) => {
+            let map = new Map();
+            if (data[0] !== "{") {
+                // has tag
+                map.__tag__ = data[0][0];
+            }
+            return map;
+        }),
+        sequence(() => [zeroOrOne(tag), literal("{"), members, literal("}")], (data) => {
             const map = new Map();
-            for (let pair of data[1]) {
+            let entries;
+            if (data[0] === "{") {
+                // no tag
+                entries = data[1];
+            } else {
+                // has tag
+                map.__tag__ = data[0][0];
+                entries = data[2];
+            }
+            for (let pair of entries) {
                 map.set(pair[0], pair[1]);
             }
             return map;
@@ -112,7 +148,11 @@ function test() {
         `[{ "name": "jerry", "friends": [ {"name": "shanda"} ] }]`,
         `{ {"id": 1}: "brown" }`,
         `{ *123456: ^1234 }`,
-        `{ "funCall": 2, "variables": *215}`
+        `{ "funCall": 2, "variables": *215}`,
+        `<tuple>[1, 2]`,
+        `<tuple>[]`,
+        `<function>{}`,
+        `<Point>{ "x": 1, "y": 2 }`,
     ];
 
     for (let testCase of testCases) {
@@ -125,10 +165,13 @@ function test() {
             }
         } catch (e) {
             console.log(`${e.message} for ${testCase}.`);
+            console.log(e.stack);
         }
     }
     
 }
+
+// test();
 
 function characterMatching(choices) {
     return function _characterMatching(buffer, cursor) {
@@ -148,6 +191,15 @@ function characterMatching(choices) {
                     value: char,
                     cursor: cursor + 1
                 };
+            } else {
+                return null;
+            }
+        } else if (choices instanceof RegExp) {
+            if (choices.test(char)) {
+                return {
+                    value: char,
+                    cursor: cursor + 1
+                };    
             } else {
                 return null;
             }
@@ -226,6 +278,37 @@ function zeroOrMore(parser) {
             if (result) {
                 values.push(result.value);
                 currentCursor = result.cursor;
+            } else {
+                return {
+                    value: values,
+                    cursor: currentCursor
+                };
+            }
+        }
+    };
+}
+
+function zeroOrOne(parser) {
+    return zeroUpTo(parser, 1);
+}
+
+function zeroUpTo(parser, maxTimes) {
+    return function _zeroOrMore(buffer, cursor) {
+        let values = [];
+        let currentCursor = cursor;
+        let numMatches = 0;
+        while (true) {
+            const result = parser(buffer, currentCursor);
+            if (result) {
+                numMatches++;
+                values.push(result.value);
+                currentCursor = result.cursor;
+                if (numMatches === maxTimes) {
+                    return {
+                        value: values,
+                        cursor: currentCursor
+                    };
+                }
             } else {
                 return {
                     value: values,
