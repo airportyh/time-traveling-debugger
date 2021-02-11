@@ -1,4 +1,4 @@
-import jsonLike from "../../json-like/json-like-parser.js";
+import jsonLike from "../json-like/json-like.js";
 import { inspect } from "util";
 import fetch from "node-fetch";
 

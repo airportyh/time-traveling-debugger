@@ -1,0 +1,931 @@
+{
+    "type": "Module",
+    "body": [
+        {
+            "type": "Import",
+            "col_offset": 0,
+            "lineno": 1,
+            "names": [
+                {
+                    "type": "alias",
+                    "asname": {
+                        "type": "NoneType"
+                    },
+                    "name": "ast"
+                }
+            ]
+        },
+        {
+            "type": "Import",
+            "col_offset": 0,
+            "lineno": 2,
+            "names": [
+                {
+                    "type": "alias",
+                    "asname": {
+                        "type": "NoneType"
+                    },
+                    "name": "json"
+                }
+            ]
+        },
+        {
+            "type": "FunctionDef",
+            "args": {
+                "type": "arguments",
+                "args": [
+                    {
+                        "type": "arg",
+                        "annotation": {
+                            "type": "NoneType"
+                        },
+                        "arg": "node",
+                        "col_offset": 14,
+                        "lineno": 3
+                    }
+                ],
+                "defaults": [],
+                "kw_defaults": [],
+                "kwarg": {
+                    "type": "NoneType"
+                },
+                "kwonlyargs": [],
+                "vararg": {
+                    "type": "NoneType"
+                }
+            },
+            "body": [
+                {
+                    "type": "Return",
+                    "col_offset": 4,
+                    "lineno": 4,
+                    "value": {
+                        "type": "BoolOp",
+                        "col_offset": 11,
+                        "lineno": 4,
+                        "op": {
+                            "type": "Or"
+                        },
+                        "values": [
+                            {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 22,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "node",
+                                        "lineno": 4
+                                    },
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 28,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "str",
+                                        "lineno": 4
+                                    }
+                                ],
+                                "col_offset": 11,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 11,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "isinstance",
+                                    "lineno": 4
+                                },
+                                "keywords": [],
+                                "lineno": 4
+                            },
+                            {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 47,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "node",
+                                        "lineno": 4
+                                    },
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 53,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "int",
+                                        "lineno": 4
+                                    }
+                                ],
+                                "col_offset": 36,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 36,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "isinstance",
+                                    "lineno": 4
+                                },
+                                "keywords": [],
+                                "lineno": 4
+                            },
+                            {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 22,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "node",
+                                        "lineno": 5
+                                    },
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 28,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "bool",
+                                        "lineno": 5
+                                    }
+                                ],
+                                "col_offset": 11,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 11,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "isinstance",
+                                    "lineno": 5
+                                },
+                                "keywords": [],
+                                "lineno": 5
+                            },
+                            {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 48,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "node",
+                                        "lineno": 5
+                                    },
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 54,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "float",
+                                        "lineno": 5
+                                    }
+                                ],
+                                "col_offset": 37,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 37,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "isinstance",
+                                    "lineno": 5
+                                },
+                                "keywords": [],
+                                "lineno": 5
+                            }
+                        ]
+                    }
+                }
+            ],
+            "col_offset": 0,
+            "decorator_list": [],
+            "lineno": 3,
+            "name": "is_simple",
+            "returns": {
+                "type": "NoneType"
+            }
+        },
+        {
+            "type": "FunctionDef",
+            "args": {
+                "type": "arguments",
+                "args": [
+                    {
+                        "type": "arg",
+                        "annotation": {
+                            "type": "NoneType"
+                        },
+                        "arg": "node",
+                        "col_offset": 17,
+                        "lineno": 7
+                    }
+                ],
+                "defaults": [],
+                "kw_defaults": [],
+                "kwarg": {
+                    "type": "NoneType"
+                },
+                "kwonlyargs": [],
+                "vararg": {
+                    "type": "NoneType"
+                }
+            },
+            "body": [
+                {
+                    "type": "If",
+                    "body": [
+                        {
+                            "type": "Return",
+                            "col_offset": 8,
+                            "lineno": 9,
+                            "value": {
+                                "type": "Name",
+                                "col_offset": 15,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "node",
+                                "lineno": 9
+                            }
+                        }
+                    ],
+                    "col_offset": 4,
+                    "lineno": 8,
+                    "orelse": [],
+                    "test": {
+                        "type": "Call",
+                        "args": [
+                            {
+                                "type": "Name",
+                                "col_offset": 17,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "node",
+                                "lineno": 8
+                            }
+                        ],
+                        "col_offset": 7,
+                        "func": {
+                            "type": "Name",
+                            "col_offset": 7,
+                            "ctx": {
+                                "type": "Load"
+                            },
+                            "id": "is_simple",
+                            "lineno": 8
+                        },
+                        "keywords": [],
+                        "lineno": 8
+                    }
+                },
+                {
+                    "type": "If",
+                    "body": [
+                        {
+                            "type": "Return",
+                            "col_offset": 8,
+                            "lineno": 11,
+                            "value": {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Call",
+                                        "args": [
+                                            {
+                                                "type": "Name",
+                                                "col_offset": 24,
+                                                "ctx": {
+                                                    "type": "Load"
+                                                },
+                                                "id": "convert_tree",
+                                                "lineno": 11
+                                            },
+                                            {
+                                                "type": "Name",
+                                                "col_offset": 38,
+                                                "ctx": {
+                                                    "type": "Load"
+                                                },
+                                                "id": "node",
+                                                "lineno": 11
+                                            }
+                                        ],
+                                        "col_offset": 20,
+                                        "func": {
+                                            "type": "Name",
+                                            "col_offset": 20,
+                                            "ctx": {
+                                                "type": "Load"
+                                            },
+                                            "id": "map",
+                                            "lineno": 11
+                                        },
+                                        "keywords": [],
+                                        "lineno": 11
+                                    }
+                                ],
+                                "col_offset": 15,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 15,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "list",
+                                    "lineno": 11
+                                },
+                                "keywords": [],
+                                "lineno": 11
+                            }
+                        }
+                    ],
+                    "col_offset": 4,
+                    "lineno": 10,
+                    "orelse": [],
+                    "test": {
+                        "type": "Call",
+                        "args": [
+                            {
+                                "type": "Name",
+                                "col_offset": 18,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "node",
+                                "lineno": 10
+                            },
+                            {
+                                "type": "Name",
+                                "col_offset": 24,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "list",
+                                "lineno": 10
+                            }
+                        ],
+                        "col_offset": 7,
+                        "func": {
+                            "type": "Name",
+                            "col_offset": 7,
+                            "ctx": {
+                                "type": "Load"
+                            },
+                            "id": "isinstance",
+                            "lineno": 10
+                        },
+                        "keywords": [],
+                        "lineno": 10
+                    }
+                },
+                {
+                    "type": "Assign",
+                    "col_offset": 4,
+                    "lineno": 12,
+                    "targets": [
+                        {
+                            "type": "Name",
+                            "col_offset": 4,
+                            "ctx": {
+                                "type": "Store"
+                            },
+                            "id": "type_name",
+                            "lineno": 12
+                        }
+                    ],
+                    "value": {
+                        "type": "Attribute",
+                        "attr": "__name__",
+                        "col_offset": 16,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "lineno": 12,
+                        "value": {
+                            "type": "Call",
+                            "args": [
+                                {
+                                    "type": "Name",
+                                    "col_offset": 21,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "node",
+                                    "lineno": 12
+                                }
+                            ],
+                            "col_offset": 16,
+                            "func": {
+                                "type": "Name",
+                                "col_offset": 16,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "type",
+                                "lineno": 12
+                            },
+                            "keywords": [],
+                            "lineno": 12
+                        }
+                    }
+                },
+                {
+                    "type": "Assign",
+                    "col_offset": 4,
+                    "lineno": 13,
+                    "targets": [
+                        {
+                            "type": "Name",
+                            "col_offset": 4,
+                            "ctx": {
+                                "type": "Store"
+                            },
+                            "id": "attrs",
+                            "lineno": 13
+                        }
+                    ],
+                    "value": {
+                        "type": "Call",
+                        "args": [
+                            {
+                                "type": "Name",
+                                "col_offset": 16,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "node",
+                                "lineno": 13
+                            }
+                        ],
+                        "col_offset": 12,
+                        "func": {
+                            "type": "Name",
+                            "col_offset": 12,
+                            "ctx": {
+                                "type": "Load"
+                            },
+                            "id": "dir",
+                            "lineno": 13
+                        },
+                        "keywords": [],
+                        "lineno": 13
+                    }
+                },
+                {
+                    "type": "Assign",
+                    "col_offset": 4,
+                    "lineno": 14,
+                    "targets": [
+                        {
+                            "type": "Name",
+                            "col_offset": 4,
+                            "ctx": {
+                                "type": "Store"
+                            },
+                            "id": "json",
+                            "lineno": 14
+                        }
+                    ],
+                    "value": {
+                        "type": "Dict",
+                        "col_offset": 11,
+                        "keys": [
+                            {
+                                "type": "Str",
+                                "col_offset": 13,
+                                "lineno": 14,
+                                "s": "type"
+                            }
+                        ],
+                        "lineno": 14,
+                        "values": [
+                            {
+                                "type": "Name",
+                                "col_offset": 21,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "type_name",
+                                "lineno": 14
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "For",
+                    "body": [
+                        {
+                            "type": "If",
+                            "body": [
+                                {
+                                    "type": "Assign",
+                                    "col_offset": 12,
+                                    "lineno": 17,
+                                    "targets": [
+                                        {
+                                            "type": "Subscript",
+                                            "col_offset": 12,
+                                            "ctx": {
+                                                "type": "Store"
+                                            },
+                                            "lineno": 17,
+                                            "slice": {
+                                                "type": "Index",
+                                                "value": {
+                                                    "type": "Name",
+                                                    "col_offset": 17,
+                                                    "ctx": {
+                                                        "type": "Load"
+                                                    },
+                                                    "id": "attr",
+                                                    "lineno": 17
+                                                }
+                                            },
+                                            "value": {
+                                                "type": "Name",
+                                                "col_offset": 12,
+                                                "ctx": {
+                                                    "type": "Load"
+                                                },
+                                                "id": "json",
+                                                "lineno": 17
+                                            }
+                                        }
+                                    ],
+                                    "value": {
+                                        "type": "Call",
+                                        "args": [
+                                            {
+                                                "type": "Call",
+                                                "args": [
+                                                    {
+                                                        "type": "Name",
+                                                        "col_offset": 46,
+                                                        "ctx": {
+                                                            "type": "Load"
+                                                        },
+                                                        "id": "node",
+                                                        "lineno": 17
+                                                    },
+                                                    {
+                                                        "type": "Name",
+                                                        "col_offset": 52,
+                                                        "ctx": {
+                                                            "type": "Load"
+                                                        },
+                                                        "id": "attr",
+                                                        "lineno": 17
+                                                    }
+                                                ],
+                                                "col_offset": 38,
+                                                "func": {
+                                                    "type": "Name",
+                                                    "col_offset": 38,
+                                                    "ctx": {
+                                                        "type": "Load"
+                                                    },
+                                                    "id": "getattr",
+                                                    "lineno": 17
+                                                },
+                                                "keywords": [],
+                                                "lineno": 17
+                                            }
+                                        ],
+                                        "col_offset": 25,
+                                        "func": {
+                                            "type": "Name",
+                                            "col_offset": 25,
+                                            "ctx": {
+                                                "type": "Load"
+                                            },
+                                            "id": "convert_tree",
+                                            "lineno": 17
+                                        },
+                                        "keywords": [],
+                                        "lineno": 17
+                                    }
+                                }
+                            ],
+                            "col_offset": 8,
+                            "lineno": 16,
+                            "orelse": [],
+                            "test": {
+                                "type": "UnaryOp",
+                                "col_offset": 11,
+                                "lineno": 16,
+                                "op": {
+                                    "type": "Not"
+                                },
+                                "operand": {
+                                    "type": "Call",
+                                    "args": [
+                                        {
+                                            "type": "Str",
+                                            "col_offset": 31,
+                                            "lineno": 16,
+                                            "s": "_"
+                                        }
+                                    ],
+                                    "col_offset": 15,
+                                    "func": {
+                                        "type": "Attribute",
+                                        "attr": "startswith",
+                                        "col_offset": 15,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "lineno": 16,
+                                        "value": {
+                                            "type": "Name",
+                                            "col_offset": 15,
+                                            "ctx": {
+                                                "type": "Load"
+                                            },
+                                            "id": "attr",
+                                            "lineno": 16
+                                        }
+                                    },
+                                    "keywords": [],
+                                    "lineno": 16
+                                }
+                            }
+                        }
+                    ],
+                    "col_offset": 4,
+                    "iter": {
+                        "type": "Name",
+                        "col_offset": 16,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "id": "attrs",
+                        "lineno": 15
+                    },
+                    "lineno": 15,
+                    "orelse": [],
+                    "target": {
+                        "type": "Name",
+                        "col_offset": 8,
+                        "ctx": {
+                            "type": "Store"
+                        },
+                        "id": "attr",
+                        "lineno": 15
+                    }
+                },
+                {
+                    "type": "Return",
+                    "col_offset": 4,
+                    "lineno": 18,
+                    "value": {
+                        "type": "Name",
+                        "col_offset": 11,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "id": "json",
+                        "lineno": 18
+                    }
+                }
+            ],
+            "col_offset": 0,
+            "decorator_list": [],
+            "lineno": 7,
+            "name": "convert_tree",
+            "returns": {
+                "type": "NoneType"
+            }
+        },
+        {
+            "type": "Assign",
+            "col_offset": 0,
+            "lineno": 20,
+            "targets": [
+                {
+                    "type": "Name",
+                    "col_offset": 0,
+                    "ctx": {
+                        "type": "Store"
+                    },
+                    "id": "f",
+                    "lineno": 20
+                }
+            ],
+            "value": {
+                "type": "Call",
+                "args": [
+                    {
+                        "type": "Str",
+                        "col_offset": 9,
+                        "lineno": 20,
+                        "s": "ast_play.py"
+                    }
+                ],
+                "col_offset": 4,
+                "func": {
+                    "type": "Name",
+                    "col_offset": 4,
+                    "ctx": {
+                        "type": "Load"
+                    },
+                    "id": "open",
+                    "lineno": 20
+                },
+                "keywords": [],
+                "lineno": 20
+            }
+        },
+        {
+            "type": "Assign",
+            "col_offset": 0,
+            "lineno": 21,
+            "targets": [
+                {
+                    "type": "Name",
+                    "col_offset": 0,
+                    "ctx": {
+                        "type": "Store"
+                    },
+                    "id": "code",
+                    "lineno": 21
+                }
+            ],
+            "value": {
+                "type": "Call",
+                "args": [],
+                "col_offset": 7,
+                "func": {
+                    "type": "Attribute",
+                    "attr": "read",
+                    "col_offset": 7,
+                    "ctx": {
+                        "type": "Load"
+                    },
+                    "lineno": 21,
+                    "value": {
+                        "type": "Name",
+                        "col_offset": 7,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "id": "f",
+                        "lineno": 21
+                    }
+                },
+                "keywords": [],
+                "lineno": 21
+            }
+        },
+        {
+            "type": "Assign",
+            "col_offset": 0,
+            "lineno": 22,
+            "targets": [
+                {
+                    "type": "Name",
+                    "col_offset": 0,
+                    "ctx": {
+                        "type": "Store"
+                    },
+                    "id": "tree",
+                    "lineno": 22
+                }
+            ],
+            "value": {
+                "type": "Call",
+                "args": [
+                    {
+                        "type": "Name",
+                        "col_offset": 17,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "id": "code",
+                        "lineno": 22
+                    }
+                ],
+                "col_offset": 7,
+                "func": {
+                    "type": "Attribute",
+                    "attr": "parse",
+                    "col_offset": 7,
+                    "ctx": {
+                        "type": "Load"
+                    },
+                    "lineno": 22,
+                    "value": {
+                        "type": "Name",
+                        "col_offset": 7,
+                        "ctx": {
+                            "type": "Load"
+                        },
+                        "id": "ast",
+                        "lineno": 22
+                    }
+                },
+                "keywords": [],
+                "lineno": 22
+            }
+        },
+        {
+            "type": "Expr",
+            "col_offset": 0,
+            "lineno": 23,
+            "value": {
+                "type": "Call",
+                "args": [
+                    {
+                        "type": "Call",
+                        "args": [
+                            {
+                                "type": "Call",
+                                "args": [
+                                    {
+                                        "type": "Name",
+                                        "col_offset": 30,
+                                        "ctx": {
+                                            "type": "Load"
+                                        },
+                                        "id": "tree",
+                                        "lineno": 23
+                                    }
+                                ],
+                                "col_offset": 17,
+                                "func": {
+                                    "type": "Name",
+                                    "col_offset": 17,
+                                    "ctx": {
+                                        "type": "Load"
+                                    },
+                                    "id": "convert_tree",
+                                    "lineno": 23
+                                },
+                                "keywords": [],
+                                "lineno": 23
+                            }
+                        ],
+                        "col_offset": 6,
+                        "func": {
+                            "type": "Attribute",
+                            "attr": "dumps",
+                            "col_offset": 6,
+                            "ctx": {
+                                "type": "Load"
+                            },
+                            "lineno": 23,
+                            "value": {
+                                "type": "Name",
+                                "col_offset": 6,
+                                "ctx": {
+                                    "type": "Load"
+                                },
+                                "id": "json",
+                                "lineno": 23
+                            }
+                        },
+                        "keywords": [
+                            {
+                                "type": "keyword",
+                                "arg": "indent",
+                                "value": {
+                                    "type": "Num",
+                                    "col_offset": 44,
+                                    "lineno": 23,
+                                    "n": 4
+                                }
+                            }
+                        ],
+                        "lineno": 23
+                    }
+                ],
+                "col_offset": 0,
+                "func": {
+                    "type": "Name",
+                    "col_offset": 0,
+                    "ctx": {
+                        "type": "Load"
+                    },
+                    "id": "print",
+                    "lineno": 23
+                },
+                "keywords": [],
+                "lineno": 23
+            }
+        }
+    ]
+}

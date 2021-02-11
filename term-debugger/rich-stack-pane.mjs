@@ -3,7 +3,7 @@ import {
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 import { isRef, isHeapRef } from "./language.mjs"
-import jsonLike from "../../json-like/json-like-parser.js";
+import jsonLike from "../json-like/json-like.js";
 import $s from "styled_string";
 import util from "util";
 
@@ -104,6 +104,7 @@ export function RichStackPane(db, box) {
                 key = objectMap.get(heap[key.id]);
             }
             const prefix = $s(key, {foreground: 'cyan'}).concat(" = ");
+            log.write(`rendering global ${prefix} ${inspect(value)}\n`);
             const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
             lines.push(...renderedValue);
         }

@@ -1,4 +1,4 @@
-import { parse } from "../parser";
+import { parse } from "../play-lang/src/parser";
 import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
 import { FunCallRenderer } from "./fun-call-renderer";

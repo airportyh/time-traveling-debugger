@@ -1,4 +1,4 @@
-import jsonLike from "../../json-like/json-like-parser.js";
+import jsonLike from "../json-like/json-like.js";
 
 export function isRef(value) {
     return value instanceof Object && "id" in value;

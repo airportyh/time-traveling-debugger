@@ -1,0 +1,117 @@
+{
+  "type": "Module",
+  "body": [
+    {
+      "type": "Expr",
+      "col_offset": 0,
+      "end_col_offset": 5,
+      "end_lineno": 1,
+      "lineno": 1,
+      "value": {
+        "type": "Call",
+        "args": [],
+        "col_offset": 0,
+        "end_col_offset": 5,
+        "end_lineno": 1,
+        "func": {
+          "type": "Attribute",
+          "attr": "b",
+          "col_offset": 0,
+          "ctx": {
+            "type": "Load"
+          },
+          "end_col_offset": 3,
+          "end_lineno": 1,
+          "lineno": 1,
+          "value": {
+            "type": "Name",
+            "col_offset": 0,
+            "ctx": {
+              "type": "Load"
+            },
+            "end_col_offset": 1,
+            "end_lineno": 1,
+            "id": "a",
+            "lineno": 1
+          }
+        },
+        "keywords": [],
+        "lineno": 1
+      }
+    },
+    {
+      "type": "Expr",
+      "col_offset": 0,
+      "end_col_offset": 21,
+      "end_lineno": 2,
+      "lineno": 2,
+      "value": {
+        "type": "Call",
+        "args": [
+          {
+            "type": "Call",
+            "args": [
+              {
+                "type": "Name",
+                "col_offset": 14,
+                "ctx": {
+                  "type": "Load"
+                },
+                "end_col_offset": 19,
+                "end_lineno": 2,
+                "id": "chars",
+                "lineno": 2
+              }
+            ],
+            "col_offset": 6,
+            "end_col_offset": 20,
+            "end_lineno": 2,
+            "func": {
+              "type": "Attribute",
+              "attr": "join",
+              "col_offset": 6,
+              "ctx": {
+                "type": "Load"
+              },
+              "end_col_offset": 13,
+              "end_lineno": 2,
+              "lineno": 2,
+              "value": {
+                "type": "Constant",
+                "col_offset": 6,
+                "end_col_offset": 8,
+                "end_lineno": 2,
+                "kind": {
+                  "type": "NoneType"
+                },
+                "lineno": 2,
+                "n": "",
+                "s": "",
+                "value": ""
+              }
+            },
+            "keywords": [],
+            "lineno": 2
+          }
+        ],
+        "col_offset": 0,
+        "end_col_offset": 21,
+        "end_lineno": 2,
+        "func": {
+          "type": "Name",
+          "col_offset": 0,
+          "ctx": {
+            "type": "Load"
+          },
+          "end_col_offset": 5,
+          "end_lineno": 2,
+          "id": "print",
+          "lineno": 2
+        },
+        "keywords": [],
+        "lineno": 2
+      }
+    }
+  ],
+  "type_ignores": []
+}

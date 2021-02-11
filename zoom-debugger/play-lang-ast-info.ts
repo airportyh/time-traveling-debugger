@@ -1,4 +1,4 @@
-import { traverse } from "../traverser";
+import { traverse } from "../play-lang/src/traverser";
 import { ASTInfo, Pos } from "./ast-info";
 
 export class PlayLangASTInfo implements ASTInfo {

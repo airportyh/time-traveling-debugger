@@ -62,7 +62,7 @@ import {
     setCursorVisible,
     setMouseButtonTracking
 } from "./term-utils.mjs";
-import { HistoryServer } from "../spawn-history-server.mjs";
+import { HistoryServer } from "./spawn-history-server.mjs";
 import simpleSleep from "simple-sleep";
 import StyledString from "styled_string";
 import { inspect } from "util";

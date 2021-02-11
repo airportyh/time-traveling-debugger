@@ -1,11 +1,5 @@
 node_modules
-zoom-debugger-build
-build
-*.history
-*.profile.json
-*.db
-*.history-shm
-*.history-wal
 *.sqlite
+*.history
+*.rewind
 *.log
-*.leveldb

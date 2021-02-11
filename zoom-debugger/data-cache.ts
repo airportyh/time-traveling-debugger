@@ -1,6 +1,6 @@
 import { FunCallExpanded } from "./play-lang";
 import { fetchJson } from "./fetch-json";
-const { parse, HeapRef } = require("../../json-like/json-like-parser.js");
+const { parse, HeapRef } = require("../json-like/json-like.js");
 
 export class DataCache {
     objectMap: Map<number, any> = new Map();

@@ -4,7 +4,7 @@ import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
 import { ZoomDebuggerContext } from "./zoom-debugger";
 import { DataCache } from "./data-cache";
 import { ASTInfo } from "./ast-info";
-const { Ref, HeapRef, parse } = require("../../json-like/json-like-parser.js");
+const { Ref, HeapRef, parse } = require("../json-like/json-like.js");
 
 const CODE_LINE_HEIGHT = 1.5;
 const CODE_FONT_FAMILY = "Monaco";

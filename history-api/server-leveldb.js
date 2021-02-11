@@ -1,3 +1,7 @@
+/*
+The history API for level DB was 80%, but unfinished.
+*/
+
 const express = require("express");
 const cors = require('cors');
 const session = require('express-session');

@@ -1,0 +1,334 @@
+With Null Logger
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 379ms to make this move.
+
+real	0m0.763s
+user	0m0.926s
+sys	0m0.112s
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 381ms to make this move.
+
+real	0m0.758s
+user	0m0.920s
+sys	0m0.105s
+
+With File Stream
+
+* ~2600ms for tic-tac-toe-speed-test.play
+
+With $FileLoggerWithNextTick
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 2138ms to make this move.
+
+real	0m4.971s
+user	0m7.992s
+sys	0m1.322s
+
+With $FileLogger
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 2573ms to make this move.
+
+real	0m3.332s
+user	0m3.865s
+sys	0m0.448s
+
+Idea:
+
+* have $stringify write each bit directly to the stream instead of generating a string first, so
+that no conversion needs to occur.
+
+$SQLiteBatchingLogger
+
+# No batching
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 16198ms to make this move.
+
+real	0m16.834s
+user	0m10.765s
+sys	0m5.724s
+
+$ # 10
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 4935ms to make this move.
+
+real	0m5.456s
+user	0m4.764s
+sys	0m0.944s
+$ # 50
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3910ms to make this move.
+
+real	0m4.438s
+user	0m4.140s
+sys	0m0.601s
+$ # 100
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3848ms to make this move.
+
+real	0m4.283s
+user	0m4.079s
+sys	0m0.556s
+
+$ # 300
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3626ms to make this move.
+
+real	0m4.197s
+user	0m4.007s
+sys	0m0.461s
+
+$ # 400
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3416ms to make this move.
+
+real	0m3.929s
+user	0m3.801s
+sys	0m0.463s
+
+$ # 500
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3674ms to make this move.
+
+real	0m4.204s
+user	0m4.053s
+sys	0m0.473s
+
+$ # 500
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3541ms to make this move.
+
+real	0m4.058s
+user	0m3.978s
+sys	0m0.448s
+
+$ # 600
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3645ms to make this move.
+
+real	0m4.165s
+user	0m4.119s
+sys	0m0.443s
+
+$ # 1000
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3703ms to make this move.
+
+real	0m4.264s
+user	0m4.306s
+sys	0m0.489s
+
+$ # 5000
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 4397ms to make this move.
+
+real	0m5.046s
+user	0m5.741s
+sys	0m0.883s
+
+$ # 10000
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 4285ms to make this move.
+
+real	0m4.943s
+user	0m5.659s
+sys	0m0.856s
+
+# LevelDBLogger
+
+# No batch
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 8183ms to make this move.
+
+real	0m9.358s
+user	0m16.039s
+sys	0m6.278s
+
+# 10
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3486ms to make this move.
+
+real	0m4.795s
+user	0m8.836s
+sys	0m1.997s
+
+$ # 50
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3052ms to make this move.
+
+real	0m4.002s
+user	0m7.767s
+sys	0m1.233s
+
+$ # 80
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3172ms to make this move.
+
+real	0m4.252s
+user	0m8.003s
+sys	0m1.210s
+
+$ # 90
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3017ms to make this move.
+
+real	0m4.135s
+user	0m7.756s
+sys	0m1.181s
+
+$ # 100
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 2950ms to make this move.
+
+real	0m4.066s
+user	0m7.645s
+sys	0m1.114s
+
+$ # 100
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 2959ms to make this move.
+
+real	0m4.028s
+user	0m7.596s
+sys	0m1.130s
+
+$ # 150
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3131ms to make this move.
+
+real	0m4.228s
+user	0m7.923s
+sys	0m1.128s
+
+$ # 200
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3028ms to make this move.
+
+real	0m4.127s
+user	0m7.829s
+sys	0m1.099s
+
+$ # 300
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3078ms to make this move.
+
+real	0m4.064s
+user	0m7.791s
+sys	0m1.080s
+
+$ # 400
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3082ms to make this move.
+
+real	0m4.118s
+user	0m7.788s
+sys	0m1.088s
+
+$ # 500
+
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3208ms to make this move.
+
+real	0m4.183s
+user	0m7.998s
+sys	0m1.080s
+
+$ # 1000
+$ time ./run ex/tic-tac-toe-speed-test.play
+Wrote ex/tic-tac-toe-speed-test.ast.
+Wrote ex/tic-tac-toe-speed-test.js.
+running "node ex/tic-tac-toe-speed-test.js"
+Computer took 3216ms to make this move.
+
+real	0m4.142s
+user	0m8.196s
+sys	0m1.053s

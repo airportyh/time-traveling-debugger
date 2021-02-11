@@ -4,13 +4,7 @@ const path = require("path");
 module.exports = {
   mode: "development",
   devtool: "source-map",
-  entry: "./src/zoom-debugger/zoom-debugger.ts",
-  output: {
-      library: 'ZoomDebugger',
-      libraryTarget: 'umd',
-      filename: "zoom-debugger.js",
-      path: path.resolve(__dirname, "zoom-debugger-build")
-  },
+  entry: "./test-zoom-debugger.ts",
   resolve: {
     extensions: [".ts", ".js"]
   },
@@ -18,5 +12,13 @@ module.exports = {
     rules: [
       { test: /\.ts$/, loader: "ts-loader" }
     ]
+  },
+  plugins: [
+      new HtmlWebpackPlugin()
+  ],
+  devServer: {
+    open: true,  
+    hot: true,
+    inline: true
   }
 };

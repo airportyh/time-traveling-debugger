@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require('cors');
 const sqlite3 = require("better-sqlite3");
 const session = require('express-session');
-const { parse, Ref, HeapRef } = require("../json-like/json-like-parser");
+const { parse, Ref, HeapRef } = require("../json-like/json-like");
 const { spawn } = require('child_process');
 
 const filename = process.argv[2];

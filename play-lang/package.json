@@ -16,9 +16,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.17.1",
-    "express-session": "^1.17.1",
     "acorn": "^7.1.0",
     "better-sqlite3": "^7.1.0",
     "bindings": "^1.5.0",
@@ -35,7 +32,6 @@
     "mz": "^2.7.0",
     "nearley": "^2.19.5",
     "node-addon-api": "^3.0.0",
-    "node-fetch": "^2.6.1",
     "nodemon": "^2.0.6",
     "simple-sleep": "^1.0.2",
     "styled_string": "0.0.1",

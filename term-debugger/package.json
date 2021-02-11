@@ -1,0 +1,17 @@
+{
+  "name": "term-debugger",
+  "version": "1.0.0",
+  "description": "This is a terminal-based time traveling debugger written in Node.js.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "simple-sleep": "^1.0.2",
+    "styled_string": "0.0.1"
+  }
+}
