@@ -74,15 +74,6 @@ to learn more about it, you can watch these videos:
 * [Live Code: Todo MVC](https://www.youtube.com/watch?v=5kr0p2RddSw&list=PLSq9OFrD2Q3BpxGnJXrhtDyN39p1UYU9z)
 * [Time Machine Status Update 1](https://www.youtube.com/watch?v=USyEofrn2aI)
 
-## Deep Zoom Debugger
-
-I've started a [new repo called Deep Zoom Debugger](https://github.com/airportyh/deep-zoom-debugger) for a branch of this on going work, which is an experiment to create a zoom-based user-interface for
-post-mortem debuggers. It uses the play-lang parser. Here are two introductory videos
-about the debugger:
-
-* [Introducing the Deep-Zoom Debugger (5 minutes)](https://www.youtube.com/watch?v=QE54x1ahHa4)
-* [Deep-Zoom Debugger Demo with Huiqi Zhou (17 minutes)](https://www.youtube.com/watch?v=lVb9bt7wDy8&t).
-
 ## Python Implementation
 
 I am also working on a modified version of Python which can log and recreate
