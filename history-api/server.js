@@ -25,17 +25,82 @@ const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
 const getError = db.prepare("select * from Error limit 1");
 const getErrorBySnapshotId = db.prepare("select * from Error where snapshot_id = ?");
-const getNextSnapshotWithFunCallId = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? limit 1");
-const getPrevSnapshotWithFunCallId = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
+const getNextSnapshotWithFunCallId = db.prepare(`
+    select *
+    from Snapshot
+    where id > ?
+        and fun_call_id = ?
+    limit 1`);
+const getPrevSnapshotWithFunCallId = db.prepare(`
+    select *
+    from Snapshot
+    where id < ?
+        and fun_call_id = ?
+    order by id desc limit 1`);
 const getObjectStatement = db.prepare("select * from Object where id = ?");
 const getErrorStatement = db.prepare("select * from Error where id = ?");
 const getCodeFile = db.prepare("select * from CodeFile where id = ?");
-const getSnapshotForStepOver = db.prepare("select * from Snapshot where id > ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id limit 1");
-const getSnapshotForStepOver2 = db.prepare("select * from Snapshot where id > ? and fun_call_id = ? order by id limit 1");
-const getSnapshotForStepOverBackward = db.prepare("select * from Snapshot where id < ? and ((fun_call_id = ? and line_no != ?) or (fun_call_id == ?)) order by id desc limit 1");
-const getSnapshotForStepOverBackward2 = db.prepare("select * from Snapshot where id < ? and fun_call_id = ? order by id desc limit 1");
-const getHeapByVersion = db.prepare("select id, max(object_id) as oid from HeapRef where heap_version <= ? group by id");
-const getHeapRef = db.prepare("select * from HeapRef where id = ? and heap_version <= ? order by heap_version desc limit 1");
+const getSnapshotForStepOver = db.prepare(`
+    select *
+    from Snapshot
+    where id > ? 
+        and (
+            (fun_call_id = ? and line_no != ?) 
+            or (fun_call_id == ?)
+        )
+    order by id limit 1
+`);
+const getSnapshotForStepOver2 = db.prepare(`
+    select *
+    from Snapshot
+    where id > ?
+        and fun_call_id = ?
+    order by id limit 1`);
+const getSnapshotForStepOverBackward = db.prepare(`
+    select * from Snapshot
+    where id < ?
+        and (
+            (fun_call_id = ? and line_no != ?) or 
+            (fun_call_id == ?)
+        )
+    order by id desc limit 1
+`);
+const getSnapshotForStepOverBackward2 = db.prepare(`
+    select *
+    from Snapshot
+    where id < ?
+        and fun_call_id = ?
+    order by id desc limit 1
+`);
+const getHeapByVersion = db.prepare(`
+    select id, max(object_id) as oid
+    from HeapRef
+    where heap_version <= ?
+    group by id
+`);
+const getHeapRef = db.prepare(`
+    select *
+    from HeapRef
+    where id = ?
+        and heap_version <= ?
+    order by heap_version desc limit 1
+`);
+const fastForwardStatement = db.prepare(`
+    select Snapshot.*
+    from Snapshot 
+    inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
+    where FunCall.code_file_id = ?
+        and Snapshot.line_no = ?
+        and Snapshot.id > ? order by id limit 1
+`);
+const rewindStatement = db.prepare(`
+    select Snapshot.*
+    from Snapshot 
+    inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
+    where FunCall.code_file_id = ?
+        and Snapshot.line_no = ?
+        and Snapshot.id < ? order by id desc limit 1
+`);
 
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
@@ -234,6 +299,26 @@ app.get("/api/PythonAST", async (req, res) => {
     res.set('Content-Type', 'application/json');
     res.write(ast);
     res.end();
+});
+
+app.get("/api/FastForward", (req, res) => {
+    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const snapshotId = req.query.from;
+    const lineNo = req.query.line_no;
+    const codeFileId = req.query.code_file_id;
+    const snapshot = fastForwardStatement.get(codeFileId, lineNo, snapshotId);
+    return res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
+});
+
+app.get("/api/Rewind", (req, res) => {
+    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const snapshotId = req.query.from;
+    const lineNo = req.query.line_no;
+    const codeFileId = req.query.code_file_id;
+    const snapshot = rewindStatement.get(codeFileId, lineNo, snapshotId);
+    return res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
 });
 
 // app.get("/api/StepOutBackward", (req, res) => {

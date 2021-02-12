@@ -104,7 +104,7 @@ export function RichStackPane(db, box) {
                 key = objectMap.get(heap[key.id]);
             }
             const prefix = $s(key, {foreground: 'cyan'}).concat(" = ");
-            log.write(`rendering global ${prefix} ${inspect(value)}\n`);
+            // log.write(`rendering global ${prefix} ${inspect(value)}\n`);
             const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
             lines.push(...renderedValue);
         }
@@ -174,7 +174,7 @@ export function RichStackPane(db, box) {
     }
     
     function renderValueMultiLine(prefix, indent, value, heap, visited) {
-        log.write(`RenderValueMultiline(${inspect(prefix)}, ${inspect(indent)}, ${inspect(value)})\n`);
+        // log.write(`RenderValueMultiline(${inspect(prefix)}, ${inspect(indent)}, ${inspect(value)})\n`);
         if (!isHeapRef(value)) {
             return [$s(indent).concat(prefix).concat(JSON.stringify(value))];
         }

@@ -68,50 +68,136 @@ def get_input():
         data += codes
     return data
 
-def reset_term(original_settings):
-    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, original_settings)
-    print('\x1B[0m')
+def mouse_motion_on():
+    write('\x1B[?1003h')
+    
+def mouse_motion_off():
+    write('\x1B[?1003l')
 
-def main():
-    original_settings = termios.tcgetattr(sys.stdin)
-    api = HistoryAPI()
-    try:
-        tty.setraw(sys.stdin)
-        clear_screen()
-        
-        fun_call = api.fetch_fun_call(1)
-        
-        code_file = api.fetch_code_file(fun_call['code_file_id'])
-        code_lines = code_file['source'].split('\n')
-        snapshots = fun_call['snapshots']
-        largest_line_no = reduce(
-            lambda l, snapshot: max(l, snapshot['line_no']), snapshots, 0)
-        gutter_width = len(str(largest_line_no))
-        line_idx = 1
-        for i, snapshot in enumerate(snapshots):
-            next_snapshot = None
-            if i + 1 < len(snapshots):
-                next_snapshot = snapshots[i + 1]
-            line_no = snapshot['line_no']
-            if next_snapshot and line_no == next_snapshot['line_no']:
-                # skipping because next execution is on same line
-                continue
-            line = code_lines[line_no - 1]
-            line_no_display = '\u001b[36m' + str(line_no).rjust(gutter_width) + '\u001b[0m'
-            print_at(1, line_idx, line_no_display + '  ' + line)
-            line_idx += 1
-        
-        while True:
-            answer = get_input()
-            if answer == "q":
-                break
-            print(answer, end = '')
-            sys.stdout.flush()
-    except Exception as e:
-        reset_term(original_settings)
-        raise e
+def mouse_on():
+    write('\x1B[?1000h')
 
-    reset_term(original_settings)
+def mouse_off():
+    write('\x1B[?1000l')
+
+class Event(object):
+    def __init__(self, etype, **kwargs):
+        self.type = etype
+        self.__dict__.update(kwargs)
+    
+    def __repr__(self):
+        parts = [self.type]
+        for attr, value in self.__dict__.items():
+            if attr != "type":
+                parts.append("%s=%s" % (attr, value))
+        return "Evt(%s)" % (" ".join(parts))
+
+def decode_input(an_input):
+    events = []
+    codes = list(map(ord, an_input))
+    while len(codes) > 0:
+        if codes[0:3] == [27, 91, 77]:
+            # mouse event
+            if codes[3] == 32:
+                event = Event("mousedown", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+            elif codes[3] == 35:
+                x = codes[4] - 32
+                y = codes[5] - 32
+                event = Event("mouseup", x = x, y = y)
+                events.append(event)
+                if len(events) == 2 and events[0].type == "mousedown":
+                    # generate a click event
+                    events.append(Event("click", x = x, y = y))
+                codes = codes[6:]
+            elif codes[3] == 96:
+                event = Event("wheeldown", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+            elif codes[3] == 97:
+                event = Event("wheelup", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+        else:
+            # don't understand
+            break
+    return events
+    
+class CodeDisplayLine(object):
+    def __init__(self, code, snapshot):
+        self.code = code
+        self.snapshots = [snapshot]
+    
+    @property
+    def line_no(self):
+        return self.snapshots[0]['line_no']
+        
+    def add(self, snapshot):
+        self.snapshots.append(snapshot)
+
+class TimeNav(object):
+    
+    def save_term_settings(self):
+        self.original_settings = termios.tcgetattr(sys.stdin)
+    
+    def restore_term_settings(self):
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.original_settings)
+        print('\x1B[0m')
+        
+    def clean_up(self):
+        self.restore_term_settings()
+        mouse_off()
+        mouse_motion_off()
+    
+    def run(self):
+        self.save_term_settings()
+        api = HistoryAPI()
+        try:
+            tty.setraw(sys.stdin)
+            clear_screen()
+            
+            fun_call = api.fetch_fun_call(1)
+            
+            code_file = api.fetch_code_file(fun_call['code_file_id'])
+            code_lines = code_file['source'].split('\n')
+            snapshots = fun_call['snapshots']
+            
+            code_display_lines = []
+            curr_line = None
+            for i, snapshot in enumerate(snapshots):
+                if curr_line and curr_line.line_no == snapshot['line_no']:
+                    curr_line.add(snapshot)
+                else:
+                    curr_line = CodeDisplayLine(code_lines[snapshot['line_no'] - 1], snapshot)
+                    code_display_lines.append(curr_line)
+            
+            largest_line_no = reduce(
+                lambda l, snapshot: max(l, snapshot['line_no']), snapshots, 0)
+            gutter_width = len(str(largest_line_no))
+            
+            for i, display in enumerate(code_display_lines):
+                line_no = display.line_no
+                line_no_display = '\u001b[36m' + str(line_no).rjust(gutter_width) + '\u001b[0m'
+                print_at(1, i + 1, line_no_display + '  ' + display.code)
+            
+            mouse_on()
+            # mouse_motion_on()
+            
+            while True:
+                answer = get_input()
+                if answer == "q":
+                    break
+                if answer[0] == '\x1B':
+                    events = decode_input(answer)
+                    
+                    print(events, end = '')
+                sys.stdout.flush()
+            
+            self.clean_up()
+        except Exception as e:
+            self.clean_up()
+            raise e
     
 if __name__ == "__main__":
-    main()
+    TimeNav().run()

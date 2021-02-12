@@ -12,7 +12,8 @@ export function CodePane(db, box) {
         updateStep,
         updateDisplay,
         get textPane() { return textPane },
-        showCurrentLine() { scrollCodeIfNeeded() }
+        showCurrentLine() { scrollCodeIfNeeded() },
+        getLineNoForY
     };
     
     const log = db.log;
@@ -92,6 +93,10 @@ export function CodePane(db, box) {
             }
             textPane.updateAllLines(codeLines.map((line) => " " + line));
         }
+    }
+    
+    function getLineNoForY(y) {
+        return y + textPane.scrollTopOffset;
     }
     
     function updateDisplay() {

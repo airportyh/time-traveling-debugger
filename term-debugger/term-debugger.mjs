@@ -1,9 +1,8 @@
 /*
 TODO:
 
-* allow hiding superfluous variables
+* allow collapsing of data structures
 * hover over source to see value
-* current line query
 * zoom-in/zoom-out effect when going into or coming out of frame
 * current line where... query
 * last-mutation-of query
@@ -17,6 +16,7 @@ TODO:
 * back button
 * color coding of heap ids/objects
 
+* current line query (done)
 * show current snapshot number and other info in status bar
 * indicator on the side to show whether you are before or after the line (done)
 * bug in heap string rendering (two_sum.py) (done)
@@ -66,13 +66,18 @@ import { HistoryServer } from "./spawn-history-server.mjs";
 import simpleSleep from "simple-sleep";
 import StyledString from "styled_string";
 import { inspect } from "util";
+import exitHook from "exit-hook";
 
-async function TermDebugger() {
+function TermDebugger() {
     const self = {
         get apiUrl() { return url },
         get snapshot() { return snapshot },
         get cache() { return cache },
-        get log() { return log }
+        get log() { return log },
+        fastForward,
+        rewind,
+        start,
+        cleanUp
     };
     
     const log = fs.createWriteStream("term-debug.log");
@@ -81,43 +86,48 @@ async function TermDebugger() {
     let historyServer;
     const argument = process.argv[2];
     const mode = process.argv[3];
-    
-    if (!argument) {
-        console.log("Please provide either a URL or a file.");
-        exit();
-    }
-    
-    if (argument.startsWith("http://")) {
-        url = argument;
-    } else {
-        url = "http://localhost:1337";
-        // start the history server
-        log.write(`Starting history API server\n`);
-        historyServer = HistoryServer(argument, 1337);
-        await historyServer.start();
-    }
-    
-    const cache = DataCache(self);
-    
-    let snapshot = null;
-    
-    process.stdin.setRawMode(true);
-    process.stdin.on('data', onDataReceived);
-    clearScreen();
-    setCursorVisible(false);
-    setMouseButtonTracking(true);
-    
+    let cache;
+    let snapshot;
     let screen;
-    const [windowWidth, windowHeight] = process.stdout.getWindowSize();
+    let windowWidth, windowHeight;
     
-    if (mode === "low") {
-        screen = LowLevelScreen(self);
-    } else {
-        screen = HighLevelScreen(self);
+    async function start() {
+        if (!argument) {
+            console.log("Please provide either a URL or a file.");
+            exit();
+        }
+        
+        if (argument.startsWith("http://")) {
+            url = argument;
+        } else {
+            url = "http://localhost:1337";
+            // start the history server
+            log.write(`Starting history API server\n`);
+            historyServer = HistoryServer(argument, 1337);
+            await historyServer.start();
+        }
+        
+        cache = DataCache(self);
+        
+        snapshot = null;
+        
+        process.stdin.setRawMode(true);
+        process.stdin.on('data', onDataReceived);
+        clearScreen();
+        setCursorVisible(false);
+        setMouseButtonTracking(true);
+        
+        [windowWidth, windowHeight] = process.stdout.getWindowSize();
+        
+        if (mode === "low") {
+            screen = LowLevelScreen(self);
+        } else {
+            screen = HighLevelScreen(self);
+        }
+        await fetchFirstStep();
+        screen.updateDisplay();
+        updateStatusBar();
     }
-    await fetchFirstStep();
-    screen.updateDisplay();
-    updateStatusBar();
     
     function onDataReceived(data) {
         log.write("Data: ");
@@ -138,6 +148,10 @@ async function TermDebugger() {
             stepForward();
         } else if (isStepOutKey(data)) {
             stepOut();
+        } else if (isMouseClick(data)) {
+            screen.mouseClick(data);
+        } else if (isCtrlMouseClick(data)) {
+            screen.ctrlMouseClick(data);
         } else if (isWheelUpEvent(data)) {
             scrollUp(data);
         } else if (isWheelDownEvent(data)) {
@@ -207,6 +221,18 @@ async function TermDebugger() {
         await stepWithFetch(`${url}/api/StepOutBackward?id=${snapshot.id}`);
     }
     
+    async function fastForward(lineNo) {
+        const funCall = cache.funCallMap.get(snapshot.fun_call_id);
+        const codeFileId = funCall.code_file_id;
+        await stepWithFetch(`${url}/api/FastForward?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
+    }
+    
+    async function rewind(lineNo) {
+        const funCall = cache.funCallMap.get(snapshot.fun_call_id);
+        const codeFileId = funCall.code_file_id;
+        await stepWithFetch(`${url}/api/Rewind?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
+    }
+    
     async function stepWithFetch(url) {
         let start = new Date();
         const response = await fetch(url);
@@ -269,14 +295,18 @@ async function TermDebugger() {
         return screen.pickTargetPane(x);
     }
     
-    function exit() {
+    function cleanUp() {
         process.stdin.setRawMode(false);
         setCursorVisible(true);
         setMouseButtonTracking(false);
         if (historyServer) {
             historyServer.stop();
         }
-        process.exit(0);
+    }
+    
+    function exit() {
+        cleanUp();
+        process.exit(0)
     }
     
     return self;
@@ -287,7 +317,9 @@ function HighLevelScreen(db) {
         initialDisplay,
         updateDisplay,
         pickTargetPane,
-        unsetStep
+        unsetStep,
+        mouseClick,
+        ctrlMouseClick
     };
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
@@ -335,6 +367,24 @@ function HighLevelScreen(db) {
         }
     }
     
+    function mouseClick(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            const lineNo = codePane.getLineNoForY(y);
+            db.fastForward(lineNo);
+        }
+    }
+    
+    function ctrlMouseClick(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            const lineNo = codePane.getLineNoForY(y);
+            db.rewind(lineNo);
+        }
+    }
+    
     return self;
 }
 
@@ -343,7 +393,9 @@ function LowLevelScreen(db) {
         initialDisplay,
         updateDisplay,
         pickTargetPane,
-        unsetStep
+        unsetStep,
+        mouseClick,
+        ctrlMouseClick
     };
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
@@ -393,6 +445,24 @@ function LowLevelScreen(db) {
         codePane.updateDisplay();
     }
     
+    function mouseClick(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            const lineNo = codePane.getLineNoForY(y);
+            db.fastForward(lineNo);
+        }
+    }
+    
+    function ctrlMouseClick(data) {
+        const x = data[4] - 32;
+        const y = data[5] - 32;
+        if (x < dividerColumn1) {
+            const lineNo = codePane.getLineNoForY(y);
+            db.rewind(lineNo);
+        }
+    }
+    
     function pickTargetPane(x) {
         if (x < dividerColumn1) {
             return codePane;
@@ -406,7 +476,12 @@ function LowLevelScreen(db) {
     return self;
 }
 
-TermDebugger().catch((e) => console.log(e.stack));
+const db = TermDebugger();
+exitHook(db.cleanUp);
+
+db.start().catch((e) => {
+    console.log(e.stack)
+});
 
 function isStepIntoKey(data) {
     return String(data) === "i";
@@ -466,6 +541,16 @@ function isWheelUpAltEvent(data) {
 function isWheelDownAltEvent(data) {
     return (data.length ===  6 || data.length === 12) && 
         data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 104;
+}
+
+function isMouseClick(data) {
+    return (data.length === 6) &&
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 35;
+}
+
+function isCtrlMouseClick(data) {
+    return (data.length === 6) &&
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 51;
 }
 
 

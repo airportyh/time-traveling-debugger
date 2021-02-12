@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "exit-hook": "^2.2.0",
     "node-fetch": "^2.6.1",
     "simple-sleep": "^1.0.2",
     "styled_string": "0.0.1"
