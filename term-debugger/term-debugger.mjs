@@ -149,9 +149,19 @@ function TermDebugger() {
         } else if (isStepOutKey(data)) {
             stepOut();
         } else if (isMouseClick(data)) {
-            screen.mouseClick(data);
+            const x = data[4] - 32;
+            const y = data[5] - 32;
+            if (screen.isPointInCodePane(x, y)) {
+                const lineNo = screen.codePane.getLineNoForY(y);
+                fastForward(lineNo);
+            }
         } else if (isCtrlMouseClick(data)) {
-            screen.ctrlMouseClick(data);
+            const x = data[4] - 32;
+            const y = data[5] - 32;
+            if (screen.isPointInCodePane(x, y)) {
+                const lineNo = screen.codePane.getLineNoForY(y);
+                rewind(lineNo);
+            }
         } else if (isWheelUpEvent(data)) {
             scrollUp(data);
         } else if (isWheelDownEvent(data)) {
@@ -318,8 +328,8 @@ function HighLevelScreen(db) {
         updateDisplay,
         pickTargetPane,
         unsetStep,
-        mouseClick,
-        ctrlMouseClick
+        isPointInCodePane,
+        get codePane() { return codePane }
     };
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
@@ -367,22 +377,8 @@ function HighLevelScreen(db) {
         }
     }
     
-    function mouseClick(data) {
-        const x = data[4] - 32;
-        const y = data[5] - 32;
-        if (x < dividerColumn1) {
-            const lineNo = codePane.getLineNoForY(y);
-            db.fastForward(lineNo);
-        }
-    }
-    
-    function ctrlMouseClick(data) {
-        const x = data[4] - 32;
-        const y = data[5] - 32;
-        if (x < dividerColumn1) {
-            const lineNo = codePane.getLineNoForY(y);
-            db.rewind(lineNo);
-        }
+    function isPointInCodePane(x, y) {
+        return x < dividerColumn1;
     }
     
     return self;
@@ -394,8 +390,8 @@ function LowLevelScreen(db) {
         updateDisplay,
         pickTargetPane,
         unsetStep,
-        mouseClick,
-        ctrlMouseClick
+        isPointInCodePane,
+        get codePane() { return codePane }
     };
     
     const [windowWidth, windowHeight] = process.stdout.getWindowSize();
@@ -445,22 +441,8 @@ function LowLevelScreen(db) {
         codePane.updateDisplay();
     }
     
-    function mouseClick(data) {
-        const x = data[4] - 32;
-        const y = data[5] - 32;
-        if (x < dividerColumn1) {
-            const lineNo = codePane.getLineNoForY(y);
-            db.fastForward(lineNo);
-        }
-    }
-    
-    function ctrlMouseClick(data) {
-        const x = data[4] - 32;
-        const y = data[5] - 32;
-        if (x < dividerColumn1) {
-            const lineNo = codePane.getLineNoForY(y);
-            db.rewind(lineNo);
-        }
+    function isPointInCodePane(x, y) {
+        return x < dividerColumn1;
     }
     
     function pickTargetPane(x) {
