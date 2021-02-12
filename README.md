@@ -38,6 +38,7 @@ platform and is interested in testing this out, let us know by submitting an iss
 3. `npm-install` - this will install the dependencies (via npm) for each of the JavaScript-based
 subprojects.
 4. To build the modified version of CPython:
+    0. Install `gcc` if you haven't. For OSX, you can install either the Apple Command Line Developer Tools or XCode (XCode takes up much more disk space).
     1. `get-python` - this will use git's submodule feature to fetch the code for cpython.
     2. `cd cpython`
     3. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available.
@@ -78,3 +79,4 @@ This project is dependent on the following technologies:
 * TypeScript
 * HTML5 Canvas
 * Webpack
+* gcc / automake
