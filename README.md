@@ -35,9 +35,14 @@ platform and have trouble with the setup, let us know by submitting an issue.
 
 1. Clone this repo and cd into the project directory.
 2. `. add-path` - this will add the project's `bin` directory to your path.
-3. `get-python` - this will use git's submodule feature to fetch the code for cpython.
-4. `npm-install` - this will install the dependencies (via npm) for each of the JavaScript-based
+3. `npm-install` - this will install the dependencies (via npm) for each of the JavaScript-based
 subprojects.
+4. To build the modified version of CPython:
+    1. `get-python` - this will use git's submodule feature to fetch the code for cpython.
+    2. `cd cpython`
+    3. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available.
+    4. `make` - build the Python
+    5. `cd ..`
 
 ## Command-Line Tools
 
@@ -52,10 +57,11 @@ REPL or used to execute a built-in module.
 history file as output with the `.sqlite` suffix. For example: `recreate fib.rewind` will
 create a SQLite database called `fib.sqlite`. This database file can in turn by used to
 debug the originating program using one of the debugger frontends.
-3. `debug` - starts the terminal-based step debugger. This command takes a history file as
-input. For example: `debug fib.sqlite`. This debugger has a ncurses-style GUI and is controlled
-using one-stroke keyboard commands similar less and nano. It also supports mouse and scroll-wheel
-interactions for terminals that support it.
+3. `debug` - starts the terminal-based step debugger. This command takes a `.rewind` log file or a history file as input. For example: `debug fib.sqlite` or `debug fib.rewind`. 
+If the input is a `.rewind` log file, it will call the `recreate` command to convert it to
+a `.sqlite` file before launching the debugger. This debugger has a ncurses-style GUI 
+and is controlled using one-stroke keyboard commands similar less and nano. 
+It also supports mouse and scroll-wheel interactions for terminals that support it.
 4. `zoom` - starts the zoom debugger. This command also takes a history file as input. For
 example: `zoom fib.sqlite`. Running this command spawns a browser window within which
 the HTML5 canvas-based debugger executes.
