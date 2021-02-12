@@ -1,0 +1,10 @@
+# https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/bin"
+
+echo "Added $DIR to your path"
+echo
+echo "For added convinience, add the following line to your .bash_profile or .bashrc or other shell startup script:"
+echo "export PATH=\$PATH:$DIR"
+
+export PATH=$PATH:$DIR
+

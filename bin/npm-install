@@ -1,0 +1,20 @@
+echo "cd history-api"
+cd history-api
+echo "npm install"
+npm install
+cd ..
+echo "cd play-lang"
+cd play-lang
+echo "npm install"
+npm install
+cd ..
+echo "cd term-debugger"
+cd term-debugger
+echo "npm install"
+npm install
+cd ..
+echo "cd zoom-debugger"
+cd zoom-debugger
+echo "npm install"
+npm install
+cd ..
