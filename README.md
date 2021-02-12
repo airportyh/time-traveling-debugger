@@ -39,10 +39,10 @@ platform and is interested in testing this out, let us know by submitting an iss
 subprojects.
 4. To build the modified version of CPython:
     1. Install `gcc` if you haven't. For OSX, you can install either the Apple Command Line Developer Tools or XCode (XCode takes up much more disk space).
-    2. `get-python` - this will use git's submodule feature to fetch the code for cpython.
+    2. `get-python` - this will use git's submodule feature to fetch the code for cpython. (~10 minutes)
     3. `cd cpython`
-    4. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available.
-    5. `make` - build the Python
+    4. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available. (~2 minutes)
+    5. `make` - build the Python (~5 minutes)
     6. `cd ..`
 
 ## Command-Line Tools
