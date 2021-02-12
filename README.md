@@ -10,13 +10,13 @@ investigate the cause of bugs.
 
 ## Subprojects
 
-* [cpython](https://github.com/airportyh/cpython) - a modified version of Python that generates a log file as a program is executed. That log contains info that is needed to recreate the past
+* [cpython](https://github.com/airportyh/cpython) - a modified version of Python (Code-named: Python Rewind) that generates a log file as a program is executed. That log contains info that is needed to recreate the past
 states of the program, which is handled by the `recreate.py` program. `recreate.py` generates
 a SQLite-based history file.
 * [history-api](./history-api) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
 off this API.
 * [term-debugger](./term-debugger) - a terminal-based step debugger frontend written in Node.js
-and native EcmaScript modules.
+and EcmaScript modules.
 * [zoom-debugger](./zoom-debugger) - a HTML5 Canvas-based ZUI debugger frontend written in TypeScript with Webpack as the bundler.
 * [json-like](./json-like) - a parser for a JSON-like data format with features specific to
 the time-traveling debugger, written in JavaScript.
@@ -38,11 +38,12 @@ platform and is interested in testing this out, let us know by submitting an iss
 3. `npm-install` - this will install the dependencies (via npm) for each of the JavaScript-based
 subprojects.
 4. To build the modified version of CPython:
-    1. `get-python` - this will use git's submodule feature to fetch the code for cpython.
-    2. `cd cpython`
-    3. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available.
-    4. `make` - build the Python
-    5. `cd ..`
+    1. Install `gcc` if you haven't. For OSX, you can install either the Apple Command Line Developer Tools or XCode (XCode takes up much more disk space).
+    2. `get-python` - this will use git's submodule feature to fetch the code for cpython. (~10 minutes)
+    3. `cd cpython`
+    4. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available. (~2 minutes)
+    5. `make` - build the Python (~5 minutes)
+    6. `cd ..`
 
 ## Command-Line Tools
 
@@ -78,3 +79,4 @@ This project is dependent on the following technologies:
 * TypeScript
 * HTML5 Canvas
 * Webpack
+* gcc / automake
