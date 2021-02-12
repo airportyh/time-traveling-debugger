@@ -1,6 +1,6 @@
 # Time Navigator
 
-time_nav is an implementation of the terminal-based time-traveling debugger in
+timenav is an implementation of the terminal-based time-traveling debugger in
 lieu of term-debugger. It is implemented in Python. The goals of this project are:
 
 * Develop the code with the benefit of the Python debugger to experience what it's
