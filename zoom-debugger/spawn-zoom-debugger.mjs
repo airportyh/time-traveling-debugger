@@ -1,4 +1,4 @@
-import { HistoryServer } from "../spawn-history-server.mjs";
+import { HistoryServer } from "./spawn-history-server.mjs";
 
 import child_process from "child_process";
 import path from "path";
@@ -30,13 +30,14 @@ async function main() {
     }
     
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const webpackPath = path.resolve(__dirname, "../../node_modules/.bin/webpack");
-    const webpackConfigPath = path.resolve(__dirname, "../../zoom-debugger.webpack.test.config.js");
+    const webpackPath = path.resolve(__dirname, "./node_modules/.bin/webpack");
+    const webpackConfigPath = path.resolve(__dirname, "./webpack.test.config.js");
+    const options = { cwd: __dirname };
     const proc = child_process.spawn(webpackPath, [
         "serve",
         "--config", 
         webpackConfigPath
-    ]);
+    ], options);
     
     proc.stdout.pipe(process.stdout);
     proc.stderr.pipe(process.stderr);

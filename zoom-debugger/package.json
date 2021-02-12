@@ -8,12 +8,13 @@
     "build": "webpack --config webpack.lib.config.js"
   },
   "dependencies": {
+    "exit-hook": "^2.2.0",
     "html-webpack-plugin": "^5.0.0",
+    "ts-loader": "^8.0.2",
+    "typescript": "^3.9.7",
     "webpack": "^5.21.2",
     "webpack-cli": "^4.5.0",
-    "webpack-dev-server": "^3.11.2",
-    "typescript": "^3.9.7",
-    "ts-loader": "^8.0.2"
+    "webpack-dev-server": "^3.11.2"
   },
   "keywords": [],
   "author": "",
