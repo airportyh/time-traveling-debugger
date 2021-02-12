@@ -16,7 +16,7 @@ a SQLite-based history file.
 * [history-api](./history-api) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
 off this API.
 * [term-debugger](./term-debugger) - a terminal-based step debugger frontend written in Node.js
-and native EcmaScript modules.
+and EcmaScript modules.
 * [zoom-debugger](./zoom-debugger) - a HTML5 Canvas-based ZUI debugger frontend written in TypeScript with Webpack as the bundler.
 * [json-like](./json-like) - a parser for a JSON-like data format with features specific to
 the time-traveling debugger, written in JavaScript.
