@@ -27,19 +27,6 @@ be the next iteration of the debugger frontend. It also aims to be a use case fo
 itself as the debugger will be developed with the help of the debugger itself - a case of
 dog-fooding.
 
-## Dependencies
-
-This project is dependent on the following technologies:
-
-* Node.js / Express
-* Python 3
-* SQLite
-* better-sqlite3
-* Nearley.js / Moo.js
-* TypeScript
-* HTML5 Canvas
-* Webpack
-
 ## Setup
 
 This section is for developers who want to test out or modify the code.
@@ -72,3 +59,16 @@ interactions for terminals that support it.
 4. `zoom` - starts the zoom debugger. This command also takes a history file as input. For
 example: `zoom fib.sqlite`. Running this command spawns a browser window within which
 the HTML5 canvas-based debugger executes.
+
+## Dependencies
+
+This project is dependent on the following technologies:
+
+* Node.js / Express
+* Python 3
+* SQLite
+* better-sqlite3
+* Nearley.js / Moo.js
+* TypeScript
+* HTML5 Canvas
+* Webpack
