@@ -1,7 +1,7 @@
 # Time Traveling Debugger
 
 This project is an attempt to build a usable, practical, and useful
-*time-traveling* debugger, viable for professional use.
+*time-traveling* debugger viable for professional use.
 A time-traveling debugger works by recording the each state in the
 execution of a program into a database - we call that the history file - 
 and then allowing the programmer to navigate through this file to 
