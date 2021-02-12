@@ -10,7 +10,7 @@ investigate the cause of bugs.
 
 ## Subprojects
 
-* [cpython](https://github.com/airportyh/cpython) - a modified version of Python that generates a log file as a program is executed. That log contains info that is needed to recreate the past
+* [cpython](https://github.com/airportyh/cpython) - a modified version of Python (Code-named: Python Rewind) that generates a log file as a program is executed. That log contains info that is needed to recreate the past
 states of the program, which is handled by the `recreate.py` program. `recreate.py` generates
 a SQLite-based history file.
 * [history-api](./history-api) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
