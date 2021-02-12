@@ -1,3 +1,0 @@
-#! /bin/sh
-echo "node src/zoom-debugger/spawn-zoom-debugger.mjs $1"
-node src/zoom-debugger/spawn-zoom-debugger.mjs $1
