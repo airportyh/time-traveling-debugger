@@ -155,7 +155,7 @@ function TermDebugger() {
                 const lineNo = screen.codePane.getLineNoForY(y);
                 fastForward(lineNo);
             }
-        } else if (isCtrlMouseClick(data)) {
+        } else if (isCtrlMouseClick(data) || isRightMouseClick(data)) {
             const x = data[4] - 32;
             const y = data[5] - 32;
             if (screen.isPointInCodePane(x, y)) {
@@ -528,6 +528,11 @@ function isWheelDownAltEvent(data) {
 function isMouseClick(data) {
     return (data.length === 6) &&
         data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 35;
+}
+
+function isRightMouseClick(data) {
+    return (data.length === 6) &&
+        data[0] === 27 && data[1] === 91 && data[2] === 77 && data[3] === 34;
 }
 
 function isCtrlMouseClick(data) {
