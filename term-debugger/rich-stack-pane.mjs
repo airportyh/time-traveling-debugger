@@ -18,6 +18,7 @@ export function RichStackPane(db, box) {
     const objectMap = db.cache.objectMap;
     const funCallMap = db.cache.funCallMap;
     const textPane = ScrollableTextPane(db, box);
+    const expandCollapseStates = new Map();
     
     function updateDisplay() {
         const lines = [];
@@ -52,7 +53,7 @@ export function RichStackPane(db, box) {
         const variables = objectMap.get(heap[locals]);
         variables.forEach((value, key) => {
             const prefix = $s(key, {foreground: 'green'}).concat(" = ");
-            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set(), [key]);
             lines.push(...renderedValue);
         });
     }
@@ -64,7 +65,7 @@ export function RichStackPane(db, box) {
             for (let [key, value] of cellvarsEntries) {
                 value = resolve(value, heap).get("ob_ref") || null;
                 const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
-                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set(), [key]);
                 lines.push(...renderedValue);
             }
         }
@@ -75,7 +76,7 @@ export function RichStackPane(db, box) {
             for (let [key, value] of freevarsEntries) {
                 value = resolve(value, heap).get("ob_ref") || null;
                 const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
-                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+                const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set(), [key]);
                 lines.push(...renderedValue);
             }
         }
@@ -105,22 +106,22 @@ export function RichStackPane(db, box) {
             }
             const prefix = $s(key, {foreground: 'cyan'}).concat(" = ");
             // log.write(`rendering global ${prefix} ${inspect(value)}\n`);
-            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set());
+            const renderedValue = renderValue(prefix, $s("  "), value, heap, new Set(), [key]);
             lines.push(...renderedValue);
         }
     }
     
-    function renderValue(prefix, indent, value, heap, visited) {
+    function renderValue(prefix, indent, value, heap, visited, path) {
         //log.write(`renderValue(${prefix}, ${inspect(value)}, ${inspect(heap)})\n`);
         const localVisited = new Set(visited);
         const oneLine = renderValueOneLine(value, heap, localVisited);
-        if (prefix.length + oneLine.length < box.width) {
+        if (indent.length + prefix.length + oneLine.length < box.width) {
             for (let id of localVisited) {
                 visited.add(id);
             }
             return [$s(indent).concat(prefix).concat(oneLine)];
         } else {
-            return renderValueMultiLine(prefix, indent, value, heap, visited);
+            return renderValueMultiLine(prefix, indent, value, heap, visited, path);
         }
     }
     
@@ -173,13 +174,14 @@ export function RichStackPane(db, box) {
         }
     }
     
-    function renderValueMultiLine(prefix, indent, value, heap, visited) {
-        // log.write(`RenderValueMultiline(${inspect(prefix)}, ${inspect(indent)}, ${inspect(value)})\n`);
+    function renderValueMultiLine(prefix, indent, value, heap, visited, path) {
+        // log.write(`RenderValueMultiline(${inspect(path)}, ${inspect(value)})\n`);
         if (!isHeapRef(value)) {
             return [$s(indent).concat(prefix).concat(JSON.stringify(value))];
         }
         const ref = value;
         const refId = ref.id;
+        const childPath = [...path, refId];
         if (!(refId in heap)) {
             return "{}";
         }
@@ -193,23 +195,27 @@ export function RichStackPane(db, box) {
         if (typeof object === "string") {
             lines.push($s(indent).concat(prefix).concat(JSON.stringify(object)));
         } else if (Array.isArray(object)) {
-            let begin = "[";
+            const handle = $s("▼", { foreground: 'yellow' });
+            handle.path = path;
+            let begin = $s("[ ").concat(handle);
             if (object.__tag__) {
-                begin = `<${object.__tag__}>[`;
+                begin = `<${object.__tag__}>${begin}`;
             }
             lines.push($s(indent).concat(prefix).concat(begin));
             for (let i = 0; i < object.length; i++) {
                 let item = object[i];
-                lines.push(...renderValue($s(""), $s(indent).concat("  "), item, heap, visited));
+                lines.push(...
+                    renderValue($s(""), $s(indent).concat("  "), 
+                    item, heap, visited, childPath));
                 if (i !== object.length - 1) {
                     lines[lines.length - 1] += ", ";
                 }
             }
             lines.push($s(indent).concat("]"));
         } else if (object instanceof Map) {
-            let begin = "{";
+            let begin = "{ ▼";
             if (object.__tag__) {
-                begin = `<${object.__tag__}>{`;
+                begin = `<${object.__tag__}>${begin}`;
             }
             // log.write(`Rendering map: ${inspect(object)}\n`);
             lines.push($s(indent).concat(prefix).concat(begin));
@@ -217,12 +223,13 @@ export function RichStackPane(db, box) {
             // log.write(`map keys: ${keys}\n`);
             for (let i = 0; i < keys.length; i++) {
                 let key = keys[i];
-                const keyDisplay = renderValue($s(""), "", key, heap, visited);
+                const keyDisplay = renderValue($s(""), "", key, heap, visited, childPath);
                 //log.write(`keyDisplay: ${inspect(keyDisplay)}\n`);
                 lines.push(...keyDisplay.slice(0, keyDisplay.length - 1));
                 const keyDisplayLastLine = keyDisplay[keyDisplay.length - 1];
                 let value = object.get(key);
-                const valueDisplay = renderValue(keyDisplayLastLine + ": ", indent + "  ", value, heap, visited);
+                const valueDisplay = renderValue(
+                    keyDisplayLastLine + ": ", indent + "  ", value, heap, visited, childPath);
                 // log.write(`valueDisplay: ${inspect(valueDisplay)}\n`);
                 lines.push(...valueDisplay);
                 if (i !== keys.length - 1) {

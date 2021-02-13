@@ -30,29 +30,6 @@ This should create a history file with the `.history` suffix.
 For example, if you ran `fib.play`, then that should create
 the file `fib.history` in the same directory. The history file contains all
 past execution states of the program.
-
-## Running the Step Debugger
-
-To debug a program after having run it:
-
-        `./debug <.history file>`
-        
-You should see a terminal-based GUI appear after a brief moment, which should allow you
-to navigate the history of the program. Here are the commands:
-
-* `Down Arrow` - step over
-* `Up Arrow` - step over backwards
-* `i` - step into
-* `o` - step out
-* `q` - quit the debugger
-
-You also have the ability to scroll using a mouse wheel or track pad gesture within the
-various panes. To scroll horizontally, hold down `Alt` while using the mouse wheel or
-track pad gesture.
-
-Also, you can use low-level mode which allows you to see the heap objects in more detail:
-
-        `./debug <.history file> low`
         
 ## Running the Zoom Debugger
 
