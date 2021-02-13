@@ -30,31 +30,6 @@ This should create a history file with the `.history` suffix.
 For example, if you ran `fib.play`, then that should create
 the file `fib.history` in the same directory. The history file contains all
 past execution states of the program.
-        
-## Running the Zoom Debugger
-
-The zoom debugger is an experimental debugger that uses a Zooming User Interface. To run it:
-
-        `./debug-zoom <.history file>`
-
-## Videos about the Time Traveling Debugger
-
-The current major experimental feature I am going for is the time traveling debugger,
-to learn more about it, you can watch these videos:
-
-* [Time Traveling Debugger - Part 1](https://www.youtube.com/watch?v=pDOLtvPjYXM)
-* [Time Traveling Debugger - Part 2](https://www.youtube.com/watch?v=dTv9aDZqEkI)
-* [Time Traveling Debugger - Part 3](https://www.youtube.com/watch?v=esvlb3ss14A)
-* [Dream of the Time Machine](https://www.youtube.com/watch?v=xwhm7g9GjuY)
-* [Implementing Closures in Play Lang Playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Aw1Q4NuIZq9c87FDw_EN-S)
-* [Live Code: Debug Mode and Suspension](https://www.youtube.com/watch?v=dkuhfht93vQ&list=PLSq9OFrD2Q3BKZs7E-Un55QYzeoiaeSTk)
-* [Live Code: Todo MVC](https://www.youtube.com/watch?v=5kr0p2RddSw&list=PLSq9OFrD2Q3BpxGnJXrhtDyN39p1UYU9z)
-* [Time Machine Status Update 1](https://www.youtube.com/watch?v=USyEofrn2aI)
-
-## Python Implementation
-
-I am also working on a modified version of Python which can log and recreate
-the past state of the program: https://github.com/airportyh/cpython.
 
 ## Todo
 

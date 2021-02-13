@@ -67,6 +67,21 @@ It also supports mouse and scroll-wheel interactions for terminals that support 
 example: `zoom fib.sqlite`. Running this command spawns a browser window within which
 the HTML5 canvas-based debugger executes.
 
+## Videos about the Time Traveling Debugger
+
+The current major experimental feature I am going for is the time traveling debugger,
+to learn more about it, you can watch these videos:
+
+* [Time Traveling Debugger - Part 1](https://www.youtube.com/watch?v=pDOLtvPjYXM)
+* [Time Traveling Debugger - Part 2](https://www.youtube.com/watch?v=dTv9aDZqEkI)
+* [Time Traveling Debugger - Part 3](https://www.youtube.com/watch?v=esvlb3ss14A)
+* [Dream of the Time Machine](https://www.youtube.com/watch?v=xwhm7g9GjuY)
+* [Implementing Closures in Play Lang Playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Aw1Q4NuIZq9c87FDw_EN-S)
+* [Live Code: Debug Mode and Suspension](https://www.youtube.com/watch?v=dkuhfht93vQ&list=PLSq9OFrD2Q3BKZs7E-Un55QYzeoiaeSTk)
+* [Live Code: Todo MVC](https://www.youtube.com/watch?v=5kr0p2RddSw&list=PLSq9OFrD2Q3BpxGnJXrhtDyN39p1UYU9z)
+* [Time Machine Status Update 1](https://www.youtube.com/watch?v=USyEofrn2aI)
+* [Introducing the Deep-Zoom Debugger (5 minutes)](https://www.youtube.com/watch?v=QE54x1ahHa4)
+
 ## Dependencies
 
 This project is dependent on the following technologies:
