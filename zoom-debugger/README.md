@@ -12,6 +12,15 @@ Here are three introductory videos about the zoom debugger:
 * [Deep-Zoom Debugger Demo with Huiqi Zhou (17 minutes)](https://www.youtube.com/watch?v=lVb9bt7wDy8&t)
 * [Google-Earth-Like Zooming File Explorer](https://www.youtube.com/watch?v=pXQTNxPharY&t)
 
+## Running the Zoom Debugger
+
+To run it:
+
+`zoom <.history or .sqlite file>`
+
+The history file supplied to the zoom debugger is a SQLite database containing the past states
+of the executed program.
+
 ## Making Of
 
 I have documented the work on this debugger as a [video series](https://www.youtube.com/watch?v=kzrWQt__R8Q&list=PLSq9OFrD2Q3Bp9T2SiAAxOF60VSbGAtHn).
