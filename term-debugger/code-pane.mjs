@@ -5,6 +5,7 @@ import {
 } from "./term-utils.mjs";
 import { ScrollableTextPane } from "./scrollable-text-pane.mjs";
 import StyledString from "styled_string";
+import { inspect } from "util";
 
 export function CodePane(db, box) {
     const self = {
@@ -19,6 +20,7 @@ export function CodePane(db, box) {
     const log = db.log;
     const textPane = ScrollableTextPane(db, box);
     const funCallMap = db.cache.funCallMap;
+    const funMap = db.cache.funMap;
     const codeFileMap = db.cache.codeFileMap;
     let codeLines = [];
     let codeFileId = null;
@@ -46,7 +48,8 @@ export function CodePane(db, box) {
                 }));
         } else {
             const funCall = funCallMap.get(db.snapshot.fun_call_id);
-            codeLines = [`${funCall.fun_name}() line ${db.snapshot.line_no}. No source code available :(`];
+            const fun = funMap.get(funCall.fun_id);
+            codeLines = [`${fun.name}() line ${db.snapshot.line_no}. No source code available :(`];
             textPane.updateAllLines(codeLines);
         }
     }
@@ -73,8 +76,10 @@ export function CodePane(db, box) {
     
     function getCodeFile() {
         const funCall = getFunCall();
-        if (funCall.code_file_id) {
-            return codeFileMap.get(funCall.code_file_id);
+        const fun = funMap.get(funCall.fun_id);
+        if (fun.code_file_id) {
+            const codeFile = codeFileMap.get(fun.code_file_id);
+            return codeFile;
         }
         return null;
     }
@@ -88,7 +93,8 @@ export function CodePane(db, box) {
                 codeFileId = codeFile.id;
             } else {
                 const funCall = getFunCall();
-                codeLines = [`${funCall.fun_name}() line ${db.snapshot.line_no}. No source code available :(`];
+                const fun = funMap.get(funCall.fun_id);
+                codeLines = [`${fun.name}() line ${db.snapshot.line_no}. No source code available :(`];
                 codeFileId = null;
             }
             textPane.updateAllLines(codeLines.map((line) => " " + line));

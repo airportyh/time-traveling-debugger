@@ -17,6 +17,7 @@ export function StackPane(db, box) {
     function updateDisplay() {
         const objectMap = db.cache.objectMap;
         const funCallMap = db.cache.funCallMap;
+        const funMap = db.cache.funMap;
         const lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
         let stack = objectMap.get(db.snapshot.stack);
@@ -27,7 +28,8 @@ export function StackPane(db, box) {
             // log.write(`Frame: ${inspect(frame)}\n`);
             const variables = objectMap.get(stack.get("variables").id);
             const funCall = funCallMap.get(stack.get("funCall"));
-            lines.push(funCall.fun_name + "()");
+            const fun = funMap.get(funCall.fun_id);
+            lines.push(fun.name + "()");
             // log.write(`Variables: ${inspect(variables)}\n`);
             // log.write(`FunCall: ${inspect(funCall)}\n`);
             for (let [key, value] of variables.entries()) {

@@ -21,6 +21,7 @@ app.use(session({
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
+const getFun = db.prepare("select * from Fun where id = ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
 const getError = db.prepare("select * from Error limit 1");
@@ -89,7 +90,8 @@ const fastForwardStatement = db.prepare(`
     select Snapshot.*
     from Snapshot 
     inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
-    where FunCall.code_file_id = ?
+    inner join Fun on (FunCall.fun_id = Fun.id)
+    where Fun.code_file_id = ?
         and Snapshot.line_no = ?
         and Snapshot.id > ? order by id limit 1
 `);
@@ -97,7 +99,8 @@ const rewindStatement = db.prepare(`
     select Snapshot.*
     from Snapshot 
     inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
-    where FunCall.code_file_id = ?
+    inner join Fun on (FunCall.fun_id = Fun.id)
+    where Fun.code_file_id = ?
         and Snapshot.line_no = ?
         and Snapshot.id < ? order by id desc limit 1
 `);
@@ -125,6 +128,12 @@ app.get("/api/Object", (req, res) => {
         const result = getObjects(ids);
         res.json(result);
     }
+});
+
+app.get("/api/Fun", (req, res) => {
+    const id = req.query.id;
+    const result = getFun.get(id);
+    res.json(result);
 });
 
 app.get("/api/CodeFile", (req, res) => {

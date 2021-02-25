@@ -7,12 +7,14 @@ export function DataCache(db) {
         update,
         get objectMap() { return objectMap },
         get funCallMap() { return funCallMap },
+        get funMap() { return funMap },
         get codeFileMap() { return codeFileMap },
     };
     
     const log = db.log;
     const objectMap = new Map();
     const funCallMap = new Map();
+    const funMap = new Map();
     const codeFileMap = new Map();
     
     async function update(snapshot) {
@@ -30,11 +32,17 @@ export function DataCache(db) {
         
         // fetch code file if needed
         const funCall = funCallMap.get(snapshot.fun_call_id);
-        if (funCall.code_file_id) {
-            if (!codeFileMap.has(funCall.code_file_id)) {
-                const response = await fetch(`${db.apiUrl}/api/CodeFile?id=${funCall.code_file_id}`);
+        if (!funMap.has(funCall.fun_id)) {
+            const response = await fetch(`${db.apiUrl}/api/Fun?id=${funCall.fun_id}`);
+            const fun = await response.json();
+            funMap.set(funCall.fun_id, fun);
+        }
+        const fun = funMap.get(funCall.fun_id);
+        if (fun.code_file_id) {
+            if (!codeFileMap.has(fun.code_file_id)) {
+                const response = await fetch(`${db.apiUrl}/api/CodeFile?id=${fun.code_file_id}`);
                 const codeFile = await response.json();
-                codeFileMap.set(funCall.code_file_id, codeFile);
+                codeFileMap.set(fun.code_file_id, codeFile);
             }
         }
     }

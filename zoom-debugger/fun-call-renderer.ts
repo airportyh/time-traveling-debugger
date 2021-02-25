@@ -360,10 +360,12 @@ export class FunCallRenderer implements ZoomRenderable {
                 if (locals.has(varName)) {
                     varValue = locals.get(varName);
                 }
-                const globals = this.context.dataCache.getObject(
-                    funCallExpanded.heapMap[nextSnapshot.heap + "/" + funCallExpanded.globals]);
-                if (globals.has(varName)) {
-                    varValue = globals.get(varName);
+                if (funCallExpanded.globals) {
+                    const globals = this.context.dataCache.getObject(
+                        funCallExpanded.heapMap[nextSnapshot.heap + "/" + funCallExpanded.globals]);
+                    if (globals.has(varName)) {
+                        varValue = globals.get(varName);
+                    }
                 }
                 if (funCallExpanded.closure_cellvars) {
                     const cellvars = funCallExpanded.closure_cellvars;

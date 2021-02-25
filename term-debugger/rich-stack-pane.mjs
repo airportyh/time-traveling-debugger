@@ -16,6 +16,7 @@ export function RichStackPane(db, box) {
     const inspect = util.inspect;
     const log = db.log;
     const objectMap = db.cache.objectMap;
+    const funMap = db.cache.funMap;
     const funCallMap = db.cache.funCallMap;
     const textPane = ScrollableTextPane(db, box);
     const expandCollapseStates = new Map();
@@ -27,7 +28,8 @@ export function RichStackPane(db, box) {
         let i = 1;
         while (true) {
             if (!stack) break;
-            lines.push($s(stack.fun_name + "()", { display: 'underscore' }));
+            const fun = funMap.get(stack.fun_id);
+            lines.push($s(fun.name + "()", { display: 'underscore' }));
             renderLocals(stack.locals, heap, lines);
             renderClosureVariables(stack, heap, lines);
             renderGlobals(stack.globals, heap, lines);
@@ -195,9 +197,7 @@ export function RichStackPane(db, box) {
         if (typeof object === "string") {
             lines.push($s(indent).concat(prefix).concat(JSON.stringify(object)));
         } else if (Array.isArray(object)) {
-            const handle = $s("▼", { foreground: 'yellow' });
-            handle.path = path;
-            let begin = $s("[ ").concat(handle);
+            let begin = $s("[ ");
             if (object.__tag__) {
                 begin = `<${object.__tag__}>${begin}`;
             }
@@ -213,7 +213,7 @@ export function RichStackPane(db, box) {
             }
             lines.push($s(indent).concat("]"));
         } else if (object instanceof Map) {
-            let begin = "{ ▼";
+            let begin = "{";
             if (object.__tag__) {
                 begin = `<${object.__tag__}>${begin}`;
             }
