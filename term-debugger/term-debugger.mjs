@@ -264,7 +264,7 @@ function TermDebugger() {
     function updateStatusBar() {
         let funCall = cache.funCallMap.get(snapshot.fun_call_id);
         let fun = cache.funMap.get(funCall.fun_id);
-        let message = `Snapshot ${snapshot.id}  ${fun.name}()  line ${snapshot.line_no}`;
+        let message = `Step ${snapshot.id}  ${fun.name}()  line ${snapshot.line_no}`;
         let color;
         if (snapshot.error) {
             message += `, Error: ${snapshot.error.message || snapshot.error.type}`;

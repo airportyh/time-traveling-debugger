@@ -23,6 +23,18 @@ const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
 const getFun = db.prepare("select * from Fun where id = ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
+const getFirstSnapshotInFunCall = db.prepare(`
+    select *
+    from Snapshot
+    where id < ?
+        and fun_call_id = ?
+    order by id limit 1`);
+const getLastSnapshotInFunCall = db.prepare(`
+    select *
+    from Snapshot
+    where id > ?
+        and fun_call_id = ?
+    order by id desc limit 1`);
 const getSnapshotById = db.prepare("select * from Snapshot where id = ?");
 const getError = db.prepare("select * from Error limit 1");
 const getErrorBySnapshotId = db.prepare("select * from Error where snapshot_id = ?");
@@ -233,6 +245,12 @@ app.get("/api/StepOver", (req, res) => {
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
     let result = getSnapshotForStepOver.get(
         id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
+    let lastSnapshot = getLastSnapshotInFunCall.get(id, snapshot.fun_call_id);
+    if (lastSnapshot && result && lastSnapshot.id < result.id) {
+        // we don't skip the last snapshot of the fun call, because we want to show
+        // the return value of the function
+        result = lastSnapshot;
+    }
     if (!result) {
         // This is for when you get to the last line in the program execution
         // this allows you get to the end if the last line happens to be a function call
@@ -248,23 +266,32 @@ app.get("/api/StepOverBackward", (req, res) => {
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
     let result;
+    const firstSnapshot = getFirstSnapshotInFunCall.get(id, snapshot.fun_call_id);
     const prevSnapshot = getSnapshotForStepOverBackward.get(
         id, snapshot.fun_call_id, snapshot.line_no, snapshotFunCall.parent_id);
     if (prevSnapshot) {
-        if (prevSnapshot.fun_call_id === snapshot.fun_call_id) {
-            const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
-            const prevPrevSnapshot = getSnapshotForStepOverBackward.get(
-                prevSnapshot.id, prevSnapshot.fun_call_id, prevSnapshot.line_no, prevSnapshotFunCall.parent_id);
-            if (prevPrevSnapshot) {
-                const prevPrevSnapshotFunCall = getFunCallStatement.get(prevPrevSnapshot.fun_call_id);
-                result = getSnapshotForStepOver.get(
-                    prevPrevSnapshot.id, prevPrevSnapshot.fun_call_id, prevPrevSnapshot.line_no, snapshotFunCall.parent_id) || 
-                    prevPrevSnapshot;
+        if (firstSnapshot && firstSnapshot.id > prevSnapshot.id) {
+            result = firstSnapshot;
+        } else {
+            if (prevSnapshot.fun_call_id === snapshot.fun_call_id) {
+                const prevSnapshotFunCall = getFunCallStatement.get(prevSnapshot.fun_call_id);
+                const prevPrevSnapshot = getSnapshotForStepOverBackward.get(
+                    prevSnapshot.id, prevSnapshot.fun_call_id, prevSnapshot.line_no, prevSnapshotFunCall.parent_id);
+                if (prevPrevSnapshot) {
+                    if (firstSnapshot && firstSnapshot.id > prevPrevSnapshot.id) {
+                        result = firstSnapshot;
+                    } else {
+                        const prevPrevSnapshotFunCall = getFunCallStatement.get(prevPrevSnapshot.fun_call_id);
+                        result = getSnapshotForStepOver.get(
+                            prevPrevSnapshot.id, prevPrevSnapshot.fun_call_id, prevPrevSnapshot.line_no, snapshotFunCall.parent_id) || 
+                            prevPrevSnapshot;
+                    }
+                } else {
+                    result = prevSnapshot;
+                }
             } else {
                 result = prevSnapshot;
             }
-        } else {
-            result = prevSnapshot;
         }
     } else {
         result = getSnapshotForStepOverBackward2.get(snapshot.id, snapshot.fun_call_id);
