@@ -233,13 +233,15 @@ function TermDebugger() {
     
     async function fastForward(lineNo) {
         const funCall = cache.funCallMap.get(snapshot.fun_call_id);
-        const codeFileId = funCall.code_file_id;
+        const fun = cache.funMap.get(funCall.fun_id);
+        const codeFileId = fun.code_file_id;
         await stepWithFetch(`${url}/api/FastForward?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
     }
     
     async function rewind(lineNo) {
         const funCall = cache.funCallMap.get(snapshot.fun_call_id);
-        const codeFileId = funCall.code_file_id;
+        const fun = cache.funMap.get(funCall.fun_id);
+        const codeFileId = fun.code_file_id;
         await stepWithFetch(`${url}/api/Rewind?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
     }
     
