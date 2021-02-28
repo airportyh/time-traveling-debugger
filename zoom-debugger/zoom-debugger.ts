@@ -19,11 +19,23 @@ type HoverStateEntry = {
 };
 
 export type ZoomDebuggerContext = {
-    ast: any, 
-    codeLines: string[], 
     textMeasurer: TextMeasurer,
-    dataCache: DataCache
+    dataCache: DataCache,
+    apiBaseUrl: string
 };
+
+export async function initZoomDebugger2(element: HTMLElement, apiBaseUrl: string) {
+    // const snapshot1 = (await fetchJson(apiBaseUrl + "Snapshot?id=1"))[0];
+    // console.log("snapshot 1", snapshot1);
+    // const funCall = await fetchJson(`${apiBaseUrl}FunCallExpanded?id=${snapshot1.fun_call_id}`);
+    // console.log("fun call", funCall);
+    // const fun = await fetchJson(`${apiBaseUrl}Fun?id=${funCall.fun_id}`);
+    // console.log("fun", fun);
+    // const codeFile = await fetchJson(`${apiBaseUrl}CodeFile?id=${fun.code_file_id}`);
+    // console.log("code file", codeFile);
+    const rootFunCall = await fetchJson(`${apiBaseUrl}RootFunCall`);
+    console.log("root fun call", rootFunCall);
+}
 
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
     //const throttledRender = throttle(render, 200);
@@ -32,9 +44,7 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
     //     console.log("data cache object map size:", dataCache.objectMap.size);
     //     console.log("data cache fun call map size:", dataCache.funCallMap.size);
     // }, 1000);
-    const codeFile = await fetchJson(apiBaseUrl + "CodeFile?id=1");
-    const code = codeFile.source;
-    const rootFunCall = (await fetchJson(apiBaseUrl + "FunCall"))[0];
+    const rootFunCall = await fetchJson(`${apiBaseUrl}RootFunCall`);
     
     const canvasWidth = element.offsetWidth * 2;
     const canvasHeight = element.offsetHeight * 2;
@@ -65,25 +75,11 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
     element.appendChild(canvas);
     ctx.textBaseline = "top";
     const textMeasurer = new TextMeasurer(ctx, true);
-    const codeLines = code.split("\n");
     
-    let ast: any;
-    let astInfo: ASTInfo;
-    if (codeFile.file_path.endsWith(".py")) {
-        let response = await fetch("http://localhost:1337/api/PythonAST?id=1");
-        ast = await response.json();
-        astInfo = new PythonASTInfo(ast, codeLines);
-    } else if (codeFile.file_path.endsWith(".play")) {
-        ast = parse(code);
-        astInfo = new PlayLangASTInfo(ast, codeLines);
-    } else {
-        throw new Error("Don't know how to create AST Info for " + codeFile.file_path);
-    }
     const context: ZoomDebuggerContext = {
-        ast,
-        codeLines,
         textMeasurer,
-        dataCache
+        dataCache,
+        apiBaseUrl
     };
     const mainScope: Scope = {
         bbox: {
@@ -92,7 +88,7 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
             width: canvas.width,
             height: canvas.height
         },
-        renderable: new FunCallRenderer(rootFunCall, ast, astInfo, context)
+        renderable: new FunCallRenderer(rootFunCall, null, context)
     };
     
     let currentScopeChain: Scope[] = [mainScope];

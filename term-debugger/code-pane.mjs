@@ -19,9 +19,7 @@ export function CodePane(db, box) {
     
     const log = db.log;
     const textPane = ScrollableTextPane(db, box);
-    const funCallMap = db.cache.funCallMap;
-    const funMap = db.cache.funMap;
-    const codeFileMap = db.cache.codeFileMap;
+    const cache = db.cache;
     let codeLines = [];
     let codeFileId = null;
     
@@ -47,8 +45,8 @@ export function CodePane(db, box) {
                     foreground: "black"
                 }));
         } else {
-            const funCall = funCallMap.get(db.snapshot.fun_call_id);
-            const fun = funMap.get(funCall.fun_id);
+            const funCall = cache.getFunCall(db.snapshot.fun_call_id);
+            const fun = cache.getFun(funCall.fun_id);
             codeLines = [`${fun.name}() line ${db.snapshot.line_no}. No source code available :(`];
             textPane.updateAllLines(codeLines);
         }
@@ -71,14 +69,14 @@ export function CodePane(db, box) {
     }
     
     function getFunCall() {
-        return funCallMap.get(db.snapshot.fun_call_id);
+        return cache.getFunCall(db.snapshot.fun_call_id);
     }    
     
     function getCodeFile() {
         const funCall = getFunCall();
-        const fun = funMap.get(funCall.fun_id);
+        const fun = cache.getFun(funCall.fun_id);
         if (fun.code_file_id) {
-            const codeFile = codeFileMap.get(fun.code_file_id);
+            const codeFile = cache.getCodeFile(fun.code_file_id);
             return codeFile;
         }
         return null;
@@ -93,7 +91,7 @@ export function CodePane(db, box) {
                 codeFileId = codeFile.id;
             } else {
                 const funCall = getFunCall();
-                const fun = funMap.get(funCall.fun_id);
+                const fun = cache.getFun(funCall.fun_id);
                 codeLines = [`${fun.name}() line ${db.snapshot.line_no}. No source code available :(`];
                 codeFileId = null;
             }

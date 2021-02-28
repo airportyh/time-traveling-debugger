@@ -1,50 +1,52 @@
 import jsonLike from "../json-like/json-like.js";
 import { inspect } from "util";
-import fetch from "node-fetch";
 
 export function DataCache(db) {
     const self = {
         update,
-        get objectMap() { return objectMap },
-        get funCallMap() { return funCallMap },
-        get funMap() { return funMap },
-        get codeFileMap() { return codeFileMap },
+        getObject,
+        getFunCall,
+        getFun,
+        getCodeFile,
+        heapLookup,
+        getHeapObject
     };
     
     const log = db.log;
-    const objectMap = new Map();
-    const funCallMap = new Map();
-    const funMap = new Map();
-    const codeFileMap = new Map();
+    const map = new Map();
     
     async function update(snapshot) {
-        // Store new object entries in cache
-        for (let key in snapshot.objectMap) {
-            const rawValue = snapshot.objectMap[key];
-            const parsed = jsonLike.parse(rawValue, true);
-            objectMap.set(Number(key), parsed);
-        }
-        
-        // Store new fun call entries in cache
-        for (let key in snapshot.funCallMap) {
-            funCallMap.set(Number(key), snapshot.funCallMap[key]);
-        }
-        
-        // fetch code file if needed
-        const funCall = funCallMap.get(snapshot.fun_call_id);
-        if (!funMap.has(funCall.fun_id)) {
-            const response = await fetch(`${db.apiUrl}/api/Fun?id=${funCall.fun_id}`);
-            const fun = await response.json();
-            funMap.set(funCall.fun_id, fun);
-        }
-        const fun = funMap.get(funCall.fun_id);
-        if (fun.code_file_id) {
-            if (!codeFileMap.has(fun.code_file_id)) {
-                const response = await fetch(`${db.apiUrl}/api/CodeFile?id=${fun.code_file_id}`);
-                const codeFile = await response.json();
-                codeFileMap.set(fun.code_file_id, codeFile);
+        for (let key in snapshot.attachments) {
+            let data = snapshot.attachments[key];
+            if (key.startsWith("Object/")) {
+                data = jsonLike.parse(data, true);
             }
+            map.set(key, data);
         }
+    }
+    
+    function getObject(id) {
+        return map.get("Object/" + id);
+    }
+    
+    function getFunCall(id) {
+        return map.get("FunCall/" + id);
+    }
+    
+    function getFun(id) {
+        return map.get("Fun/" + id);
+    }
+    
+    function heapLookup(heapVersion, heapId) {
+        return map.get("HeapRef/" + heapVersion + "/" + heapId);
+    }
+    
+    function getHeapObject(heapVersion, heapId) {
+        return getObject(heapLookup(heapVersion, heapId));
+    }
+    
+    function getCodeFile(id) {
+        return map.get("CodeFile/" + id);
     }
     
     return self;

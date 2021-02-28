@@ -21,8 +21,10 @@ app.use(session({
 const db = sqlite3(filename);
 const getFunCallStatement = db.prepare("select * from FunCall where id is ?");
 const getFunCallByParentStatement = db.prepare("select * from FunCall where parent_id is ?");
+const getChildFunCallIds = db.prepare("select id from FunCall where parent_id is ?");
 const getFun = db.prepare("select * from Fun where id = ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
+const getSnapshotsIdsByFunCall = db.prepare("select id from Snapshot where fun_call_id = ?");
 const getFirstSnapshotInFunCall = db.prepare(`
     select *
     from Snapshot
@@ -117,6 +119,12 @@ const rewindStatement = db.prepare(`
         and Snapshot.id < ? order by id desc limit 1
 `);
 
+app.get("/api/RootFunCall", (req, res) => {
+    const firstSnapshot = getSnapshotById.get(1);
+    const funCallId = firstSnapshot.fun_call_id;
+    res.json(fetchFunCallExpanded(funCallId, req));
+});
+
 app.get("/api/FunCall", (req, res) => {
     const parentId = req.query.parentId || null;
     const result = getFunCallByParentStatement.all(parentId);
@@ -125,7 +133,13 @@ app.get("/api/FunCall", (req, res) => {
 
 app.get("/api/Snapshot", (req, res) => {
     const funCallId = req.query.funCallId || null;
-    const result = getSnapshotsByFunCall.all(funCallId);
+    let result = null;
+    const id = req.query.id || null;
+    if (id) {
+        result = [getSnapshotById.get(id)];
+    } else if (funCallId) {
+        result = getSnapshotsByFunCall.all(funCallId);
+    }
     res.json(result);
 });
 
@@ -155,91 +169,136 @@ app.get("/api/CodeFile", (req, res) => {
 });
 
 app.get("/api/FunCallExpanded", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
     const id = req.query.id;
-    const funCall = getFunCallStatement.get(id);
-    const childFunCalls = getFunCallByParentStatement.all(id);
-    const snapshots = getSnapshotsByFunCall.all(id);
-    const objectMap = {};
-    const heapMap = {};
-    fetchObjectsForFunCall(funCall, objectMap, heapMap, objectsAlreadyFetched);
-    const retval = {
-        ...funCall,
-        childFunCalls,
-        snapshots,
-        objectMap,
-        heapMap
-    };
-    res.json(retval);
+    res.json(fetchFunCallExpanded(id, req));
 });
 
-function fetchObjectsForFunCall(funCall, objectMap, heapMap, objectsAlreadyFetched) {
-    const snapshots = getSnapshotsByFunCall.all(funCall.id);
+function fetchFunCallExpanded(id, req) {
+    const alreadyFetched = useAlreadyFetched(req);
+    const funCall = getFunCallStatement.get(id);
+    const childFunCallIds = getChildFunCallIds.all(funCall.id).map((o) => o.id);
+    const snapshotIds = getSnapshotsIdsByFunCall.all(funCall.id).map((o) => o.id);
+    const attachments = {};
+    getAttachmentsForFunCall(funCall, childFunCallIds, snapshotIds, attachments, alreadyFetched);
+    const retval = {
+        ...funCall,
+        childFunCallIds,
+        snapshotIds,
+        attachments
+    };
+    return retval;
+}
+
+function getAttachmentsForFunCall(funCall, childFunCallIds, snapshotIds, attachments, alreadyFetched) {
+    // Fun
+    const funKey = "Fun/" + funCall.fun_id;
+    if (!isIn(funKey, alreadyFetched)) {
+        const fun = getFun.get(funCall.fun_id);
+        attachments[funKey] = fun;
+        alreadyFetched[funKey] = true;
+        
+        // Code file
+        const codeFileKey = "CodeFile/" + fun.code_file_id;
+        if (!isIn(codeFileKey, alreadyFetched)) {
+            const codeFile = getCodeFile.get(fun.code_file_id);
+            attachments[codeFileKey] = codeFile;
+            alreadyFetched[codeFileKey] = true;
+        }
+    }
+    
+    // Child calls
+    const childrenToFetch = childFunCallIds
+        .filter((id) => !isIn("FunCall/" + id, alreadyFetched));
+    const childFunCalls = db.prepare(
+        `select * from FunCall where id in (
+            ${childrenToFetch.map(() => "?").join(", ")}
+        )`
+    ).all(...childrenToFetch);
+    for (let child of childFunCalls) {
+        const key = "FunCall/" + child.id;
+        alreadyFetched[key] = true;
+        attachments[key] = child;
+    }
+    
+    // Snapshots
+    const snapshotsToFetch = snapshotIds
+        .filter((id) => !isIn("Snapshot/" + id, alreadyFetched));
+    
+    const snapshots = db.prepare(
+        `select * from Snapshot where id in (
+            ${snapshotsToFetch.map(() => "?").join(", ")}
+        )`
+    ).all(...snapshotsToFetch);
+    
+    // Objects referenced by snapshots
     for (let i = 0; i < snapshots.length; i++) {
         const snapshot = snapshots[i];
-        getObjectsDeep2(
-            new HeapRef(funCall.locals), 
-            objectMap, 
+        const snapshotKey = "Snapshot/" + snapshot.id;
+        alreadyFetched[snapshotKey] = true;
+        attachments[snapshotKey] = snapshot;
+        getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched);
+    }
+}
+
+function getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched) {
+    getObjectsDeep(
+        new HeapRef(funCall.locals), 
+        snapshot.heap,
+        attachments,
+        alreadyFetched
+    );
+    if (funCall.globals) {
+        getObjectsDeep(
+            new HeapRef(funCall.globals), 
             snapshot.heap,
-            heapMap,
-            objectsAlreadyFetched);
-        if (funCall.globals) {
-            getObjectsDeep2(
-                new HeapRef(funCall.globals), 
-                objectMap, 
+            attachments,
+            alreadyFetched
+        );
+    }
+    if (funCall.closure_cellvars) {
+        const cellvars = parse(funCall.closure_cellvars);
+        for (let cellvar of cellvars.values()) {
+            getObjectsDeep(
+                cellvar,
                 snapshot.heap,
-                heapMap,
-                objectsAlreadyFetched);
+                attachments,
+                alreadyFetched
+            );
         }
-        if (funCall.closure_cellvars) {
-            const cellvars = parse(funCall.closure_cellvars);
-            for (let cellvar of cellvars.values()) {
-                getObjectsDeep2(
-                    cellvar,
-                    objectMap, 
-                    snapshot.heap,
-                    heapMap,
-                    objectsAlreadyFetched);
-            }
-        }
-        if (funCall.closure_freevars) {
-            const freevars = parse(funCall.closure_freevars);
-            for (let freevar of freevars.values()) {
-                getObjectsDeep2(
-                    freevar,
-                    objectMap, 
-                    snapshot.heap,
-                    heapMap,
-                    objectsAlreadyFetched);
-            }
+    }
+    if (funCall.closure_freevars) {
+        const freevars = parse(funCall.closure_freevars);
+        for (let freevar of freevars.values()) {
+            getObjectsDeep(
+                freevar,
+                snapshot.heap,
+                attachments,
+                alreadyFetched
+            );
         }
     }
 }
 
 app.get("/api/SnapshotExpanded", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const alreadyFetched = useAlreadyFetched(req);
     const id = req.query.id;
     const snapshot = getSnapshotById.get(id);
-    res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
+    res.json(expandSnapshot(snapshot, alreadyFetched));
 });
 
 app.get("/api/SnapshotWithError", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const alreadyFetched = useAlreadyFetched(req);
     const error = getError.get();
     if (!error) {
         res.json(null);
         return;
     }
     const snapshot = getSnapshotById.get(error.snapshot_id);
-    res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
+    res.json(expandSnapshot(snapshot, alreadyFetched));
 });
 
 app.get("/api/StepOver", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const alreadyFetched = useAlreadyFetched(req);
     let id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
@@ -256,12 +315,11 @@ app.get("/api/StepOver", (req, res) => {
         // this allows you get to the end if the last line happens to be a function call
         result = getSnapshotForStepOver2.get(id, snapshot.fun_call_id);
     }
-    res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
+    res.json(expandSnapshot(result, alreadyFetched));
 });
 
 app.get("/api/StepOverBackward", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const alreadyFetched = useAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
@@ -296,18 +354,162 @@ app.get("/api/StepOverBackward", (req, res) => {
     } else {
         result = getSnapshotForStepOverBackward2.get(snapshot.id, snapshot.fun_call_id);
     }
-    res.json(expandSnapshot(result, objectsAlreadyFetched, funCallsAlreadyFetched));
+    res.json(expandSnapshot(result, alreadyFetched));
 });
 
 app.get("/api/StepOut", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+    const alreadyFetched = useAlreadyFetched(req);
     const id = Number(req.query.id);
     const snapshot = getSnapshotById.get(id);
     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
     const nextSnapshot = getNextSnapshotWithFunCallId.get(snapshot.id, snapshotFunCall.parent_id);
-    res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
+    res.json(expandSnapshot(nextSnapshot, alreadyFetched));
 });
+
+app.get("/api/FastForward", (req, res) => {
+    const alreadyFetched = useAlreadyFetched(req);
+    const snapshotId = req.query.from;
+    const lineNo = req.query.line_no;
+    const codeFileId = req.query.code_file_id;
+    const snapshot = fastForwardStatement.get(codeFileId, lineNo, snapshotId);
+    return res.json(expandSnapshot(snapshot, alreadyFetched));
+});
+
+app.get("/api/Rewind", (req, res) => {
+    const alreadyFetched = useAlreadyFetched(req);
+    const snapshotId = req.query.from;
+    const lineNo = req.query.line_no;
+    const codeFileId = req.query.code_file_id;
+    const snapshot = rewindStatement.get(codeFileId, lineNo, snapshotId);
+    return res.json(expandSnapshot(snapshot, alreadyFetched));
+});
+
+// app.get("/api/StepOutBackward", (req, res) => {
+//     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
+//     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
+//     const id = Number(req.query.id);
+//     const snapshot = getSnapshotById.get(id);
+//     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
+//     const nextSnapshot = getPrevSnapshotWithFunCallId.get(snapshot.id, snapshotFunCall.parent_id);
+//     res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
+// });
+
+function useAlreadyFetched(req) {
+    if (!req.session.alreadyFetched) {
+        req.session.alreadyFetched = {};
+    }
+    return req.session.alreadyFetched;
+}
+
+function expandSnapshot(snapshot, alreadyFetched) {
+    if (!snapshot) {
+        return null;
+    }
+    const attachments = {};
+    getAttachmentsForSnapshot(snapshot, attachments, alreadyFetched);
+    let error = getErrorBySnapshotId.get(snapshot.id);
+    return {
+        ...snapshot,
+        attachments,
+        error
+    };
+}
+
+function getAttachmentsForSnapshot(snapshot, attachments, alreadyFetched) {
+    let funCallId = snapshot.fun_call_id;
+    // ancestor calls
+    while (true) {
+        if (!funCallId) {
+            break;
+        }
+        const key = "FunCall/" + funCallId;
+        if (isIn(key, alreadyFetched)) {
+            break;
+        }
+        let funCall = getFunCallStatement.get(funCallId);
+        attachments[key] = funCall;
+        alreadyFetched[key] = true;
+        
+        getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched);
+        
+        funCallId = funCall.parent_id;
+    }
+    
+    const myFunCall = attachments["FunCall/" + snapshot.fun_call_id];
+    if (myFunCall) {
+        // get fun and code file if needed
+        
+        const funKey = "Fun/" + myFunCall.fun_id;
+        if (!isIn(funKey, alreadyFetched)) {
+            const fun = getFun.get(myFunCall.fun_id);
+            attachments[funKey] = fun;
+            alreadyFetched[funKey] = true;
+            
+            const codeFileKey = "CodeFile/" + fun.code_file_id;
+            if (!isIn(codeFileKey, alreadyFetched)) {
+                const codeFile = getCodeFile.get(fun.code_file_id);
+                attachments[codeFileKey] = codeFile;
+                alreadyFetched[codeFileKey] = true;
+            }
+        }
+    }
+}
+
+function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
+    let dbObject;
+    let id;
+    let objKey;
+    if (ref instanceof Ref) {
+        id = ref.id;
+        objKey = "Object/" + id;
+    } else if (ref instanceof HeapRef) {
+        const heapRefKey = "HeapRef/" + heapVersion + "/" + ref.id;
+        if (isIn(heapRefKey, alreadyFetched)) {
+            return;
+        } else {
+            const dbHeapRef = getHeapRef.get(ref.id, heapVersion);
+            if (!dbHeapRef) {
+                attachments[heapRefKey] = null;
+                return;
+            }
+            id = dbHeapRef.object_id;
+            attachments[heapRefKey] = id;
+            objKey = "Object/" + id;
+        }
+    } else {
+        return;
+    }
+    if (isIn(objKey, alreadyFetched)) {
+        return;
+    } else {
+        dbObject = getObject(id);    
+    }
+    attachments[objKey] = dbObject.data;
+    alreadyFetched[objKey] = true;
+    const object = parse(dbObject.data, true);
+    if (Array.isArray(object)) {
+        for (let j = 0; j < object.length; j++) {
+            let item = object[j];
+            getObjectsDeep(item, heapVersion, attachments, alreadyFetched);
+        }
+    } else if (object instanceof Map) {
+        object.forEach((value, key) => {
+            getObjectsDeep(key, heapVersion, attachments, alreadyFetched);
+            getObjectsDeep(value, heapVersion, attachments, alreadyFetched);
+        });
+    }
+}
+
+function getObject(id) {
+    return getObjectStatement.get(id);
+}
+
+function getObjects(ids) {
+    const binds = Array(ids.length).join("?, ") + "?";
+    const statement = "select * from Object where id in (" + binds + ")";
+    const result = db.prepare(statement).all(...ids);
+    return result;
+}
 
 function getPythonAST(code) {
     return new Promise((accept, reject) => {
@@ -337,225 +539,8 @@ app.get("/api/PythonAST", async (req, res) => {
     res.end();
 });
 
-app.get("/api/FastForward", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
-    const snapshotId = req.query.from;
-    const lineNo = req.query.line_no;
-    const codeFileId = req.query.code_file_id;
-    const snapshot = fastForwardStatement.get(codeFileId, lineNo, snapshotId);
-    return res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-});
-
-app.get("/api/Rewind", (req, res) => {
-    const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-    const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
-    const snapshotId = req.query.from;
-    const lineNo = req.query.line_no;
-    const codeFileId = req.query.code_file_id;
-    const snapshot = rewindStatement.get(codeFileId, lineNo, snapshotId);
-    return res.json(expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-});
-
-// app.get("/api/StepOutBackward", (req, res) => {
-//     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
-//     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
-//     const id = Number(req.query.id);
-//     const snapshot = getSnapshotById.get(id);
-//     const snapshotFunCall = getFunCallStatement.get(snapshot.fun_call_id);
-//     const nextSnapshot = getPrevSnapshotWithFunCallId.get(snapshot.id, snapshotFunCall.parent_id);
-//     res.json(expandSnapshot(nextSnapshot, objectsAlreadyFetched, funCallsAlreadyFetched));
-// });
-
-function useObjectsAlreadyFetched(req) {
-    if (!req.session.objectsAlreadyFetched) {
-        req.session.objectsAlreadyFetched = {};
-    };
-    return req.session.objectsAlreadyFetched;
-}
-
-function useFunCallsAlreadyFetched(req) {
-    if (!req.session.funCallsAlreadyFetched) {
-        req.session.funCallsAlreadyFetched = {};
-    };
-    return req.session.funCallsAlreadyFetched;
-}
-
-function expandSnapshot(snapshot, objectsAlreadyFetched, funCallsAlreadyFetched) {
-    if (!snapshot) {
-        return null;
-    }
-    const objectMap = {};
-    const heapMap = {};
-    
-    const funCallMap = ensureFunCallsFetched(snapshot.fun_call_id, funCallsAlreadyFetched);
-    let funCall = funCallMap[snapshot.fun_call_id];
-    
-    for (let funCall of Object.values(funCallMap)) {
-        getObjectsDeep(
-            new HeapRef(funCall.locals), 
-            objectMap, 
-            snapshot.heap,
-            heapMap,
-            objectsAlreadyFetched);
-        if (funCall.globals) {
-            getObjectsDeep(
-                new HeapRef(funCall.globals), 
-                objectMap, 
-                snapshot.heap,
-                heapMap,
-                objectsAlreadyFetched);
-        }
-        if (funCall.closure_cellvars) {
-            const cellvars = parse(funCall.closure_cellvars);
-            for (let cellvar of cellvars.values()) {
-                getObjectsDeep(
-                    cellvar,
-                    objectMap, 
-                    snapshot.heap,
-                    heapMap,
-                    objectsAlreadyFetched);
-            }
-        }
-        if (funCall.closure_freevars) {
-            const freevars = parse(funCall.closure_freevars);
-            for (let freevar of freevars.values()) {
-                getObjectsDeep(
-                    freevar,
-                    objectMap, 
-                    snapshot.heap,
-                    heapMap,
-                    objectsAlreadyFetched);
-            }
-        }
-    }
-    
-    let error = getErrorBySnapshotId.get(snapshot.id);
-    return {
-        ...snapshot,
-        funCallMap,
-        objectMap,
-        heapMap,
-        error
-    };
-}
-
-function ensureFunCallsFetched(funCallId, funCallsAlreadyFetched) {
-    const funCallMap = {};
-    while (true) {
-        if (!funCallId || (funCallId in funCallsAlreadyFetched)) {
-            break;
-        }
-        let funCall = getFunCallStatement.get(funCallId);
-        funCallMap[funCall.id] = funCall;
-        funCallsAlreadyFetched[funCall.id] = true;
-        funCallId = funCall.parent_id;
-    }
-    return funCallMap;
-}
-
-function getObjectsDeep(ref, objectMap, heapVersion, heapMap, objectsAlreadyFetched) {
-    let dbObject;
-    let id;
-    if (ref instanceof Ref) {
-        id = ref.id;
-        if (objectsAlreadyFetched[id]) {
-            return;
-        } else {
-            dbObject = getObject(id);    
-        }
-    } else if (ref instanceof HeapRef) {
-        if (ref.id in heapMap) {
-            return;
-        } else {
-            // console.log("heap ref", ref.id, "heapVersion", heapVersion);
-            const dbHeapRef = getHeapRef.get(ref.id, heapVersion);
-            if (!dbHeapRef) {
-                heapMap[ref.id] = null;
-                // console.log("no dbHeapRef found");
-                return;
-            }
-            // console.log("got dbHeapRef:", dbHeapRef);
-            id = dbHeapRef.object_id;
-            heapMap[ref.id] = id;
-            dbObject = getObject(id);
-        }
-    } else {
-        return;
-    }
-    objectMap[id] = dbObject.data;
-    objectsAlreadyFetched[id] = true;
-    const object = parse(dbObject.data, true);
-    if (Array.isArray(object)) {
-        for (let j = 0; j < object.length; j++) {
-            let item = object[j];
-            getObjectsDeep(item, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-        }
-    } else if (object instanceof Map) {
-        object.forEach((value, key) => {
-            getObjectsDeep(key, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-            getObjectsDeep(value, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-        });
-    }
-}
-
-function getObjectsDeep2(ref, objectMap, heapVersion, heapMap, objectsAlreadyFetched) {
-    let dbObject;
-    let id;
-    if (ref instanceof Ref) {
-        id = ref.id;
-        if (objectsAlreadyFetched[id]) {
-            return;
-        } else {
-            dbObject = getObject(id);    
-        }
-    } else if (ref instanceof HeapRef) {
-        if (ref.id in heapMap) {
-            return;
-        } else {
-            const dbHeapRef = getHeapRef.get(ref.id, heapVersion);
-            if (!dbHeapRef) {
-                heapMap[heapVersion + "/" + ref.id] = null;
-                // console.log("no dbHeapRef found");
-                return;
-            }
-            // console.log("got dbHeapRef:", dbHeapRef);
-            id = dbHeapRef.object_id;
-            heapMap[heapVersion + "/" + ref.id] = id;
-            if (objectsAlreadyFetched[id]) {
-                return;
-            } else {
-                dbObject = getObject(id);    
-            }
-        }
-    } else {
-        return;
-    }
-    objectMap[id] = dbObject.data;
-    objectsAlreadyFetched[id] = true;
-    const object = parse(dbObject.data, true);
-    if (Array.isArray(object)) {
-        for (let j = 0; j < object.length; j++) {
-            let item = object[j];
-            getObjectsDeep2(item, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-        }
-    } else if (object instanceof Map) {
-        object.forEach((value, key) => {
-            getObjectsDeep2(key, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-            getObjectsDeep2(value, objectMap, heapVersion, heapMap, objectsAlreadyFetched);
-        });
-    }
-}
-
-function getObject(id) {
-    return getObjectStatement.get(id);
-}
-
-function getObjects(ids) {
-    const binds = Array(ids.length).join("?, ") + "?";
-    const statement = "select * from Object where id in (" + binds + ")";
-    const result = db.prepare(statement).all(...ids);
-    return result;
+function isIn(key, obj) {
+    return key in obj;
 }
 
 app.listen(port, () => {

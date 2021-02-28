@@ -232,15 +232,15 @@ function TermDebugger() {
     }
     
     async function fastForward(lineNo) {
-        const funCall = cache.funCallMap.get(snapshot.fun_call_id);
-        const fun = cache.funMap.get(funCall.fun_id);
+        const funCall = cache.getFunCall(snapshot.fun_call_id);
+        const fun = cache.getFun(funCall.fun_id);
         const codeFileId = fun.code_file_id;
         await stepWithFetch(`${url}/api/FastForward?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
     }
     
     async function rewind(lineNo) {
-        const funCall = cache.funCallMap.get(snapshot.fun_call_id);
-        const fun = cache.funMap.get(funCall.fun_id);
+        const funCall = cache.getFunCall(snapshot.fun_call_id);
+        const fun = cache.getFun(funCall.fun_id);
         const codeFileId = fun.code_file_id;
         await stepWithFetch(`${url}/api/Rewind?from=${snapshot.id}&code_file_id=${codeFileId}&line_no=${lineNo}`);
     }
@@ -262,8 +262,8 @@ function TermDebugger() {
     }
     
     function updateStatusBar() {
-        let funCall = cache.funCallMap.get(snapshot.fun_call_id);
-        let fun = cache.funMap.get(funCall.fun_id);
+        let funCall = cache.getFunCall(snapshot.fun_call_id);
+        let fun = cache.getFun(funCall.fun_id);
         let message = `Step ${snapshot.id}  ${fun.name}()  line ${snapshot.line_no}`;
         let color;
         if (snapshot.error) {

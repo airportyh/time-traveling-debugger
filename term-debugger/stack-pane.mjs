@@ -13,22 +13,20 @@ export function StackPane(db, box) {
     
     const log = db.log;
     const textPane = ScrollableTextPane(db, box);
+    const cache = db.cache;
     
     function updateDisplay() {
-        const objectMap = db.cache.objectMap;
-        const funCallMap = db.cache.funCallMap;
-        const funMap = db.cache.funMap;
         const lines = [];
         //log.write("ObjectMap: " + JSON.stringify(Array.from(objectMap.entries())) + "\n");
-        let stack = objectMap.get(db.snapshot.stack);
+        let stack = cache.getObject(db.snapshot.stack);
         log.write(`Stack: ${inspect(stack)}\n`);
         let i = 1;
         while (true) {
             if (!stack) break;
             // log.write(`Frame: ${inspect(frame)}\n`);
-            const variables = objectMap.get(stack.get("variables").id);
-            const funCall = funCallMap.get(stack.get("funCall"));
-            const fun = funMap.get(funCall.fun_id);
+            const variables = cache.getObject(stack.get("variables").id);
+            const funCall = cache.getFunCall(stack.get("funCall"));
+            const fun = cache.getFun(funCall.fun_id);
             lines.push(fun.name + "()");
             // log.write(`Variables: ${inspect(variables)}\n`);
             // log.write(`FunCall: ${inspect(funCall)}\n`);
@@ -40,7 +38,7 @@ export function StackPane(db, box) {
             }
             lines.push(strTimes("─", box.width));
             //log.write(JSON.stringify(frame) + ", variables: " + JSON.stringify(variables) + "\n");
-            stack = stack && stack.get("parent") && objectMap.get(stack.get("parent").id);
+            stack = stack && stack.get("parent") && cache.getObject(stack.get("parent").id);
             i += 2;
         }
         textPane.updateAllLines(lines);

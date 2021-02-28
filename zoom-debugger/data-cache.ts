@@ -1,10 +1,21 @@
 import { FunCallExpanded } from "./play-lang";
 import { fetchJson } from "./fetch-json";
+import { ASTInfo } from "./ast-info";
+import { PythonASTInfo } from "./python-ast-info";
+import { PlayLangASTInfo } from "./play-lang-ast-info";
 const { parse, HeapRef } = require("../json-like/json-like.js");
+
+export type CodeInfo = {
+    ast: any,
+    codeFile: any,
+    codeLines: string[],
+    astInfo: ASTInfo
+}
 
 export class DataCache {
     objectMap: Map<number, any> = new Map();
     funCallMap: Map<number, FunCallExpanded | "pending"> = new Map();
+    codeInfoMap: Map<number, CodeInfo | "pending"> = new Map();
     constructor(
         private baseUrl: string, 
         private onDataFetched: Function
@@ -14,7 +25,20 @@ export class DataCache {
         const value = this.funCallMap.get(id);
         if (!value) {
             this.funCallMap.set(id, "pending");
-            this.fetch(id);
+            this.fetchFunCall(id);
+            return null;
+        } else if (value === "pending") {
+            return null;
+        } else {
+            return value;
+        }
+    }
+    
+    getCodeInfo(id: number): CodeInfo | null {
+        const value = this.codeInfoMap.get(id);
+        if (!value) {
+            this.codeInfoMap.set(id, "pending");
+            this.fetchCodeInfo(id);
             return null;
         } else if (value === "pending") {
             return null;
@@ -27,7 +51,36 @@ export class DataCache {
         return this.objectMap.get(id);
     }
     
-    fetch(funCallId: number) {
+    fetchCodeInfo(codeFileId: number) {
+        setTimeout(async () => {
+            const baseUrl = this.baseUrl;
+            const codeFile = await fetchJson(`${baseUrl}CodeFile?id=${codeFileId}`);
+            const codeLines = codeFile.source.split("\n");
+            if (codeFile.file_path.endsWith(".py")) {
+                let ast = await fetchJson(`${baseUrl}PythonAST?id=1`);
+                let astInfo = new PythonASTInfo(ast, codeLines);
+                this.codeInfoMap.set(codeFileId, {
+                    ast,
+                    codeFile,
+                    astInfo,
+                    codeLines
+                });
+            } else if (codeFile.file_path.endsWith(".play")) {
+                let ast = parse(codeFile.source);
+                let astInfo = new PlayLangASTInfo(ast, codeLines);
+                this.codeInfoMap.set(codeFileId, {
+                    ast,
+                    codeFile,
+                    astInfo,
+                    codeLines
+                });
+            } else {
+                throw new Error("Don't know how to create AST Info for " + codeFile.file_path);
+            }
+        });
+    }
+    
+    fetchFunCall(funCallId: number) {
         setTimeout(async () => {
             const reply = await fetchJson(`${this.baseUrl}FunCallExpanded?id=${funCallId}`);
             const funCallExpanded: FunCallExpanded = {
@@ -77,7 +130,7 @@ export class DataCache {
     }
 }
 
-function stringifyKeys(map, heapMap, heapVersion, objectMap) {
+function stringifyKeys(map: any, heapMap: any, heapVersion: any, objectMap: any) {
     for (let key of map.keys()) {
         if (key instanceof HeapRef) {
             const stringKey = objectMap.get(heapMap[heapVersion + "/" + key.id]);

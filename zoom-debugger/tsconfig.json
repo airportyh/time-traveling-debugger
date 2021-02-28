@@ -2,6 +2,7 @@
 	"compilerOptions": {
 		"lib": ["es2015", "es2017", "dom"],
 		"sourceMap": true,
+		"target": "ES5",
 		"forceConsistentCasingInFileNames": true,
 		"noImplicitReturns": true,
 		"noImplicitThis": true,

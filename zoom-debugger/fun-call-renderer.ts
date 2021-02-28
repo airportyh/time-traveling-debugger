@@ -1,9 +1,13 @@
+import { parse } from "../play-lang/src/parser";
 import { ZoomRenderable, BoundingBox } from "./zui";
 import { FunCall, DBObject, Snapshot, FunCallExpanded } from "./play-lang";
 import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
 import { ZoomDebuggerContext } from "./zoom-debugger";
-import { DataCache } from "./data-cache";
+import { DataCache, CodeInfo } from "./data-cache";
 import { ASTInfo } from "./ast-info";
+import { fetchJson } from "./fetch-json";
+import { PythonASTInfo } from "./python-ast-info";
+import { PlayLangASTInfo } from "./play-lang-ast-info";
 const { Ref, HeapRef, parse } = require("../json-like/json-like.js");
 
 const CODE_LINE_HEIGHT = 1.5;
@@ -24,24 +28,13 @@ export class FunCallRenderer implements ZoomRenderable {
     callExprCode: string;
     context: ZoomDebuggerContext;
     userDefinedFunctionNames: string[];
-    astInfo: ASTInfo;
+    codeInfo: CodeInfo;
     
-    constructor(
-        funCall: FunCall, 
-        callExpr: any, 
-        astInfo: ASTInfo,
-        context: ZoomDebuggerContext) {
+    constructor(funCall: FunCall, callExpr: any, context: ZoomDebuggerContext) {
         this.funCall = funCall;
         this.callExpr = callExpr;
-        this.astInfo = astInfo;
-        if (callExpr === context.ast) {
-            // main()
-            this.callExprCode = "main()";
-        } else {
-            this.callExprCode = this.astInfo.getSource(callExpr);
-        }
         this.context = context;
-        this.userDefinedFunctionNames = this.astInfo.getUserDefinedFunctions();
+        // this.userDefinedFunctionNames = this.astInfo.getUserDefinedFunctions();
     }
     
     id(): string {
@@ -52,11 +45,40 @@ export class FunCallRenderer implements ZoomRenderable {
         return false;
     }
     
+    get astInfo(): ASTInfo {
+        return this.codeInfo?.astInfo;
+    }
+    
+    lazyInit(): boolean {
+        if (this.codeInfo) {
+            return true;
+        } else {
+            const codeInfo = this.context.dataCache.getCodeInfo(this.funCall.code_file_id);
+            if (codeInfo) {
+                this.codeInfo = codeInfo;
+                if (this.callExpr === this.codeInfo.ast) {
+                    // main()
+                    this.callExprCode = "main()";
+                } else {
+                    this.callExprCode = this.codeInfo.astInfo.getSource(this.callExpr);
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+    
     render(
         ctx: CanvasRenderingContext2D,
         bbox: BoundingBox,
         viewport: BoundingBox
     ): Map<BoundingBox, ZoomRenderable> {
+        // lazy init astInfo and callExprCode
+        if (!this.lazyInit()) {
+            return new Map();
+        }
+        
         // TODO: move this logic to container
         if (bbox.x + bbox.width < viewport.x ||
             bbox.y + bbox.height < viewport.y ||
@@ -140,7 +162,7 @@ export class FunCallRenderer implements ZoomRenderable {
             if (nextEntry && entry.line_no === nextEntry.line_no) {
                 continue;
             }
-            const line = this.context.codeLines[entry.line_no - 1];
+            const line = this.codeInfo.codeLines[entry.line_no - 1];
             
             const lineNumberBox: TextBox = {
                 type: "text",
@@ -415,7 +437,6 @@ export class FunCallRenderer implements ZoomRenderable {
             }
         }
         return [];
-        
     }
     
     renderUpdatedHeapObjects(funNode: any, funCallExpanded: FunCallExpanded, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
@@ -524,14 +545,13 @@ export class FunCallRenderer implements ZoomRenderable {
                 },
                 {
                     type: "text",
-                    text: this.context.codeLines[startPos.line - 1],
+                    text: this.codeInfo.codeLines[startPos.line - 1],
                     color: CODE_COLOR
                 }
             ]
         };
         const snapshot = funCallExpanded.snapshots[0];
         const variables = this.context.dataCache.getObject(funCallExpanded.heapMap[snapshot.heap + "/" + funCallExpanded.locals]);
-        
         const parameters = this.astInfo.getFunNodeParameters(funNode);
         for (let paramName of parameters) {
             let value = variables.get(paramName);
