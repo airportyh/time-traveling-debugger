@@ -122,7 +122,7 @@ const rewindStatement = db.prepare(`
 app.get("/api/RootFunCall", (req, res) => {
     const firstSnapshot = getSnapshotById.get(1);
     const funCallId = firstSnapshot.fun_call_id;
-    res.json(fetchFunCallExpanded(funCallId, req));
+    res.json(fetchFunCallBasic(funCallId, req));
 });
 
 app.get("/api/FunCall", (req, res) => {
@@ -173,23 +173,86 @@ app.get("/api/FunCallExpanded", (req, res) => {
     res.json(fetchFunCallExpanded(id, req));
 });
 
-function fetchFunCallExpanded(id, req) {
+function fetchFunCallBasic(id, req) {
     const alreadyFetched = useAlreadyFetched(req);
     const funCall = getFunCallStatement.get(id);
-    const childFunCallIds = getChildFunCallIds.all(funCall.id).map((o) => o.id);
-    const snapshotIds = getSnapshotsIdsByFunCall.all(funCall.id).map((o) => o.id);
     const attachments = {};
-    getAttachmentsForFunCall(funCall, childFunCallIds, snapshotIds, attachments, alreadyFetched);
+    fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched);
     const retval = {
         ...funCall,
-        childFunCallIds,
-        snapshotIds,
         attachments
     };
     return retval;
 }
 
-function getAttachmentsForFunCall(funCall, childFunCallIds, snapshotIds, attachments, alreadyFetched) {
+function fetchFunCallExpanded(id, req) {
+    const alreadyFetched = useAlreadyFetched(req);
+    const funCall = getFunCallStatement.get(id);
+    const attachments = {};
+    getAttachmentsForFunCall(funCall, attachments, alreadyFetched);
+    const retval = {
+        ...funCall,
+        attachments
+    };
+    return retval;
+}
+
+function getAttachmentsForFunCall(funCall, attachments, alreadyFetched) {
+    // child fun call IDs
+    const childFunCallIdsKey = "FunCall/" + funCall.id + "/ChildFunCallIds";
+    if (!isIn(childFunCallIdsKey, alreadyFetched)) {
+        const childFunCallIds = getChildFunCallIds.all(funCall.id).map((o) => o.id);
+        alreadyFetched[childFunCallIdsKey] = true;
+        attachments[childFunCallIdsKey] = childFunCallIds;
+        
+        // Child calls
+        const childrenToFetch = childFunCallIds
+            .filter((id) => !isIn("FunCall/" + id, alreadyFetched));
+        const childFunCalls = db.prepare(
+            `select * from FunCall where id in (
+                ${childrenToFetch.map(() => "?").join(", ")}
+            )`
+        ).all(...childrenToFetch);
+        for (let child of childFunCalls) {
+            const key = "FunCall/" + child.id;
+            alreadyFetched[key] = true;
+            attachments[key] = child;
+            
+            fetchFunCallFunAndCodeFile(child, attachments, alreadyFetched);
+        }
+    }
+    
+    const snapshotIdsKey = "FunCall/" + funCall.id + "/SnapshotIds";
+    
+    if (!isIn(snapshotIdsKey, alreadyFetched)) {
+        const snapshotIds = getSnapshotsIdsByFunCall.all(funCall.id).map((o) => o.id);
+        alreadyFetched[snapshotIdsKey] = true;
+        attachments[snapshotIdsKey] = snapshotIds;
+        
+        // Snapshots
+        const snapshotsToFetch = snapshotIds
+            .filter((id) => !isIn("Snapshot/" + id, alreadyFetched));
+        
+        const snapshots = db.prepare(
+            `select * from Snapshot where id in (
+                ${snapshotsToFetch.map(() => "?").join(", ")}
+            )`
+        ).all(...snapshotsToFetch);
+        
+        // Objects referenced by snapshots
+        for (let i = 0; i < snapshots.length; i++) {
+            const snapshot = snapshots[i];
+            const snapshotKey = "Snapshot/" + snapshot.id;
+            alreadyFetched[snapshotKey] = true;
+            attachments[snapshotKey] = snapshot;
+            getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched);
+        }
+    }
+    
+    fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched);
+}
+
+function fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched) {
     // Fun
     const funKey = "Fun/" + funCall.fun_id;
     if (!isIn(funKey, alreadyFetched)) {
@@ -204,39 +267,6 @@ function getAttachmentsForFunCall(funCall, childFunCallIds, snapshotIds, attachm
             attachments[codeFileKey] = codeFile;
             alreadyFetched[codeFileKey] = true;
         }
-    }
-    
-    // Child calls
-    const childrenToFetch = childFunCallIds
-        .filter((id) => !isIn("FunCall/" + id, alreadyFetched));
-    const childFunCalls = db.prepare(
-        `select * from FunCall where id in (
-            ${childrenToFetch.map(() => "?").join(", ")}
-        )`
-    ).all(...childrenToFetch);
-    for (let child of childFunCalls) {
-        const key = "FunCall/" + child.id;
-        alreadyFetched[key] = true;
-        attachments[key] = child;
-    }
-    
-    // Snapshots
-    const snapshotsToFetch = snapshotIds
-        .filter((id) => !isIn("Snapshot/" + id, alreadyFetched));
-    
-    const snapshots = db.prepare(
-        `select * from Snapshot where id in (
-            ${snapshotsToFetch.map(() => "?").join(", ")}
-        )`
-    ).all(...snapshotsToFetch);
-    
-    // Objects referenced by snapshots
-    for (let i = 0; i < snapshots.length; i++) {
-        const snapshot = snapshots[i];
-        const snapshotKey = "Snapshot/" + snapshot.id;
-        alreadyFetched[snapshotKey] = true;
-        attachments[snapshotKey] = snapshot;
-        getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched);
     }
 }
 
@@ -513,7 +543,7 @@ function getObjects(ids) {
 
 function getPythonAST(code) {
     return new Promise((accept, reject) => {
-        const p = spawn("python3", [__dirname + "/get_python_ast.py"]);
+        const p = spawn("python3.9", [__dirname + "/get_python_ast.py"]);
         let output = "";
         p.stdout.on("data", (chunk) => {
             output += chunk;

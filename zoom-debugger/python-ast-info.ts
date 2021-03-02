@@ -43,6 +43,14 @@ export class PythonASTInfo implements ASTInfo {
         return results.map((node) => node.name);
     }
     
+    getStatementOnLine(funNode: any, line: number): any {
+        const results = [];
+        findNodes(funNode, (node) => {
+            return node.lineno === line;
+        }, results);
+        return results[0];
+    }
+    
     getCallExpressionsOnLine(funNode: any, line: number): any[] {
         const results = [];
         findNodes(this.ast, (node) => {
@@ -140,7 +148,8 @@ function findNodes(node: any, matcher: Function, results: any[]) {
     }
     if (matcher(node)) {
         results.push(node);
-    } else if (Array.isArray(node)) {
+    }
+    if (Array.isArray(node)) {
         for (let child of node) {
             findNodes(child, matcher, results);
         }

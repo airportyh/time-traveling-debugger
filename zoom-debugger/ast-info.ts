@@ -19,6 +19,7 @@ export interface ASTInfo {
     hasSignature(funNode: any): boolean;
     getUserDefinedFunctions(): string[];
     getCallExpressionsOnLine(funNode: any, line: number): any[];
+    getStatementOnLine(funNode: any, line: number): any;
     getVarAssignmentOnLine(funNode: any, line: number): string | null;
     getReturnStatementOnLine(funNode: any, line: number): any;
     getFunNameForCallExpr(expr: any): string;

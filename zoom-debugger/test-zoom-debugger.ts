@@ -1,5 +1,6 @@
 import { initZoomDebugger } from "./zoom-debugger";
 import { PythonASTInfo } from "./python-ast-info";
+import { DataCache } from "./data-cache";
 
 main().catch(err => console.log(err.stack));
 
@@ -15,6 +16,13 @@ async function main() {
     element.style.height = "100%";
     document.body.appendChild(element);
     const DEBUGGER_API = "http://localhost:1337/api/";
+    // const cache = new DataCache("http://localhost:1337/api/", render);
+    // const fun = cache.getFunCallExpanded(3);
+    // console.log("fun", fun);
+    // function render() {
+    //     const fun = cache.getFunCallExpanded(3);
+    //     console.log("fun", fun);
+    // }
     await initZoomDebugger(element, DEBUGGER_API);
     // await PythonASTInfo.test();
 }

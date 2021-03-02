@@ -19,7 +19,7 @@ export type FunCall = {
     closure_cellvars: Map<string, any>,
     closure_freevars: Map<string, any>,
     parent_id: number,
-    code_file_id: number
+    fun_id: number
 };
 
 export type Snapshot = {
@@ -28,7 +28,8 @@ export type Snapshot = {
     stack: number,
     heap: number,
     interop: number,
-    line_no: number
+    line_no: number,
+    start_fun_call_id: number | null
 };
 
 export type DBObject = {
@@ -39,5 +40,4 @@ export type DBObject = {
 export type FunCallExpanded = FunCall & {
     snapshots: Snapshot[],
     childFunCalls: FunCall[],
-    heapMap: { [key: string]: number }
 };

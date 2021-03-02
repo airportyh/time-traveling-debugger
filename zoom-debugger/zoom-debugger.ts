@@ -1,12 +1,8 @@
-import { parse } from "../play-lang/src/parser";
 import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
 import { FunCallRenderer } from "./fun-call-renderer";
-import { PlayLangASTInfo } from "./play-lang-ast-info";
 import { fetchJson } from "./fetch-json";
 import { DataCache } from "./data-cache";
-import { PythonASTInfo } from "./python-ast-info";
-import { ASTInfo } from "./ast-info";
 
 type Scope = {
     bbox: BoundingBox,
@@ -44,7 +40,7 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
     //     console.log("data cache object map size:", dataCache.objectMap.size);
     //     console.log("data cache fun call map size:", dataCache.funCallMap.size);
     // }, 1000);
-    const rootFunCall = await fetchJson(`${apiBaseUrl}RootFunCall`);
+    const rootFunCall = await dataCache.fetchRootFunCall();
     
     const canvasWidth = element.offsetWidth * 2;
     const canvasHeight = element.offsetHeight * 2;
@@ -120,7 +116,6 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
             dragStartY = pointerY;
             requestRender();
         }
-        requestRender();
     });
     
     element.addEventListener("wheel", function (e: any) {

@@ -63,7 +63,7 @@ export function RichStackPane(db, box) {
             const cellvars = jsonLike.parse(stack.closure_cellvars);
             const cellvarsEntries = cellvars.entries();
             for (let [key, value] of cellvarsEntries) {
-                value = resolve(value, heapVersion, heap).get("ob_ref") || null;
+                value = resolve(value, heapVersion).get("ob_ref") || null;
                 const prefix = $s(key, {foreground: 'yellow'}).concat(" = ");
                 const renderedValue = renderValue(prefix, $s("  "), value, heapVersion, new Set(), [key]);
                 lines.push(...renderedValue);

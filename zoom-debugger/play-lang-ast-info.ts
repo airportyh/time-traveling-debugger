@@ -34,6 +34,10 @@ export class PlayLangASTInfo implements ASTInfo {
         return userDefinedFunctions.map(fun => fun.name.value);
     }
     
+    getStatementOnLine(funNode: any, line: number): any {
+        throw new Error("Unimplemented");
+    }
+    
     getCallExpressionsOnLine(funNode: any, line: number): any[] {
         return findNodesOfTypeOnLine(funNode, "call_expression", line);
     }
