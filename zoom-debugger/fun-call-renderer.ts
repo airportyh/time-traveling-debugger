@@ -154,7 +154,6 @@ export class FunCallRenderer implements ZoomRenderable {
     }
     
     getCodeBox(): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
-        console.log("getCodeBox", this.fun.name);
         const childMap: Map<Box, ZoomRenderable> = new Map();
         const funNode = this.astInfo.getFunNode(this.fun.name);
         
@@ -164,14 +163,21 @@ export class FunCallRenderer implements ZoomRenderable {
             children: []
         };
         
+        if (this.astInfo.hasSignature(funNode)) {
+            // layout the function signature
+            codeBox.children.push(this.layoutFunctionSignature(
+                funNode, this.funCall, 0, childMap));
+        }
+        
         const snapshots = this.cache.getFunCallSnapshots(this.funCall.id);
         
         let currLineNo = snapshots[0].line_no;
         let currGroup = [snapshots[0]];
         
-        const buildBox = (node: any, line: string, funCallIds: number[]): Box => {
+        const buildBox = (node: any, line: string, funCallIds: number[], top: boolean): Box => {
+            let box: Box;
             if (node.type === "Expr") {
-                return buildBox(node.value, line, funCallIds);
+                box = buildBox(node.value, line, funCallIds, false);
             } else if (node.type === "Call") {
                 const args = node.args;
                 const funCallId = funCallIds.pop();
@@ -179,7 +185,6 @@ export class FunCallRenderer implements ZoomRenderable {
                 if (funCallId > 0) {
                     funCall = this.cache.getFunCall(funCallId);
                 }
-                let box: Box;
                 if (args.length > 0) {
                     box = horizontalBox({ width: 2, color: CODE_COLOR });
                     const prefix = line.substring(node.col_offset, args[0].col_offset);
@@ -187,7 +192,7 @@ export class FunCallRenderer implements ZoomRenderable {
                     for (let i = 0; i < args.length; i++) {
                         const arg = args[i];
                         const nextArg = args[i + 1];
-                        const childBox = buildBox(arg, line, funCallIds);
+                        const childBox = buildBox(arg, line, funCallIds, false);
                         box.children.push(childBox);
                         if (nextArg) {
                             box.children.push(textBox(line.substring(arg.end_col_offset, nextArg.col_offset), CODE_COLOR));
@@ -204,45 +209,49 @@ export class FunCallRenderer implements ZoomRenderable {
                     const childRenderer = new FunCallRenderer(funCall, node, this.context);    
                     childMap.set(box, childRenderer);
                 }
-                return box;
             } else if (node.type === "Constant") {
-                return textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
+                box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
             } else if (node.type === "ClassDef") {
-                return textBox(line, CODE_COLOR);
+                box = textBox(line, CODE_COLOR);
             } else if (node.type === "FunctionDef") {
-                return textBox(line, CODE_COLOR);
-            } else if (node.type === "If") {
-                return textBox(line.substring(node.col_offset), CODE_COLOR);
+                box = textBox(line, CODE_COLOR);
+            } else if (node.type === "If" || node.type === "For") {
+                box = textBox(line.substring(node.col_offset), CODE_COLOR);
             } else if (node.type === "Assign") {
                 const prefix = line.substring(node.col_offset, node.value.col_offset);
-                const valueBox = buildBox(node.value, line, funCallIds);
-                const box = horizontalBox();
+                const valueBox = buildBox(node.value, line, funCallIds, false);
+                box = horizontalBox();
                 box.children.push(textBox(prefix, CODE_COLOR));
                 box.children.push(valueBox);
-                return box;
-            } else if (node.type === "Name") {
-                return textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
+            } else if (node.type === "Name" || node.type === "List" || node.type === "Delete") {
+                box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
             } else if (node.type === "BinOp") {
-                const leftBox = buildBox(node.left, line, funCallIds);
-                const rightBox = buildBox(node.right, line, funCallIds);
-                const box = horizontalBox();
+                const leftBox = buildBox(node.left, line, funCallIds, false);
+                const rightBox = buildBox(node.right, line, funCallIds, false);
+                box = horizontalBox();
                 box.children.push(leftBox);
                 box.children.push(textBox(line.substring(node.left.end_col_offset, node.right.col_offset), CODE_COLOR));
                 box.children.push(rightBox);
-                return box;
             } else if (node.type === "Return") {
-                const valueBox = buildBox(node.value, line, funCallIds);
-                const box = horizontalBox();
+                const valueBox = buildBox(node.value, line, funCallIds, false);
+                box = horizontalBox();
                 box.children.push(textBox(line.substring(node.col_offset, node.value.col_offset), CODE_COLOR));
                 box.children.push(valueBox);
-                return box;
             } else {
                 console.error("Don't know how to handle AST node", node);
                 throw new Error(`Don't know how to handle AST node type ${node.type}.`);
             }
+            if (top) {
+                const prefix = line.substring(0, node.col_offset);
+                const retBox = horizontalBox();
+                retBox.children.push(textBox(prefix, CODE_COLOR));
+                retBox.children.push(box);
+                box = retBox;
+            }
+            return box;
         }
         
-        const commitCurrGroup = () => {
+        const commitCurrGroup = (nextSnapshot: Snapshot | null) => {
             const lineNo = currGroup[0].line_no;
             const line = this.codeInfo.codeLines[lineNo - 1];
             const statement = this.astInfo.getStatementOnLine(funNode, lineNo);
@@ -254,10 +263,37 @@ export class FunCallRenderer implements ZoomRenderable {
                 }
             }
             
-            const box = buildBox(statement, line, funCallIds);
-            codeBox.children.push(box);
+            const lineBox = horizontalBox();
+            const box = buildBox(statement, line, funCallIds, true);
+            lineBox.children.push(box);
+            const valueDisplayStrings: TextBox[][] = [];
+            
+            const firstSnapshot = currGroup[0];
+            nextSnapshot = nextSnapshot || currGroup[currGroup.length - 1];
+            this.renderVariableAssignmentValues(firstSnapshot, funNode, this.funCall, nextSnapshot, childMap, valueDisplayStrings);
+            this.renderUpdatedHeapObjects(funNode, this.funCall, firstSnapshot, nextSnapshot, childMap, valueDisplayStrings);
+            this.renderReturnValues(funNode, this.funCall, firstSnapshot, nextSnapshot, childMap, valueDisplayStrings);
+            
+            if (valueDisplayStrings.length > 0) {
+                lineBox.children.push({
+                    type: "text",
+                    text: "  "
+                });
+                lineBox.children.push(...valueDisplayStrings[0]);
+                for (let i = 1; i < valueDisplayStrings.length; i++) {
+                    const blankLineBox: Box = {
+                        type: "container",
+                        direction: "horizontal",
+                        children: []
+                    };
+                    blankLineBox.children.push(...valueDisplayStrings[i]);
+                    codeBox.children.push(blankLineBox);
+                }
+            }
+            
+            codeBox.children.push(lineBox);
+            
         };
-        // console.log("start loop");
         for (let i = 1; i < snapshots.length; i++) {
             const snapshot = snapshots[i];
             if (currLineNo === snapshot.line_no) {
@@ -265,7 +301,7 @@ export class FunCallRenderer implements ZoomRenderable {
             } else {
                 // commit previous group of snapshots which
                 // occurred on the same source line
-                commitCurrGroup();
+                commitCurrGroup(snapshot);
                 
                 // reset currGroup to one starting with this
                 // snapshot
@@ -275,7 +311,7 @@ export class FunCallRenderer implements ZoomRenderable {
         }
         
         if (currGroup.length > 0) {
-            commitCurrGroup();
+            commitCurrGroup(null);
         }
         
         // console.log("end loop");
@@ -374,7 +410,6 @@ export class FunCallRenderer implements ZoomRenderable {
         const childCallMap: Map<Snapshot, SubEntryGroup[]> = new Map();
         let childFunCallIdx = 0;
         const snapshots = this.cache.getFunCallSnapshots(funCall.id);
-        console.log("cache", this.cache, "funCall.id", funCall.id, "snapshots", snapshots);
         const childFunCalls = this.cache.getFunCallChildFunCalls(funCall.id);
         for (let i = 0; i < snapshots.length; i++) {
             const snapshot = snapshots[i];
@@ -447,7 +482,6 @@ export class FunCallRenderer implements ZoomRenderable {
             lineBox.children.push(callExprTextBox);
 
             if (!subEntryGroup.funCall) {
-                console.log(subEntryGroup);
                 throw new Error("Y NO FUN CALL?");
             }
             childMap.set(
@@ -469,7 +503,7 @@ export class FunCallRenderer implements ZoomRenderable {
         }
     }
 
-    renderVariableAssignmentValues(snapshot: Snapshot, funNode: any, funCall: FunCallExpanded, nextSnapshot: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    renderVariableAssignmentValues(snapshot: Snapshot, funNode: any, funCall: FunCall, nextSnapshot: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         // Display variable values for assignments
 
         const varName = this.astInfo.getVarAssignmentOnLine(funNode, snapshot.line_no);
@@ -534,14 +568,10 @@ export class FunCallRenderer implements ZoomRenderable {
         return [];
     }
 
-    renderUpdatedHeapObjects(funNode: any, funCallExpanded: FunCallExpanded, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
+    renderUpdatedHeapObjects(funNode: any, funCallExpanded: FunCall, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
         let varNameAssigned = this.astInfo.getVarAssignmentOnLine(funNode, entry.line_no);
         const locals = funCallExpanded.locals;
         if (nextEntry) {
-            // const currentHeap = this.context.dataCache.getObject(entry.heap);
-            // const nextHeap = this.context.dataCache.getObject(nextEntry.heap);
-            // const nextVariables = this.context.dataCache.getObject(funCallExpanded.heapMap[nextEntry.heap + "/" + locals]);
-            // const currentVariables = this.context.dataCache.getObject(funCallExpanded.heapMap[entry.heap + "/" + locals]);
             const nextVariables = this.context.dataCache.getHeapObject(nextEntry.heap, locals);
             const currentVariables = this.context.dataCache.getHeapObject(entry.heap, locals);
 
@@ -587,7 +617,7 @@ export class FunCallRenderer implements ZoomRenderable {
 
     renderReturnValues(
         funNode: any, 
-        funCallExpanded: FunCallExpanded,
+        funCall: FunCall,
         entry: Snapshot, 
         nextEntry: Snapshot, 
         childMap: Map<Box, ZoomRenderable>,
@@ -598,28 +628,14 @@ export class FunCallRenderer implements ZoomRenderable {
 
         if (returnStatement) {
             const entryToUse = nextEntry || entry;
-            const variables = this.context.dataCache.getHeapObject(entryToUse.heap, funCallExpanded.locals);
+            const variables = this.context.dataCache.getHeapObject(entryToUse.heap, funCall.locals);
             const varValue = variables.get("<ret val>");
             const valueDisplay = this.getVarValueDisplay(entryToUse, varValue, childMap);
             const tagged: Box[][] = valueDisplay.map((line, idx) => {
                 if (idx === 0) {
-                    return [
-                        {
-                            type: "text",
-                            text: `<ret val> = `,
-                            color: VARIABLE_DISPLAY_COLOR
-                        },
-                        ...line
-                    ];
+                    return [ textBox(`<ret val> = `, VARIABLE_DISPLAY_COLOR), ...line ];
                 } else {
-                    return [
-                        {
-                            type: "text",
-                            text: Array(`<ret val> = `.length + 1).join(" "),
-                            color: VARIABLE_DISPLAY_COLOR
-                        } as TextBox,
-                        ...line
-                    ]
+                    return [ textBox(Array(`<ret val> = `.length + 1).join(" "), VARIABLE_DISPLAY_COLOR), ...line ];
                 }
             });
             valueDisplayStrings.push(...tagged);
@@ -632,11 +648,11 @@ export class FunCallRenderer implements ZoomRenderable {
             type: "container",
             direction: "horizontal",
             children: [
-                {
-                    type: "text",
-                    text: String(startPos.line).padEnd(lineNumberWidth) + "  ",
-                    color: LINE_NUMBER_COLOR
-                },
+                // {
+                //     type: "text",
+                //     text: String(startPos.line).padEnd(lineNumberWidth) + "  ",
+                //     color: LINE_NUMBER_COLOR
+                // },
                 {
                     type: "text",
                     text: this.codeInfo.codeLines[startPos.line - 1],
@@ -679,7 +695,7 @@ export class FunCallRenderer implements ZoomRenderable {
         if (isHeapRef(value)) {
             let object = this.context.dataCache.getHeapObject(snapshot.heap, value.id);
             if (object === undefined) {
-                throw new Error("Could not find entry in heap map for: " + snapshot.heap + "/" + value.id);
+                object = "{}";
             }
             if (typeof object === "string") {
                 return [[getValueDisplay(snapshot, object, childMap, this.context.textMeasurer, this.context)]];

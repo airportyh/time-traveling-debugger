@@ -148,6 +148,8 @@ function TermDebugger() {
             stepForward();
         } else if (isStepOutKey(data)) {
             stepOut();
+        } else if (String(data) == "r" || String(data) == "p") {
+            stepBackward();
         } else if (isMouseClick(data)) {
             const x = data[4] - 32;
             const y = data[5] - 32;

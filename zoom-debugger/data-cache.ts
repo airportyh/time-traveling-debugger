@@ -161,7 +161,6 @@ export class DataCache {
                 data = parse(data);
             }
             if (key.startsWith("FunCall/")) {
-                console.log("parsing", data.closure_cellvars);
                 if (data.closure_cellvars) {
                     data.closure_cellvars = parse(data.closure_cellvars);
                 }
@@ -169,7 +168,6 @@ export class DataCache {
                     data.closure_freevars = parse(data.closure_freevars);
                 }
             }
-            console.log("adding cache entry", key, data);
             this.map.set(key, data);
         }
         this.stringifyGlobalsMaps(funCall);

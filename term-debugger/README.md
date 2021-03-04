@@ -17,6 +17,7 @@ to navigate the history of the program. Here are the commands:
 * `Down Arrow` - step over
 * `Up Arrow` - step over backwards
 * `i` - step into
+* `r` or `p` - step backwards into
 * `o` - step out
 * `Click` on a line of source - fast forward for the next execution of selected line (if exists)
 * `Right Click` or `Ctrl Click` on a line in source - rewind to the previous execution of selected line (if exists)
