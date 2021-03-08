@@ -27,7 +27,8 @@ export function RichStackPane(db, box) {
         while (true) {
             if (!stack) break;
             const fun = cache.getFun(stack.fun_id);
-            lines.push($s(fun.name + "()", { display: 'underscore' }));
+            const funName = fun && fun.name || "<unknown>";
+            lines.push($s(funName + "()", { display: 'underscore' }));
             renderLocals(stack.locals, heapVersion, lines);
             renderClosureVariables(stack, heapVersion, lines);
             renderGlobals(stack.globals, heapVersion, lines);
