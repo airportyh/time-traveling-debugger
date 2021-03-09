@@ -1,6 +1,8 @@
 /*
 TODO:
 
+* have to press i twice to step in?
+* switch to left and right arrow for step in and out
 * allow collapsing of data structures
 * hover over source to see value
 * zoom-in/zoom-out effect when going into or coming out of frame

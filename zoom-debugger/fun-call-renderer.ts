@@ -1,5 +1,5 @@
 import { ZoomRenderable, BoundingBox } from "./zui";
-import { FunCall, DBObject, Snapshot, FunCallExpanded } from "./play-lang";
+import { FunCall, Snapshot } from "./play-lang";
 import { TextMeasurer, TextBox, fitBox, Box, ContainerBox } from "./fit-box";
 import { ZoomDebuggerContext } from "./zoom-debugger";
 import { DataCache } from "./data-cache";
@@ -186,7 +186,11 @@ export class FunCallRenderer implements ZoomRenderable {
                     funCall = this.cache.getFunCall(funCallId);
                 }
                 if (args.length > 0) {
-                    box = horizontalBox({ width: 2, color: CODE_COLOR });
+                    if (funCallId > 0) {
+                        box = horizontalBox({ width: 1, color: CODE_COLOR });
+                    } else {
+                        box = horizontalBox();
+                    }
                     const prefix = line.substring(node.col_offset, args[0].col_offset);
                     box.children.push(textBox(prefix, CODE_COLOR));
                     for (let i = 0; i < args.length; i++) {
@@ -281,11 +285,7 @@ export class FunCallRenderer implements ZoomRenderable {
                 });
                 lineBox.children.push(...valueDisplayStrings[0]);
                 for (let i = 1; i < valueDisplayStrings.length; i++) {
-                    const blankLineBox: Box = {
-                        type: "container",
-                        direction: "horizontal",
-                        children: []
-                    };
+                    const blankLineBox: Box = horizontalBox();
                     blankLineBox.children.push(...valueDisplayStrings[i]);
                     codeBox.children.push(blankLineBox);
                 }
@@ -583,27 +583,18 @@ export class FunCallRenderer implements ZoomRenderable {
                 if (isHeapRef(value)) {
                     const nextValue = nextVariables.get(varName);
                     const headValueChanged = hasHeapValueChanged(value.id, this.context.dataCache, entry.heap, nextEntry.heap);
-                    if (!nextValue || 
-                        (isHeapRef(value) && (
-                        (value.id !== nextValue.id) || headValueChanged))) {
-                        const varValueDisplay = this.getVarValueDisplay(entry, nextValue, childMap);
+                    
+                    if (!nextValue || headValueChanged) {
+                        const varValueDisplay = this.getVarValueDisplay(nextEntry, nextValue, childMap);
                         const taggedVarValueDisplay: Box[][] = varValueDisplay.map((line, idx) => {
                             if (idx === 0) {
                                 return [
-                                    {
-                                        type: "text",
-                                        text: `${varName} = `,
-                                        color: VARIABLE_DISPLAY_COLOR
-                                    } as TextBox,
+                                    textBox(`${varName} = `, VARIABLE_DISPLAY_COLOR),
                                     ...line
                                 ];
                             } else {
                                 return [
-                                    {
-                                        type: "text",
-                                        text: Array(`${varName} = `.length + 1).join(" "),
-                                        color: VARIABLE_DISPLAY_COLOR
-                                    } as TextBox,
+                                    textBox(Array(`${varName} = `.length + 1).join(" "), VARIABLE_DISPLAY_COLOR),
                                     ...line
                                 ];;
                             }
@@ -690,16 +681,20 @@ export class FunCallRenderer implements ZoomRenderable {
         let objectId: any = null;
         if (isObjectRef(value)) {
             objectId = value.id;
-            value = this.context.dataCache.getObject(value.id);
+            value = this.cache.getObject(value.id);
         }
         if (isHeapRef(value)) {
-            let object = this.context.dataCache.getHeapObject(snapshot.heap, value.id);
-            if (object === undefined) {
-                object = "{}";
+            let object = this.cache.getHeapObject(snapshot.heap, value.id);
+            if (!object) {
+                return [[textBox("{}", VARIABLE_DISPLAY_COLOR)]]
             }
             if (typeof object === "string") {
                 return [[getValueDisplay(snapshot, object, childMap, this.context.textMeasurer, this.context)]];
             } else if (Array.isArray(object)) {
+                if (object.length === 0) {
+                    return [[textBox("[]", VARIABLE_DISPLAY_COLOR)]];
+                }
+                
                 const row: Box[] = [];
                 for (let i = 0; i < object.length; i++) {
                     const item = object[i];
@@ -735,100 +730,110 @@ export class FunCallRenderer implements ZoomRenderable {
 
 }
 
-class HeapObjectRenderer implements ZoomRenderable {
-    constructor(
-        public snapshot: Snapshot,
-        public value: any, 
-        public textMeasurer: TextMeasurer,
-        public context: ZoomDebuggerContext
-    ) {
-    }
-
-    id(): string {
-        return `heapObject[${this.snapshot.id},${this.value.id}]`;
-    }
-
-    hoverable(): boolean {
-        return true;
-    }
-    
-    get cache(): DataCache {
-        return this.context.dataCache;
-    }
-
-    render(
-        ctx: CanvasRenderingContext2D,
-        bbox: BoundingBox,
-        viewport: BoundingBox
-    ): Map<BoundingBox, ZoomRenderable> {
-        const childMap: Map<Box, ZoomRenderable> = new Map();
-        const myArea = bbox.width * bbox.height;
-        const myAreaRatio = myArea / (viewport.width * viewport.height);
-        if (myAreaRatio > 0.0005) {
-            ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
-            const object = this.cache.getHeapObject(this.snapshot.heap, this.value.id);
-            let box: Box;
-            if (Array.isArray(object)) {
-                box = {
-                    type: "container",
-                    direction: "horizontal",
-                    children: []
-                };
-                for (let i = 0; i < object.length; i++) {
-                    const item = object[i];
-                    const itemBox = getValueDisplay(this.snapshot, item, childMap, this.textMeasurer, this.context);
-                    itemBox.text = " " + itemBox.text + " ";
-                    box.children.push(itemBox);
-                }
-            } else { // it's a dictionary
-                box = {
-                    type: "container",
-                    direction: "vertical",
-                    children: []
-                };
-                const leftColumnWidth = Math.max(...Object.keys(object).map((key) => key.length));
-                const rightColumnWidth = Math.max(...Object.keys(object).map((key) => getValueDisplayLength(object[key])));
-                for (let prop in object) {
-                    const propValue = object[prop];
-                    const propTextBox: TextBox = {
-                        type: "text",
-                        text: prop.padEnd(leftColumnWidth, " "),
-                        color: VARIABLE_DISPLAY_COLOR,
-                        border: { color: VARIABLE_DISPLAY_COLOR }
-                    };
-                    const propValueBox = getValueDisplay(this.snapshot, propValue, childMap, this.textMeasurer, this.context);
-                    propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
-                    propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
-                    const row: Box = {
-                        type: "container",
-                        direction: "horizontal",
-                        children: [
-                            propTextBox,
-                            propValueBox
-                        ]
-                    };
-                    box.children.push(row);
-                }
-            }
-
-            const bboxMap = fitBox(
-                box, bbox, viewport, 
-                CODE_FONT_FAMILY, "normal", 
-                true, this.textMeasurer, 
-                CODE_LINE_HEIGHT, ctx, VARIABLE_DISPLAY_COLOR
-            );
-
-            let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
-            for (let [box, renderable] of childMap) {
-                const childBBox = bboxMap.get(box);
-                childRenderables.set(childBBox, renderable);
-            }
-            return childRenderables;
-        }
-
-        return new Map();
-    }
-}
+// class HeapObjectRenderer implements ZoomRenderable {
+//     constructor(
+//         public snapshot: Snapshot,
+//         public value: any, 
+//         public textMeasurer: TextMeasurer,
+//         public context: ZoomDebuggerContext
+//     ) {
+//     }
+// 
+//     id(): string {
+//         return `heapObject[${this.snapshot.id},${this.value.id}]`;
+//     }
+// 
+//     hoverable(): boolean {
+//         return true;
+//     }
+// 
+//     get cache(): DataCache {
+//         return this.context.dataCache;
+//     }
+// 
+//     render(
+//         ctx: CanvasRenderingContext2D,
+//         bbox: BoundingBox,
+//         viewport: BoundingBox
+//     ): Map<BoundingBox, ZoomRenderable> {
+//         const childMap: Map<Box, ZoomRenderable> = new Map();
+//         const myArea = bbox.width * bbox.height;
+//         const myAreaRatio = myArea / (viewport.width * viewport.height);
+//         if (myAreaRatio > 0.0005) {
+//             ctx.clearRect(bbox.x, bbox.y, bbox.width, bbox.height);
+//             const object = this.cache.getHeapObject(this.snapshot.heap, this.value.id);
+// 
+//             if (!object) {
+//                 return new Map();
+//             }
+// 
+//             let box: Box;
+//             if (Array.isArray(object)) {
+//                 box = horizontalBox();
+//                 for (let i = 0; i < object.length; i++) {
+//                     const item = object[i];
+//                     const itemBox = getValueDisplay(this.snapshot, item, childMap, this.textMeasurer, this.context);
+// 
+//                     if (!itemBox.border) {
+//                         itemBox.border = { color: VARIABLE_DISPLAY_COLOR };
+//                     }
+// 
+//                     itemBox.text = " " + itemBox.text + " ";
+//                     box.children.push(itemBox);
+//                 }
+//             } else { // it's a dictionary
+//                 box = {
+//                     type: "container",
+//                     direction: "vertical",
+//                     children: []
+//                 };
+// 
+//                 const keys = Object.keys(object);
+//                 if (keys.length === 0) {
+//                     box.children.push(textBox("{}", CODE_COLOR));
+//                 } else {
+//                     const leftColumnWidth = Math.max(...keys.map((key) => key.length));
+//                     const rightColumnWidth = Math.max(...keys.map((key) => getValueDisplayLength(object[key])));
+//                     for (let prop in object) {
+//                         const row: Box = horizontalBox();
+//                         const propValue = object[prop];
+// 
+//                         if (leftColumnWidth) {
+//                             row.children.push({
+//                                 type: "text",
+//                                 text: prop.padEnd(leftColumnWidth, " "),
+//                                 color: VARIABLE_DISPLAY_COLOR,
+//                                 border: { color: VARIABLE_DISPLAY_COLOR }
+//                             });
+//                         }
+//                         const propValueBox = getValueDisplay(this.snapshot, propValue, childMap, this.textMeasurer, this.context);
+//                         propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
+//                         if (rightColumnWidth) {
+//                             propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
+//                         }
+//                         box.children.push(row);
+//                     }
+//                 }
+//             }
+// 
+//             const bboxMap = fitBox(
+//                 box, bbox, viewport, 
+//                 CODE_FONT_FAMILY, "normal", 
+//                 true, this.textMeasurer, 
+//                 CODE_LINE_HEIGHT, ctx, VARIABLE_DISPLAY_COLOR
+//             );
+// 
+//             let childRenderables: Map<BoundingBox, ZoomRenderable> = new Map();
+//             for (let [box, renderable] of childMap) {
+//                 const childBBox = bboxMap.get(box);
+//                 childRenderables.set(childBBox, renderable);
+//             }
+//             return childRenderables;
+//         }
+// 
+//         return new Map();
+//     }
+// }
 
 function isHeapRef(thing: any): boolean {
     return thing instanceof HeapRef;
@@ -839,45 +844,46 @@ function isObjectRef(thing: any): boolean {
 }
 
 function hasHeapValueChanged(id: number, cache: DataCache, heapOne: number, heapTwo: number) {
-    if (cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id)) {
-        return true;
-    } else {
-        const thingOne = cache.getHeapObject(heapOne, id);
-        const thingTwo = cache.getHeapObject(heapTwo, id);
-        if (Array.isArray(thingOne)) {
-            if (thingOne.length !== thingTwo.length) {
-                return true;
-            }
-            for (let i = 0; i < thingOne.length; i++) {
-                if (thingOne[i] !== thingTwo[i]) {
-                    return true;
-                } else if (isHeapRef(thingOne[i])) {
-                    if (hasHeapValueChanged(thingOne[i].id, cache, heapOne, heapTwo)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } else if (thingOne instanceof Map) {
-            if (thingOne.size !== thingTwo.size) {
-                return true;
-            }
-            for (let prop of thingOne.keys()) {
-                const valueOne = thingOne.get(prop);
-                const valueTwo = thingTwo.get(prop);
-                if (valueOne !== valueTwo) {
-                    return true;
-                } else if (isHeapRef(valueOne)) {
-                    if (hasHeapValueChanged(valueOne.id, cache, heapOne, heapTwo)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } else {
-            return false;
-        }
-    }
+    return cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id);
+    // if (cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id)) {
+    //     return true;
+    // } else {
+    //     const thingOne = cache.getHeapObject(heapOne, id);
+    //     const thingTwo = cache.getHeapObject(heapTwo, id);
+    //     if (Array.isArray(thingOne)) {
+    //         if (thingOne.length !== thingTwo.length) {
+    //             return true;
+    //         }
+    //         for (let i = 0; i < thingOne.length; i++) {
+    //             if (thingOne[i] !== thingTwo[i]) {
+    //                 return true;
+    //             } else if (isHeapRef(thingOne[i])) {
+    //                 if (hasHeapValueChanged(thingOne[i].id, cache, heapOne, heapTwo)) {
+    //                     return true;
+    //                 }
+    //             }
+    //         }
+    //         return false;
+    //     } else if (thingOne instanceof Map) {
+    //         if (thingOne.size !== thingTwo.size) {
+    //             return true;
+    //         }
+    //         for (let prop of thingOne.keys()) {
+    //             const valueOne = thingOne.get(prop);
+    //             const valueTwo = thingTwo.get(prop);
+    //             if (valueOne !== valueTwo) {
+    //                 return true;
+    //             } else if (isHeapRef(valueOne)) {
+    //                 if (hasHeapValueChanged(valueOne.id, cache, heapOne, heapTwo)) {
+    //                     return true;
+    //                 }
+    //             }
+    //         }
+    //         return false;
+    //     } else {
+    //         return false;
+    //     }
+    // }
 }
 
 function getValueDisplay(
@@ -888,17 +894,18 @@ function getValueDisplay(
     context: ZoomDebuggerContext
 ): TextBox {
     if (isHeapRef(value)) {
-        const textBox: TextBox = {
-            type: "text",
-            text: "*" + value.id,
-            color: VARIABLE_DISPLAY_COLOR,
-            border: {
-                color: VARIABLE_DISPLAY_COLOR
-            }
-        };
+        // const textBox: TextBox = {
+        //     type: "text",
+        //     text: "*" + value.id,
+        //     color: VARIABLE_DISPLAY_COLOR,
+        //     border: {
+        //         color: VARIABLE_DISPLAY_COLOR
+        //     }
+        // };
 
-        childMap.set(textBox, new HeapObjectRenderer(snapshot, value, textMeasurer, context));
-        return textBox;
+        // childMap.set(textBox, new HeapObjectRenderer(snapshot, value, textMeasurer, context));
+        const display = getHeapObjectStringDisplay(snapshot, value, context);
+        return textBox(display, VARIABLE_DISPLAY_COLOR);
     }
     const retval: TextBox = {
         type: "text",
@@ -906,6 +913,32 @@ function getValueDisplay(
         color: VARIABLE_DISPLAY_COLOR
     };
     return retval;
+}
+
+function getHeapObjectStringDisplay(snapshot: Snapshot, value: any, context: ZoomDebuggerContext): string {
+    if (value === null) {
+        return "null";
+    } else if (value === undefined) {
+        return "undefined";
+    } else if (isHeapRef(value)) {
+        const cache = context.dataCache;
+        const object = cache.getHeapObject(snapshot.heap, value.id);
+        if (Array.isArray(object)) {
+            return "[" + object.map((item) => {
+                return getHeapObjectStringDisplay(snapshot, item, context);
+            }).join(", ") + "]";
+        } else if (object instanceof Map) {
+            return "{" + Array.from(object.entries()).map(([key, value]) => {
+                const keyDisplay = getHeapObjectStringDisplay(snapshot, key, context);
+                const valueDisplay = getHeapObjectStringDisplay(snapshot, value, context);
+                return keyDisplay + ": " + valueDisplay;
+            }) + "}";
+        } else {
+            return JSON.stringify(object);
+        }
+    } else {
+        return JSON.stringify(value);
+    }
 }
 
 function getValueDisplayLength(value: any): number {

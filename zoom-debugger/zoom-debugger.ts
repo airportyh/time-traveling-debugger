@@ -1,7 +1,6 @@
 import { BoundingBox, TextMeasurer } from "./fit-box";
 import { ZoomRenderable } from "./zui";
 import { FunCallRenderer } from "./fun-call-renderer";
-import { fetchJson } from "./fetch-json";
 import { DataCache } from "./data-cache";
 
 type Scope = {
@@ -19,19 +18,6 @@ export type ZoomDebuggerContext = {
     dataCache: DataCache,
     apiBaseUrl: string
 };
-
-export async function initZoomDebugger2(element: HTMLElement, apiBaseUrl: string) {
-    // const snapshot1 = (await fetchJson(apiBaseUrl + "Snapshot?id=1"))[0];
-    // console.log("snapshot 1", snapshot1);
-    // const funCall = await fetchJson(`${apiBaseUrl}FunCallExpanded?id=${snapshot1.fun_call_id}`);
-    // console.log("fun call", funCall);
-    // const fun = await fetchJson(`${apiBaseUrl}Fun?id=${funCall.fun_id}`);
-    // console.log("fun", fun);
-    // const codeFile = await fetchJson(`${apiBaseUrl}CodeFile?id=${fun.code_file_id}`);
-    // console.log("code file", codeFile);
-    const rootFunCall = await fetchJson(`${apiBaseUrl}RootFunCall`);
-    console.log("root fun call", rootFunCall);
-}
 
 export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string) {
     //const throttledRender = throttle(render, 200);
@@ -162,11 +148,11 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
         const indent = Array(level + 1).join("  ");
         const viewportBBox = { x: 0, y: 0, width: canvas.width, height: canvas.height };
         // TODO: fix <QUESTIONABLE-CODE> - update bbox
-        for (let hoverEntry of rootHoverState) {
-            if (hoverEntry.renderableId === renderable.id()) {
-                hoverEntry.bbox = bbox;
-            }
-        }
+        // for (let hoverEntry of rootHoverState) {
+        //     if (hoverEntry.renderableId === renderable.id()) {
+        //         hoverEntry.bbox = bbox;
+        //     }
+        // }
         // </QUESTIONABLE-CODE>
         
         const childRenderables = renderable.render(ctx, bbox, viewportBBox);
@@ -176,38 +162,38 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
             renderable
         };
         
-        let hoveredChild: ZoomRenderable;
-        let hoveredChildBBox: BoundingBox;
-        let nextHoverState: HoverStateEntry[];
+        // let hoveredChild: ZoomRenderable;
+        // let hoveredChildBBox: BoundingBox;
+        // let nextHoverState: HoverStateEntry[];
         
         for (let [childBBox, renderable] of childRenderables.entries()) {
-            if (isHovered(hoverState, renderable)) {
-                hoveredChild = renderable;
-                hoveredChildBBox = getBBoxForHovered(childBBox);
-                nextHoverState = hoverState.slice(1);
-            } else if (hoverState.length === 0 && renderable.hoverable() && bboxContains(childBBox, mouseX, mouseY)) {
-                hoveredChild = renderable;
-                hoveredChildBBox = getBBoxForHovered(childBBox);
-                const hse = {
-                    renderableId: renderable.id(),
-                    bbox: hoveredChildBBox
-                };
-                nextHoverState = [];
-                rootHoverState.push(hse);
-            } else {
-                const result = renderZoomRenderable(renderable, childBBox, hoverState, [myScope, ...ancestry], level + 1);
-                if (result) {
-                    childEnclosingRenderable = result;
-                }
-            }
-        }
-        
-        if (hoveredChild) {
-            const result = renderZoomRenderable(hoveredChild, hoveredChildBBox, nextHoverState, [myScope, ...ancestry], level + 1);
+            // if (isHovered(hoverState, renderable)) {
+            //     hoveredChild = renderable;
+            //     hoveredChildBBox = getBBoxForHovered(childBBox);
+            //     nextHoverState = hoverState.slice(1);
+            // } else if (hoverState.length === 0 && renderable.hoverable() && bboxContains(childBBox, mouseX, mouseY)) {
+            //     hoveredChild = renderable;
+            //     hoveredChildBBox = getBBoxForHovered(childBBox);
+            //     const hse = {
+            //         renderableId: renderable.id(),
+            //         bbox: hoveredChildBBox
+            //     };
+            //     nextHoverState = [];
+            //     rootHoverState.push(hse);
+            // } else {
+            const result = renderZoomRenderable(renderable, childBBox, hoverState, [myScope, ...ancestry], level + 1);
             if (result) {
                 childEnclosingRenderable = result;
             }
+            // }
         }
+        
+        // if (hoveredChild) {
+        //     const result = renderZoomRenderable(hoveredChild, hoveredChildBBox, nextHoverState, [myScope, ...ancestry], level + 1);
+        //     if (result) {
+        //         childEnclosingRenderable = result;
+        //     }
+        // }
         
         if (childEnclosingRenderable) {
             return childEnclosingRenderable;
@@ -224,18 +210,18 @@ export async function initZoomDebugger(element: HTMLElement, apiBaseUrl: string)
         return hoverState.length > 0 && hoverState[0].renderableId === renderable.id();
     }
     
-    function getBBoxForHovered(bbox: BoundingBox): BoundingBox {
-        const zoomFactor = 2.2;
-        const width = bbox.width * zoomFactor;
-        const height = bbox.height * zoomFactor;
-        const biggerBBox = {
-            x: bbox.x - (width - bbox.width) / zoomFactor,
-            y: bbox.y - (height - bbox.height) / zoomFactor,
-            width: width,
-            height: height
-        };
-        return biggerBBox;
-    }
+    // function getBBoxForHovered(bbox: BoundingBox): BoundingBox {
+    //     const zoomFactor = 2.2;
+    //     const width = bbox.width * zoomFactor;
+    //     const height = bbox.height * zoomFactor;
+    //     const biggerBBox = {
+    //         x: bbox.x - (width - bbox.width) / zoomFactor,
+    //         y: bbox.y - (height - bbox.height) / zoomFactor,
+    //         width: width,
+    //         height: height
+    //     };
+    //     return biggerBBox;
+    // }
     
     function render() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);

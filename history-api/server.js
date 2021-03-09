@@ -271,6 +271,9 @@ function fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched) {
 }
 
 function getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched) {
+    if (snapshot.id == 247) {
+        debugger
+    }
     getObjectsDeep(
         new HeapRef(funCall.locals), 
         snapshot.heap,
@@ -307,6 +310,7 @@ function getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched) {
             );
         }
     }
+    
 }
 
 app.get("/api/SnapshotExpanded", (req, res) => {
@@ -509,11 +513,11 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
     } else {
         return;
     }
-    if (isIn(objKey, alreadyFetched)) {
-        return;
-    } else {
-        dbObject = getObject(id);    
-    }
+    // if (isIn(objKey, alreadyFetched)) {
+    //     return;
+    // } else {
+    dbObject = getObject(id);    
+    // }
     attachments[objKey] = dbObject.data;
     alreadyFetched[objKey] = true;
     const object = parse(dbObject.data, true);
