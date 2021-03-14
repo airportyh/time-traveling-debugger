@@ -13,7 +13,8 @@ export class PythonASTInfo implements ASTInfo {
     }
     
     getSource(node: any): string {
-        return this.codeLines[node.lineno - 1].substring(node.col_offset);
+        const line = this.codeLines[node.lineno - 1];
+        return line && line.substring(node.col_offset) || "";
     }
     
     getFunNode(name: string): any {

@@ -175,6 +175,11 @@ export class FunCallRenderer implements ZoomRenderable {
         let currGroup = [snapshots[0]];
         
         const buildBox = (node: any, line: string, funCallIds: number[], top: boolean): Box => {
+            const asIs = [
+                "Constant", "ImportFrom", "Import", "Tuple",
+                "Name", "List", "Delete", "Dict", "Try",
+                "Subscript"
+            ];
             let box: Box;
             if (node.type === "Expr") {
                 box = buildBox(node.value, line, funCallIds, false);
@@ -213,7 +218,7 @@ export class FunCallRenderer implements ZoomRenderable {
                     const childRenderer = new FunCallRenderer(funCall, node, this.context);    
                     childMap.set(box, childRenderer);
                 }
-            } else if (node.type === "Constant") {
+            } else if (asIs.indexOf(node.type) !== -1) {
                 box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
             } else if (node.type === "ClassDef") {
                 box = textBox(line, CODE_COLOR);
@@ -241,6 +246,9 @@ export class FunCallRenderer implements ZoomRenderable {
                 box = horizontalBox();
                 box.children.push(textBox(line.substring(node.col_offset, node.value.col_offset), CODE_COLOR));
                 box.children.push(valueBox);
+            } else if (node.type instanceof Object && node.body) {
+                // might be except handler
+                box = textBox(line, CODE_COLOR);
             } else {
                 console.error("Don't know how to handle AST node", node);
                 throw new Error(`Don't know how to handle AST node type ${node.type}.`);
@@ -711,16 +719,11 @@ export class FunCallRenderer implements ZoomRenderable {
                 const rightColumnWidth = Math.max(...Object.keys(object).map((key) => getValueDisplayLength(object[key])));
                 const table: Box[][] = [];
                 for (let [prop, propValue] of object.entries()) {
-                    const propTextBox: TextBox = {
-                        type: "text",
-                        text: prop.padEnd(leftColumnWidth, " "),
-                        color: VARIABLE_DISPLAY_COLOR,
-                        border: { color: VARIABLE_DISPLAY_COLOR }
-                    };
+                    const propBox = getValueDisplay(snapshot, prop, childMap, this.context.textMeasurer, this.context);
                     const propValueBox = getValueDisplay(snapshot, propValue, childMap, this.context.textMeasurer, this.context);
                     propValueBox.border = { color: VARIABLE_DISPLAY_COLOR };
                     propValueBox.text = propValueBox.text.padEnd(rightColumnWidth, " ");
-                    table.push([propTextBox, propValueBox]);
+                    table.push([propBox, propValueBox]);
                 }
                 return table;
             }
@@ -942,6 +945,9 @@ function getHeapObjectStringDisplay(snapshot: Snapshot, value: any, context: Zoo
 }
 
 function getValueDisplayLength(value: any): number {
+    if (value === undefined) {
+        return 9;
+    }
     if (isHeapRef(value)) {
         return String("*" + value.id).length;
     }
