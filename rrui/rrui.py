@@ -76,8 +76,6 @@ def get_input():
 
 def perform(cmd):
 	responses = gdb.write(cmd)
-	#for res in responses:
-	#	print(res)
 	return responses
 
 def display_source(filename, curr_line, code_pane):
