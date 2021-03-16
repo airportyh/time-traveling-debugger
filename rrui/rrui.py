@@ -75,7 +75,6 @@ def get_input():
     return data
 
 def perform(cmd):
-	#print("CMD: %s" % cmd)
 	responses = gdb.write(cmd)
 	#for res in responses:
 	#	print(res)
