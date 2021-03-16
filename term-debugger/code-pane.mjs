@@ -88,6 +88,8 @@ export function CodePane(db, box) {
             const codeFile = getCodeFile();
             if (codeFile) {
                 codeLines = codeFile.source.split("\n");
+                // convert tabs to 4 spaces...
+                codeLines = codeLines.map((line) => line.replace(/\t/g, '    '));
                 codeFileId = codeFile.id;
             } else {
                 const funCall = getFunCall();
