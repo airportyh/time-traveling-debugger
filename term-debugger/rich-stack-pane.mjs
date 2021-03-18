@@ -104,7 +104,7 @@ export function RichStackPane(db, box) {
         for (let [key, value] of entries) {
             key = resolve(key, heapVersion);
             const prefix = $s(key, {foreground: 'cyan'}).concat(" = ");
-            log.write(`rendering global ${inspect(key)} ${inspect(value)}\n`);
+            // log.write(`rendering global ${inspect(key)} ${inspect(value)}\n`);
             const renderedValue = renderValue(prefix, $s("  "), value, heapVersion, new Set(), [key]);
             lines.push(...renderedValue);
         }
