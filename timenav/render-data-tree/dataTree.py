@@ -29,12 +29,17 @@ def getStringTree(data, level, prefix):
 def getLines(tree):
     return str(tree).split('\n')
 
-def collapse(stringTree, path):
+def toggleCollapse(stringTree, path):
     target = stringTree
     for item in path:
         children = target.children.contents
         target = children[item]
-    target.collapse()
+    print("target is collapse", target.collapsed)
+    if target.collapsed:
+        target.expand()
+    else:
+        target.collapse()
+    
 
 # render(1)
 # render("Hello")
