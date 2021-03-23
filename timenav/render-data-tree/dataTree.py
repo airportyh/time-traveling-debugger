@@ -34,7 +34,6 @@ def toggleCollapse(stringTree, path):
     for item in path:
         children = target.children.contents
         target = children[item]
-    print("target is collapse", target.collapsed)
     if target.collapsed:
         target.expand()
     else:
