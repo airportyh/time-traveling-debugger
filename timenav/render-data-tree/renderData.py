@@ -21,7 +21,7 @@ from render import clear_screen
 from render import get_input
 from mouseMovement import mouse_off
 from mouseMovement import mouse_on
-from dataTree import getLines, getStringTreeRoot, collapse
+from dataTree import getLines, getStringTreeRoot, toggleCollapse
 from stringTree import StringTreeGroup, StringTree
 
 original_settings = termios.tcgetattr(sys.stdin)
@@ -71,7 +71,6 @@ def render(data):
     try:
         size = os.get_terminal_size()
         tree = getStringTreeRoot(data)
-        # collapse(tree, [0, 0])
         lines = []
         tree.generateLines(False, [], lines, "")
         lineInfo = mapLineToCord(lines)
@@ -79,20 +78,18 @@ def render(data):
         for line in lineInfo:
             goto(line['cordX'], line['cordY'])
             print(line['content'])
-        
         while True:
-            data = get_input()
-            if data == 'q':
+            userInput = get_input()
+            if userInput == 'q':
                 break
             goto(1, 1)
 
-            data = list(map(ord, data))
-            key = getKey(str(data[4]), str(data[5]))
-            # write("key {key}".format(key = key).ljust(size.columns, " "))
-            if cordToPathDict.get(key):
-                # write("key in dict {key}".format(key = key).ljust(size.columns, " "))
-                collapse(tree, cordToPathDict[key])
+            userInput = list(map(ord, userInput))
+            key = getKey(str(userInput[4]), str(userInput[5]))
+            if isinstance(cordToPathDict.get(key), list) and userInput[3] == 32:
+                toggleCollapse(tree, cordToPathDict[key])
                 clear_screen()
+                mouse_on()
                 lines = []
                 tree.generateLines(False, [], lines, "")
                 lineInfo = mapLineToCord(lines)
@@ -100,6 +97,7 @@ def render(data):
                 for line in lineInfo:
                     goto(line['cordX'], line['cordY'])
                     print(line['content'])
+                
     except Exception as e:
         cleanup()
         traceback.print_tb(e)

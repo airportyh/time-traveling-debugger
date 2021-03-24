@@ -35,7 +35,8 @@ class StringTree(object):
         collapsed = parentCollapsed or self.collapsed
         lineContent = self.render(collapsed) if collapsed else self.renderSelf(collapsed)
         if lineContent != "":
-            lines.append(Line(lineContent + suffix, path[:-1]))
+            pathInMap = path if collapsed else path[:-1] 
+            lines.append(Line(lineContent + suffix, pathInMap))
         if not collapsed and self.children:
             self.children.generateLines(path, lines)
     
