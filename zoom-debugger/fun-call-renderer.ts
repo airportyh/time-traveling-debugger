@@ -179,7 +179,8 @@ export class FunCallRenderer implements ZoomRenderable {
             const asIs = [
                 "Constant", "ImportFrom", "Import", "Tuple",
                 "Name", "List", "Delete", "Dict", "Try",
-                "Subscript", "Attribute", "BoolOp", "Break"
+                "Subscript", "Attribute", "BoolOp", "Break",
+                "AugAssign"
             ];
             let box: Box;
             if (node.type === "Expr") {
