@@ -72,6 +72,7 @@ the HTML5 canvas-based debugger executes.
 I have been documenting work on the time-traveling debugger in video format. You can find all the videos
 in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0161Jg82HJ7d). Notable videos are:
 
+* [Time Travel Debugging (in Python)](https://www.youtube.com/watch?v=HlndMuAguEk)
 * [Dream of the Time Machine](https://www.youtube.com/watch?v=xwhm7g9GjuY)
 * [Introducing the Deep-Zoom Debugger (5 minutes)](https://www.youtube.com/watch?v=QE54x1ahHa4)
 * [Deep Zoom Debugger Demo with Huiqi](https://www.youtube.com/watch?v=lVb9bt7wDy8)
