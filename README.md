@@ -85,7 +85,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 * https://rr-project.org/ - A replay debugger for C and C++. [Paper: Engineering Record and Replay for Deployability](https://arxiv.org/pdf/1705.05937.pdf)
 * https://github.com/burg/replay-staging - Timelapse - a replay debugger based on Safari
 * https://oz-code.com/ - a replay debugger for .NET
-* https://github.com/OmniscientDebugger/LewisOmniscientDebugger - an omniscient debugger for Java. [Paper: Debugging Backwards in Time](https://arxiv.org/abs/cs/0310016)
+* https://github.com/OmniscientDebugger/LewisOmniscientDebugger - an omniscient debugger for Java. [Paper: Debugging Backwards in Time](https://arxiv.org/abs/cs/0310016). [Video](https://youtu.be/xpI8hIgOyko)
 * https://github.com/endplay/omniplay - Arnold - an eidetic Linux-based system. [Paper: Eidetic Systems](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)
 * [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420) - Jakon Engblom
 
