@@ -89,7 +89,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 * [ODB (Omniscient Debugger)](https://github.com/OmniscientDebugger/LewisOmniscientDebugger) - an omniscient debugger for Java. [[Talk](https://youtu.be/xpI8hIgOyko)], [[Paper](https://arxiv.org/abs/cs/0310016)].
 * [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [[Paper](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)]
 * [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420)
-* [Sayid](https://github.com/clojure-emacs/sayid) - Omniscent debugger for Clojure. [[Video](https://youtu.be/ipDhvd1NsmE)].
+* [Sayid](https://github.com/clojure-emacs/sayid) - Omniscient debugger for Clojure. [[Video](https://youtu.be/ipDhvd1NsmE)].
 * [Time Traveling in Microsoft WinDBG (Windows Debugger)](https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/time-travel-debugging-overview). [[Video](https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-185-Time-Travel-Debugging-Introduction)], [[Talk](https://www.youtube.com/watch?v=l1YJTg_A914)].
 * Time Traveling Debugger in Microsoft's Chakra JS Engine. [[Talk](https://channel9.msdn.com/blogs/Marron/Time-Travel-Debugging-for-JavaScriptHTML)], [[Docs](https://github.com/nodejs/node-chakracore/blob/master/TTD-README.md)].
 * [Paper: Repeatable Reverse Engineering for the Greater Good with PANDA](https://www.ll.mit.edu/sites/default/files/publication/doc/2018-04/2014_10_01_Dolan-Gavitt_B_TechReport_FP.pdf)
