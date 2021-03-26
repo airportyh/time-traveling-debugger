@@ -84,7 +84,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 
 * [Replay.io](https://replay.io/) - time-travel debugger for JavaScript webapps based on Firefox. [[Talk](https://www.youtube.com/watch?v=rDq1AN1kSn4)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)].
 * [rr](https://rr-project.org/) - time-travel debugger for C and C++. [[Talk](https://www.youtube.com/watch?v=H4iNuufAe_8)], [[Paper](https://arxiv.org/pdf/1705.05937.pdf)].
-* [Timelapse](https://github.com/burg/replay-staging) - a time-travel debugger for JavaScript webapps based on Safari. [[Video](https://www.youtube.com/watch?v=ugHAzyQ6H00)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)].
+* [Timelapse](https://github.com/burg/replay-staging) - a time-travel debugger for JavaScript webapps based on Safari. [[Video](https://www.youtube.com/watch?v=ugHAzyQ6H00)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)], [[Paper](https://homes.cs.washington.edu/~mernst/pubs/record-replay-uist2013.pdf)].
 * [ozcode](https://oz-code.com/) - a replay debugger for .NET
 * [OmniscientDebugger](https://github.com/OmniscientDebugger/LewisOmniscientDebugger) - an omniscient debugger for Java. [[Talk](https://youtu.be/xpI8hIgOyko)], [[Paper: Debugging Backwards in Time](https://arxiv.org/abs/cs/0310016)].
 * [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [Paper: Eidetic Systems](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)
