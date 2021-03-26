@@ -87,7 +87,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 * [Timelapse](https://github.com/burg/replay-staging) - a time-travel debugger for JavaScript webapps based on Safari. [[Video](https://www.youtube.com/watch?v=ugHAzyQ6H00)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)], [[Paper](https://homes.cs.washington.edu/~mernst/pubs/record-replay-uist2013.pdf)].
 * [ozcode](https://oz-code.com/) - a replay debugger for .NET
 * [ODB (Omniscient Debugger)](https://github.com/OmniscientDebugger/LewisOmniscientDebugger) - an omniscient debugger for Java. [[Talk](https://youtu.be/xpI8hIgOyko)], [[Paper: Debugging Backwards in Time](https://arxiv.org/abs/cs/0310016)].
-* [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [[Paper](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)]]
+* [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [[Paper](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)]
 * [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420)
 * [Sayid](https://github.com/clojure-emacs/sayid) - Omniscent debugger for Clojure. [[Video](https://youtu.be/ipDhvd1NsmE)].
 * Experimental Time Traveling Debugger in Chakra JS Engine. [[Talk](https://channel9.msdn.com/blogs/Marron/Time-Travel-Debugging-for-JavaScriptHTML)], [[Docs](https://github.com/nodejs/node-chakracore/blob/master/TTD-README.md)].
