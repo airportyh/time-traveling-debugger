@@ -80,7 +80,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 * [Time Traveling Debugger for Python](https://www.youtube.com/watch?v=h80C9zzyf7k)
 * [rr and Record Replay Debuggers](https://www.youtube.com/watch?v=cCf7hiZvJrY)
 
-## Other Projects, Products, Papers on Time Travel Debugging
+## Other Projects, Products and Papers on Time Travel Debugging
 
 * [Replay.io](https://replay.io/) - time-travel debugger for JavaScript webapps based on Firefox. [[Talk](https://www.youtube.com/watch?v=rDq1AN1kSn4)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)].
 * [rr](https://rr-project.org/) - time-travel debugger for C and C++. [[Talk](https://www.youtube.com/watch?v=H4iNuufAe_8)], [[Paper](https://arxiv.org/pdf/1705.05937.pdf)].
