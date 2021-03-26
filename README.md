@@ -84,12 +84,13 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 
 * https://replay.io/ - A replay debugger for JavaScript frontend applications based on Firefox. 
 * https://rr-project.org/ - A replay debugger for C and C++. [Paper: Engineering Record and Replay for Deployability](https://arxiv.org/pdf/1705.05937.pdf)
-* https://github.com/burg/replay-staging - Timelapse - a replay debugger based on Safari
+* https://github.com/burg/replay-staging - Timelapse - a replay debugger based on Safari [Documentation](https://trac.webkit.org/wiki/WebReplayMechanics)
 * https://oz-code.com/ - a replay debugger for .NET
 * https://github.com/OmniscientDebugger/LewisOmniscientDebugger - an omniscient debugger for Java. [Paper: Debugging Backwards in Time](https://arxiv.org/abs/cs/0310016). [Video](https://youtu.be/xpI8hIgOyko)
 * https://github.com/endplay/omniplay - Arnold - an eidetic Linux-based system. [Paper: Eidetic Systems](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)
 * [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420) - Jakon Engblom
 * [Sayid](https://github.com/clojure-emacs/sayid) - Omniscent debugger for Clojure. [Video](https://youtu.be/ipDhvd1NsmE)
+* Experimental Time Traveling Debugger in Chakra JS Engine: https://channel9.msdn.com/blogs/Marron/Time-Travel-Debugging-for-JavaScriptHTML, https://www.microsoft.com/en-us/research/wp-content/uploads/2010/04/mugshot.pdf, https://github.com/nodejs/node-chakracore/blob/master/TTD-README.md
 
 ## Dependencies
 
