@@ -82,7 +82,7 @@ in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0
 
 ## Other Projects, Products, Papers on Time Travel Debugging
 
-* [Replay.io](https://replay.io/) - A replay debugger for JavaScript web applications based on Firefox. [[Talk]](https://www.youtube.com/watch?v=rDq1AN1kSn4); [[Reading]](https://trac.webkit.org/wiki/WebReplayMechanics).
+* [Replay.io](https://replay.io/) - A replay debugger for JavaScript web applications based on Firefox. ([Talk](https://www.youtube.com/watch?v=rDq1AN1kSn4)), ([Reading](https://trac.webkit.org/wiki/WebReplayMechanics)).
 * https://rr-project.org/ - A replay debugger for C and C++. [Paper: Engineering Record and Replay for Deployability](https://arxiv.org/pdf/1705.05937.pdf)
 * https://github.com/burg/replay-staging - Timelapse - a replay debugger based on Safari [Documentation](https://trac.webkit.org/wiki/WebReplayMechanics)
 * https://oz-code.com/ - a replay debugger for .NET
