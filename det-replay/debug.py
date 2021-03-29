@@ -1,3 +1,13 @@
+# Next Steps
+#
+# * user inputs
+# * multiple files
+# * colors and formatting
+# * integrate styled string
+# * try with real-world-ish apps
+#   * flask
+#   * pygame
+
 import sys
 import os
 import termios
@@ -59,10 +69,6 @@ def display_source(filename, curr_line, code_pane):
     code_pane.set_lines(lines)
 
 def display_stack(frame, stack_pane, show_retval, retval):
-    # code = frame.f_code
-    # locals = frame.f_locals
-    # globals = frame.f_globals
-    # func_name = code.co_name
     lines = []
     
     code = frame.f_code
