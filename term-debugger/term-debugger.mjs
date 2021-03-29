@@ -1,6 +1,7 @@
 /*
 TODO:
 
+* skip to the end
 * have to press i twice to step in?
 * switch to left and right arrow for step in and out
 * allow collapsing of data structures
