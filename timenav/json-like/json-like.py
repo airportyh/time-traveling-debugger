@@ -1,13 +1,41 @@
 import traceback
+import re
 
 def parse(input):
-    string = sequence([literal('"', None), literal(input, None), literal('"', None)], lambda data: data[1])
-    # element = sequence([literal(input, None)], getFirstFromValues)
-    result = string(input, 0)
-    return result.value
+    ws = zeroOrMore(characterMatching("\u0020\u000A\u000D\u0009"))
+    character = characterMatching(lambda c: c != '"' and c != '\\')
+    characters = zeroOrMore(character)
+    string = sequence([literal('"'), characters, literal('"')], lambda data: "".join(data[1]))
+    value = choice(lambda: [
+        string, 
+        literal("true", True), 
+        literal("false", False), 
+        literal("null", None), 
+        array
+    ])
+    element = sequence([ws, value, ws], lambda data: data[1])
+    elements = sequence(
+        [
+            element, 
+            zeroOrMore(
+                sequence(
+                    [literal(","), element], 
+                    lambda data: data[1]
+                )
+            )
+        ], 
+        lambda data: [data[0]] + data[1]
+    )
+    array = choice([
+        sequence([literal("["), ws, literal("]")], lambda data: data[1] ),
+        sequence([literal("["), elements, literal("]")], lambda data: data[1] )
+    ])
 
-def getFirstFromValues(values):
-    return values[0]
+    result = element(input, 0)
+    if result is not None:
+        return result.value
+    else:
+        raise Exception("No parse found")
 
 class Result(object):
     def __init__(self, value, cursor):
@@ -15,12 +43,12 @@ class Result(object):
         self.cursor = cursor
 
 
-def literal(string, value):
+def literal(string, value = None):
     def _literal(buffer, cursor):
-        nonlocal value
-        if value is None:
-            value = string
-        return Result(value, cursor + len(string))
+        if buffer[cursor : cursor + len(string)] == string:    
+            return Result(value if value is not None else string, cursor + len(string))
+        else:
+            return None
     return _literal
 
 def sequence(parsers, converter):
@@ -34,9 +62,56 @@ def sequence(parsers, converter):
                 currentCursor = result.cursor
             else:
                 return None
+            
         value = converter(values) if converter is not None else values
         return Result(value, currentCursor)
     return _sequence
+
+def zeroOrMore(parser):
+    def _zeroOrMore(buffer, cursor):
+        values = []
+        currentCursor = cursor
+        while True:
+            result = parser(buffer, currentCursor)
+            if result:
+                values.append(result.value)
+                currentCursor = result.cursor
+            else:
+                return Result(values, currentCursor)
+    return _zeroOrMore
+
+def characterMatching(match):
+    def _characterMatching(buffer, cursor):
+        if cursor >= len(buffer):
+            return None
+        char = buffer[cursor]
+        if isinstance(match, str):
+            # todo: separate string and regex case
+            if re.match(match, char) or char in match:
+                return Result(char, cursor + 1)
+            else:
+                return None
+        elif callable(match):
+            if match(char):
+                return Result(char, cursor + 1)
+            else:
+                return None
+        else:
+            raise Exception("Unsupported argument type fo characterMatching: " + choices)
+    return _characterMatching
+
+def choice(choices):
+    def _choice(buffer, cursor):
+        nonlocal choices
+
+        if callable(choices):
+            choices = choices()
+        for choice in choices:
+            result = choice(buffer, cursor)
+            if result is not None:
+                return result
+        return None
+    return _choice
 
 def test(): 
     testCases = [
@@ -49,7 +124,10 @@ def test():
         # "-5.6",
         # "12.5e10",
         # "4e5",
-        "ab",
+        # '"ab"',
+        # 'true',
+        '["a", "b", "c"]',
+        '[]',
         # "[1, 2.5, -0.5]",
         # "[1,2.5,-0.5]",
         # "[1,2.5-0.5]",
@@ -75,7 +153,7 @@ def test():
     for testCase in testCases:
         try:
             output = parse(testCase)
-            if output:
+            if output is not None:
                 print('"%s" =' % testCase, output)
             else:
                 print('"%s" no parse found.' % testCase)
