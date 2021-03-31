@@ -4,3 +4,4 @@ node_modules
 *.rewind
 *.log
 __pycache__
+*.pickle
