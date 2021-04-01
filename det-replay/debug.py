@@ -16,39 +16,39 @@ import fcntl
 import atexit
 
 class Box:
-	def __init__(self, left, top, width, height):
-		self.left = left
-		self.top = top
-		self.width = width
-		self.height = height
+    def __init__(self, left, top, width, height):
+        self.left = left
+        self.top = top
+        self.width = width
+        self.height = height
 
 class TextPane:
-	def __init__(self, box):
-		self.box = box
-		self.lines = []
-		self.highlighted = None
+    def __init__(self, box):
+        self.box = box
+        self.lines = []
+        self.highlighted = None
 
-	def set_lines(self, lines):
-		self.lines = lines
-		self.render()
+    def set_lines(self, lines):
+        self.lines = lines
+        self.render()
 
-	def set_highlight(self, highlighted):
-		self.highlighted = highlighted
-		self.render()
+    def set_highlight(self, highlighted):
+        self.highlighted = highlighted
+        self.render()
 
-	def render(self):
-		for i in range(self.box.height):
-			if i < len(self.lines):
-				line = self.lines[i]
-			else:
-				line = ''
-			line = line[0:self.box.width].ljust(self.box.width)
-			if self.highlighted == i:
-				line = '\u001b[47m\u001b[30m' + line + '\u001b[0m'
-			x = self.box.left
-			y = self.box.top + i
-			goto(x, y)
-			write(line)
+    def render(self):
+        for i in range(self.box.height):
+            if i < len(self.lines):
+                line = self.lines[i]
+            else:
+                line = ''
+            line = line[0:self.box.width].ljust(self.box.width)
+            if self.highlighted == i:
+                line = '\u001b[47m\u001b[30m' + line + '\u001b[0m'
+            x = self.box.left
+            y = self.box.top + i
+            goto(x, y)
+            write(line)
 
 def display_source(filename, curr_line, code_pane):
     file = open(filename, 'r')
@@ -123,7 +123,7 @@ def clear_screen():
     write('\x1Bc')
 
 def goto(x, y):
-	write('\x1B[%d;%df' % (y, x))
+    write('\x1B[%d;%df' % (y, x))
     
 def frame_height(frame):
     height = 0
@@ -163,7 +163,7 @@ class Debugger:
     def restore_term(self):
         write('\x1B[0m')
         try:
-    	    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.org_settings)
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.org_settings)
         except:
             pass
     
@@ -189,14 +189,15 @@ class Debugger:
     
     def intercept(self, frame, event, arg=None):
         self.event_count += 1
+        f_height = frame_height(frame)
         
         if self.stepOverUntil is not None:
             if event == 'call':
                 # skip tracking the lines in the call
                 self.update_backward_over_positions(event)
                 return self.intercept
-            elif event == 'line' or event == 'return':
-                if self.stepOverUntil == frame_height(frame):
+            elif event in ['line', 'return', 'exception', 'opcode']:
+                if self.stepOverUntil == f_height:
                     self.stepOverUntil = None
                     # fall through into UI loop
                 else:

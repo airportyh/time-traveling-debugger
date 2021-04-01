@@ -202,10 +202,23 @@ export function RichStackPane(db, box) {
                 tag = "class";
             }
             if (tag) {
-                if (output === "{}") {
-                    output = "";
+                if (tag === "function") {
+                    // get function name
+                    const fun_id = object.get("fun_id");
+                    log.write(`fun_id: ${fun_id}\n`);
+                    const fun = cache.getFun(fun_id);
+                    log.write(`fun: ${inspect(fun)}\n`);
+                    if (fun) {
+                        output = `<function ${fun.name}>`;
+                    } else {
+                        output = "<function>";
+                    }
+                } else {
+                    if (output === "{}") {
+                        output = "";
+                    }
+                    output = `<${tag}>${output}`;
                 }
-                output = `<${tag}>${output}`;
             }
             return output;
         } else {

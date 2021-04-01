@@ -521,6 +521,13 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
     attachments[objKey] = dbObject.data;
     alreadyFetched[objKey] = true;
     const object = parse(dbObject.data, true);
+    if (object.__tag__ === "function") {
+        const funId = object.get("fun_id");
+        const fun = getFun.get(funId);
+        const funKey = "Fun/" + funId;
+        attachments[funKey] = fun;
+        alreadyFetched[funKey] = true;
+    }
     if (Array.isArray(object)) {
         for (let j = 0; j < object.length; j++) {
             let item = object[j];

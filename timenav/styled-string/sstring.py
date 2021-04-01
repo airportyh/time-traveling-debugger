@@ -22,7 +22,7 @@ class StyledString(object):
         if isinstance(key, slice):
             if key.step is not None:
                 raise Exception("Not supported slices with step")
-            else: 
+            else:
                 return StyledString(self.string[key.start: key.stop], self.control_seq)
         else:
             raise Exception('not implemented yet')
@@ -86,48 +86,3 @@ class StyledStringGroup(object):
         else:
             raise Exception("Invalid argument type.")
     
-
-# class StyledStringGroup(object):
-#     def __init__(self, children):
-#         self.children = children
-# 
-#     def __str__(self):
-#         return "".join(map(str, self.children))
-# 
-# class StyledString(object):
-#     def __init__(self, string, control_seq):
-#         self.string = string
-#         self.control_seq = control_seq
-# 
-#     def __add__(self, other):
-#         return StyledStringGroup([self, other])
-# 
-#     def __getitem__(self, key):
-#         if isinstance(key, slice):
-#             if slice.step is not None:
-#                 raise Exception("Not supported slices with step")
-#             else:
-#                 pass
-#         elif isinstance(key, int):
-#             pass
-#         else:
-#             raise Exception("Invalid argument type.")
-# 
-#     def __len__(self):
-#         pass
-# 
-#     def __str__(self):
-#         return CTRL_CODE + self.control_seq + self.string + CTRL_CODE + "[0m"
-# 
-#     def rjust(self, width):
-#         pass
-# 
-#     def ljust(self, width):
-#         pass
-# 
-#     def center(self, width):
-#         pass
-# 
-#     def split(self, separator):
-#         pass
-

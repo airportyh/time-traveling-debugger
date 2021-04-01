@@ -36,7 +36,7 @@ function parse(input) {
     let ws = zeroOrMore(characterMatching("\u0020\u000A\u000D\u0009"));
     let hex = characterMatching("0123456789abcdefABCDEF");
     let escape = choice([characterMatching('"\\\/bfnrt'), sequence([literal("u"), hex, hex, hex, hex])]);
-    let character = choice([sequence([literal("\\"), escape]), characterMatching((c) => c !== '"' && c !== '\\')]);
+    let character = choice([sequence([literal("\\"), escape], (values) => values[1]), characterMatching((c) => c !== '"' && c !== '\\')]);
     let characters = zeroOrMore(character);
     let string = sequence([literal('"'), characters, literal('"')], (data) => {
         return data[1].join("");
@@ -125,7 +125,7 @@ function parse(input) {
 exports.parse = parse;
 
 function test() {
-
+    debugger
     const testCases = [
         // "-1.2",
         // "5",
@@ -140,7 +140,8 @@ function test() {
         // "[1, 2.5, -0.5]",
         // "[1,2.5,-0.5]",
         // "[1,2.5-0.5]",
-        `"abcde"`,
+        //`"abcde"`,
+        `"[\\"a\\", \\"b\\", \\"c\\"]"`,
         // `"abc\tde"`,
         // `"\\u1234"`,
         // "{}",
@@ -163,7 +164,7 @@ function test() {
         try {
             const output = parse(testCase, 0);
             if (output) {
-                console.log(`"${testCase}" =`, output);
+                console.log(`"${testCase}" =`, JSON.stringify(output));
             } else {
                 console.log(`"${testCase}" no parse found.`);
             }
