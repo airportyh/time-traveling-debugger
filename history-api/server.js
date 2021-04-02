@@ -24,6 +24,7 @@ const getFunCallByParentStatement = db.prepare("select * from FunCall where pare
 const getChildFunCallIds = db.prepare("select id from FunCall where parent_id is ?");
 const getFun = db.prepare("select * from Fun where id = ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
+const getLastSnapshot = db.prepare("select * from Snapshot order by id desc limit 1");
 const getSnapshotsIdsByFunCall = db.prepare("select id from Snapshot where fun_call_id = ?");
 const getFirstSnapshotInFunCall = db.prepare(`
     select *
@@ -271,9 +272,6 @@ function fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched) {
 }
 
 function getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched) {
-    if (snapshot.id == 247) {
-        debugger
-    }
     getObjectsDeep(
         new HeapRef(funCall.locals), 
         snapshot.heap,
@@ -418,6 +416,12 @@ app.get("/api/Rewind", (req, res) => {
     return res.json(expandSnapshot(snapshot, alreadyFetched));
 });
 
+app.get("/api/GotoEnd", (req, res) => {
+    const alreadyFetched = useAlreadyFetched(req);
+    const snapshot = getLastSnapshot.get();
+    return res.json(expandSnapshot(snapshot, alreadyFetched));
+});
+
 // app.get("/api/StepOutBackward", (req, res) => {
 //     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
 //     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
@@ -474,17 +478,17 @@ function getAttachmentsForSnapshot(snapshot, attachments, alreadyFetched) {
         // get fun and code file if needed
         
         const funKey = "Fun/" + myFunCall.fun_id;
-        if (!isIn(funKey, alreadyFetched)) {
-            const fun = getFun.get(myFunCall.fun_id);
+        let fun = attachments[funKey];
+        if (!fun) {
+            fun = getFun.get(myFunCall.fun_id);
             attachments[funKey] = fun;
             alreadyFetched[funKey] = true;
-            
-            const codeFileKey = "CodeFile/" + fun.code_file_id;
-            if (!isIn(codeFileKey, alreadyFetched)) {
-                const codeFile = getCodeFile.get(fun.code_file_id);
-                attachments[codeFileKey] = codeFile;
-                alreadyFetched[codeFileKey] = true;
-            }
+        }
+        const codeFileKey = "CodeFile/" + fun.code_file_id;
+        if (!isIn(codeFileKey, alreadyFetched)) {
+            const codeFile = getCodeFile.get(fun.code_file_id);
+            attachments[codeFileKey] = codeFile;
+            alreadyFetched[codeFileKey] = true;
         }
     }
 }
