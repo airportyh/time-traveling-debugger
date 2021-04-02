@@ -125,7 +125,6 @@ function parse(input) {
 exports.parse = parse;
 
 function test() {
-    debugger
     const testCases = [
         // "-1.2",
         // "5",
@@ -176,7 +175,7 @@ function test() {
     
 }
 
-test();
+// test();
 
 function characterMatching(choices) {
     return function _characterMatching(buffer, cursor) {

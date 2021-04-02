@@ -490,6 +490,11 @@ function getAttachmentsForSnapshot(snapshot, attachments, alreadyFetched) {
 }
 
 function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
+    return getObjectsDeep_(ref, heapVersion, attachments, alreadyFetched, 0);
+}
+
+function getObjectsDeep_(ref, heapVersion, attachments, alreadyFetched, depth) {
+    const indent = Array(depth).join(" ");
     let dbObject;
     let id;
     let objKey;
@@ -506,6 +511,7 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
                 attachments[heapRefKey] = null;
                 return;
             }
+            alreadyFetched[heapRefKey] = true;
             id = dbHeapRef.object_id;
             attachments[heapRefKey] = id;
             objKey = "Object/" + id;
@@ -513,31 +519,36 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
     } else {
         return;
     }
-    // if (isIn(objKey, alreadyFetched)) {
-    //     return;
-    // } else {
-    dbObject = getObject(id);    
-    // }
+    dbObject = getObject(id);
     attachments[objKey] = dbObject.data;
     alreadyFetched[objKey] = true;
     const object = parse(dbObject.data, true);
     if (object.__tag__ === "function") {
         const funId = object.get("fun_id");
-        const fun = getFun.get(funId);
         const funKey = "Fun/" + funId;
-        attachments[funKey] = fun;
-        alreadyFetched[funKey] = true;
-    }
-    if (Array.isArray(object)) {
-        for (let j = 0; j < object.length; j++) {
-            let item = object[j];
-            getObjectsDeep(item, heapVersion, attachments, alreadyFetched);
+        const fun = getFun.get(funId);
+        if (!alreadyFetched[funKey]) {
+            attachments[funKey] = fun;
+            alreadyFetched[funKey] = true;
         }
-    } else if (object instanceof Map) {
-        object.forEach((value, key) => {
-            getObjectsDeep(key, heapVersion, attachments, alreadyFetched);
-            getObjectsDeep(value, heapVersion, attachments, alreadyFetched);
-        });
+        const freevars = object.get("closure_freevars");
+        if (freevars) {
+            freevars.forEach((heapRef, varname) => {
+                getObjectsDeep_(heapRef, heapVersion, attachments, alreadyFetched, depth + 1);
+            });
+        }
+    } else {
+        if (Array.isArray(object)) {
+            for (let j = 0; j < object.length; j++) {
+                let item = object[j];
+                getObjectsDeep_(item, heapVersion, attachments, alreadyFetched, depth + 1);
+            }
+        } else if (object instanceof Map) {
+            object.forEach((value, key) => {
+                getObjectsDeep_(key, heapVersion, attachments, alreadyFetched, depth + 1);
+                getObjectsDeep_(value, heapVersion, attachments, alreadyFetched, depth + 1);
+            });
+        }
     }
 }
 
