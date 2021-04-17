@@ -6,11 +6,11 @@ import { DataCache } from "./data-cache";
 import { ASTInfo } from "./ast-info";
 const { Ref, HeapRef } = require("../json-like/json-like.js");
 
-const CODE_LINE_HEIGHT = 1.5;
+const CODE_LINE_HEIGHT = 1.8;
 const CODE_FONT_FAMILY = "Monaco";
 const LINE_NUMBER_COLOR = "#666666";
 const CODE_COLOR = "black";
-const VARIABLE_DISPLAY_COLOR = "#f0b155";
+const VARIABLE_DISPLAY_COLOR = "#c94ec7";
 
 type SubEntryGroup = {
     callExpr: any,
@@ -119,7 +119,7 @@ export class FunCallRenderer implements ZoomRenderable {
         const myArea = bbox.width * bbox.height;
         const myAreaRatio = myArea / (viewport.width * viewport.height);
         const funName = this.fun.name;
-        const funNode = this.astInfo.getFunNode(funName);
+        const funNode = this.astInfo.getFunNode(funName, this.fun.line_no);
         if (!funNode) {
             console.log("Could not find funNode for", funName, "in", this.callExpr);
         }
@@ -155,7 +155,8 @@ export class FunCallRenderer implements ZoomRenderable {
     
     getCodeBox(): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
         const childMap: Map<Box, ZoomRenderable> = new Map();
-        const funNode = this.astInfo.getFunNode(this.fun.name);
+        
+        const funNode = this.astInfo.getFunNode(this.fun.name, this.fun.line_no);
         
         const codeBox: Box = {
             type: "container",
@@ -165,8 +166,7 @@ export class FunCallRenderer implements ZoomRenderable {
         
         if (this.astInfo.hasSignature(funNode)) {
             // layout the function signature
-            codeBox.children.push(this.layoutFunctionSignature(
-                funNode, this.funCall, 0, childMap));
+            this.layoutFunctionSignature(funNode, this.funCall, 0, codeBox);
         }
         
         const snapshots = this.cache.getFunCallSnapshots(this.funCall.id);
@@ -174,15 +174,17 @@ export class FunCallRenderer implements ZoomRenderable {
         let currLineNo = snapshots[0].line_no;
         let currGroup = [snapshots[0]];
         
-        const buildBox = (node: any, line: string, funCallIds: number[], top: boolean): Box => {
+        const buildBox = (node: any, line: string, funCallIds: number[], top: boolean): [Box, number] => {
+            let charCount: number;
             const asIs = [
                 "Constant", "ImportFrom", "Import", "Tuple",
                 "Name", "List", "Delete", "Dict", "Try",
-                "Subscript"
+                "Subscript", "Attribute", "BoolOp", "Break",
+                "AugAssign"
             ];
             let box: Box;
             if (node.type === "Expr") {
-                box = buildBox(node.value, line, funCallIds, false);
+                [box, charCount] = buildBox(node.value, line, funCallIds, false);
             } else if (node.type === "Call") {
                 const args = node.args;
                 const funCallId = funCallIds.pop();
@@ -201,7 +203,7 @@ export class FunCallRenderer implements ZoomRenderable {
                     for (let i = 0; i < args.length; i++) {
                         const arg = args[i];
                         const nextArg = args[i + 1];
-                        const childBox = buildBox(arg, line, funCallIds, false);
+                        const [childBox, _] = buildBox(arg, line, funCallIds, false);
                         box.children.push(childBox);
                         if (nextArg) {
                             box.children.push(textBox(line.substring(arg.end_col_offset, nextArg.col_offset), CODE_COLOR));
@@ -212,42 +214,49 @@ export class FunCallRenderer implements ZoomRenderable {
                 } else {
                     box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
                 }
-                
                 if (funCall) {
                     // console.log("making child renderer with", funCallId, funCall, node);
                     const childRenderer = new FunCallRenderer(funCall, node, this.context);    
                     childMap.set(box, childRenderer);
                 }
+                charCount = node.end_col_offset - node.col_offset;
             } else if (asIs.indexOf(node.type) !== -1) {
                 box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
+                charCount = node.end_col_offset - node.col_offset;
             } else if (node.type === "ClassDef") {
-                box = textBox(line, CODE_COLOR);
+                throw new Error("Unsupported ClassDef");
             } else if (node.type === "FunctionDef") {
-                box = textBox(line, CODE_COLOR);
-            } else if (node.type === "If" || node.type === "For") {
-                box = textBox(line.substring(node.col_offset), CODE_COLOR);
+                throw new Error("Unsupported FunctionDef");
+            } else if (node.type === "If" || node.type === "For" || node.type === "While") {
+                const text = line.substring(node.col_offset);
+                box = textBox(text, CODE_COLOR);
+                charCount = text.length;
             } else if (node.type === "Assign") {
                 const prefix = line.substring(node.col_offset, node.value.col_offset);
-                const valueBox = buildBox(node.value, line, funCallIds, false);
+                const [valueBox, childCharCount] = buildBox(node.value, line, funCallIds, false);
                 box = horizontalBox();
                 box.children.push(textBox(prefix, CODE_COLOR));
                 box.children.push(valueBox);
+                charCount = node.end_col_offset - node.col_offset;
             } else if (node.type === "Name" || node.type === "List" || node.type === "Delete") {
                 box = textBox(line.substring(node.col_offset, node.end_col_offset), CODE_COLOR);
+                charCount = node.end_col_offset - node.col_offset;
             } else if (node.type === "BinOp") {
-                const leftBox = buildBox(node.left, line, funCallIds, false);
-                const rightBox = buildBox(node.right, line, funCallIds, false);
+                const [leftBox, _] = buildBox(node.left, line, funCallIds, false);
+                const [rightBox, __] = buildBox(node.right, line, funCallIds, false);
                 box = horizontalBox();
                 box.children.push(leftBox);
                 box.children.push(textBox(line.substring(node.left.end_col_offset, node.right.col_offset), CODE_COLOR));
                 box.children.push(rightBox);
+                charCount = node.end_col_offset - node.col_offset;
             } else if (node.type === "Return") {
-                const valueBox = buildBox(node.value, line, funCallIds, false);
+                const [valueBox, _] = buildBox(node.value, line, funCallIds, false);
                 box = horizontalBox();
                 box.children.push(textBox(line.substring(node.col_offset, node.value.col_offset), CODE_COLOR));
                 box.children.push(valueBox);
+                charCount = node.end_col_offset - node.col_offset;
             } else if (node.type instanceof Object && node.body) {
-                // might be except handler
+                // except handler
                 box = textBox(line, CODE_COLOR);
             } else {
                 console.error("Don't know how to handle AST node", node);
@@ -259,14 +268,19 @@ export class FunCallRenderer implements ZoomRenderable {
                 retBox.children.push(textBox(prefix, CODE_COLOR));
                 retBox.children.push(box);
                 box = retBox;
+                charCount += prefix.length;
             }
-            return box;
+            return [box, charCount];
         }
         
         const commitCurrGroup = (nextSnapshot: Snapshot | null) => {
             const lineNo = currGroup[0].line_no;
             const line = this.codeInfo.codeLines[lineNo - 1];
             const statement = this.astInfo.getStatementOnLine(funNode, lineNo);
+            if (!statement) {
+                console.log("line", line, "funNode", funNode);
+                throw new Error("No statement found on line " + lineNo);
+            }
             const funCallIds = [];
             
             for (let snapshot of currGroup) {
@@ -275,31 +289,29 @@ export class FunCallRenderer implements ZoomRenderable {
                 }
             }
             
+            if (statement.type === "ClassDef" || statement.type === "FunctionDef") {
+                return;
+            }
+            const [stmtBox, charCount] = buildBox(statement, line, funCallIds, true);
             const lineBox = horizontalBox();
-            const box = buildBox(statement, line, funCallIds, true);
-            lineBox.children.push(box);
-            const valueDisplayStrings: TextBox[][] = [];
+            lineBox.children.push(stmtBox);
             
             const firstSnapshot = currGroup[0];
             nextSnapshot = nextSnapshot || currGroup[currGroup.length - 1];
-            this.renderVariableAssignmentValues(firstSnapshot, funNode, this.funCall, nextSnapshot, childMap, valueDisplayStrings);
-            this.renderUpdatedHeapObjects(funNode, this.funCall, firstSnapshot, nextSnapshot, childMap, valueDisplayStrings);
-            this.renderReturnValues(funNode, this.funCall, firstSnapshot, nextSnapshot, childMap, valueDisplayStrings);
-            
-            if (valueDisplayStrings.length > 0) {
-                lineBox.children.push({
-                    type: "text",
-                    text: "  "
-                });
-                lineBox.children.push(...valueDisplayStrings[0]);
-                for (let i = 1; i < valueDisplayStrings.length; i++) {
-                    const blankLineBox: Box = horizontalBox();
-                    blankLineBox.children.push(...valueDisplayStrings[i]);
-                    codeBox.children.push(blankLineBox);
-                }
-            }
             
             codeBox.children.push(lineBox);
+            
+            const varLines: string[] = [];
+            varLines.push(...this.renderVariableAssignments(firstSnapshot, nextSnapshot, funNode));
+            varLines.push(...this.renderUpdatedHeapObjects(firstSnapshot, nextSnapshot, funNode));
+            varLines.push(...this.renderReturnValues(firstSnapshot, nextSnapshot, funNode));
+            
+            if (varLines.length > 0) {
+                lineBox.children.push(textBox(' ' + varLines[0], VARIABLE_DISPLAY_COLOR));
+                
+                codeBox.children.push(...varLines.slice(1).map((line) => 
+                    textBox("".padStart(charCount + 1) + line, VARIABLE_DISPLAY_COLOR)));
+            }
             
         };
         for (let i = 1; i < snapshots.length; i++) {
@@ -322,96 +334,278 @@ export class FunCallRenderer implements ZoomRenderable {
             commitCurrGroup(null);
         }
         
-        // console.log("end loop");
-        
         return { codeBox, childMap };
         
         
     }
-
-    getCodeBox2(
-        funCall: FunCall,
-        childEntries: Map<Snapshot, SubEntryGroup[]> = new Map()
-    ): { codeBox: Box, childMap: Map<Box, ZoomRenderable> } {
-        // rendering children
-        const funName = this.fun.name;
-        const funNode = this.astInfo.getFunNode(funName);
-        if (!funNode) {
-            throw new Error("Could not find funNode for " + funName);
+    
+    renderVariableAssignments(
+        snapshot: Snapshot, 
+        nextSnapshot: Snapshot, 
+        funNode: any
+    ): string[] {
+        let varname: string;
+        const statement: any = this.astInfo.getStatementOnLine(funNode, snapshot.line_no);
+        if (statement.type === "Assign") {
+            varname = statement.targets[0]["id"];
+        } else if (statement.type === "For") {
+            varname = statement.target.id;
         }
-        const lineNumberWidth = 3;
-        const childMap: Map<Box, ZoomRenderable> = new Map();
-
-        const codeBox: Box = {
-            type: "container",
-            direction: "vertical",
-            children: []
-        };
-
-        if (this.astInfo.hasSignature(funNode)) {
-            // layout the function signature
-            codeBox.children.push(this.layoutFunctionSignature(
-                funNode, funCall, lineNumberWidth, childMap));
-        }
-
-        
-        const snapshots = this.cache.getFunCallSnapshots(funCall.id);
-        // Go through current entries and layout the code line by line
-        for (let i = 0; i < snapshots.length; i++) {
-            const entry = snapshots[i];
-            const nextEntry = snapshots[i + 1];
-            if (nextEntry && entry.line_no === nextEntry.line_no) {
-                continue;
+        if (varname) {
+            if (!nextSnapshot) {
+                throw new Error("No next snapshot");
             }
-            const line = this.codeInfo.codeLines[entry.line_no - 1];
-
-            const lineNumberBox: TextBox = {
-                type: "text",
-                text: String(entry.line_no).padEnd(lineNumberWidth) + "  ",
-                color: LINE_NUMBER_COLOR
-            };
-            const lineBox: ContainerBox = {
-                type: "container",
-                direction: "horizontal",
-                children: [
-                    lineNumberBox
-                ]
-            };
-
-            this.renderLine(line, entry, lineBox, childEntries, childMap);
-
-            const valueDisplayStrings: TextBox[][] = [];
-
-            codeBox.children.push(lineBox);
-
-            if (valueDisplayStrings.length > 0) {
-                lineBox.children.push({
-                    type: "text",
-                    text: "  "
-                });
-                lineBox.children.push(...valueDisplayStrings[0]);
-                for (let i = 1; i < valueDisplayStrings.length; i++) {
-                    const blankLineBox: Box = {
-                        type: "container",
-                        direction: "horizontal",
-                        children: []
-                    };
-                    blankLineBox.children.push({
-                        type: "text",
-                        text: "".padStart(lineNumberWidth + line.length + 4)
-                    });
-                    blankLineBox.children.push(...valueDisplayStrings[i]);
-                    codeBox.children.push(blankLineBox);
+            let value = this.getVarValue(varname, this.funCall, nextSnapshot);
+            let display = this.renderValue(`${varname} = `, "", value, nextSnapshot.heap, new Set(), []);
+            return display;
+        }
+        return [];
+    }
+    
+    getValueDisplay(value: any, snapshot: Snapshot): Box {
+        if (isHeapRef(value)) {
+            const display = this.renderValueOneLine(value, snapshot.heap, new Set());
+            return textBox(display, VARIABLE_DISPLAY_COLOR);
+        } else {
+            return textBox(this.stringify(value), VARIABLE_DISPLAY_COLOR);
+        }
+    }
+    
+    renderValueOneLine(value, heapVersion, visited) {
+        if (!isHeapRef(value)) {
+            return this.stringify(value);
+        }
+        
+        const ref = value;
+        const refId = ref.id;
+        const oid = this.cache.heapLookup(heapVersion, refId);
+        if (!oid) {
+            return "{}";
+        }
+        let object = this.cache.getObject(oid);
+        if (object === undefined) {
+            return "{}";
+        }
+        // log.write(`heap: ${inspect(heap)}`);
+        // log.write(`renderValueOneLine(${inspect(refId)}, ${inspect(ref)}, ${oid}, ${inspect(object)}\n`);
+        if (visited.has(refId) && (typeof object !== "string")) {
+            return "*" + refId;
+        }
+        visited.add(refId);
+        
+        if (typeof object === "string") {
+            return JSON.stringify(object);
+        } else if (Array.isArray(object)) {
+            let outputs = object.map((item) => this.renderValueOneLine(item, heapVersion, visited));
+            let tag = object["__tag__"];
+            let output;
+            if (tag === "tuple") {
+                output = "(" + outputs.join(", ") + ")";
+            } else if (tag === "set") {
+                output = "{" + outputs.join(", ") + "}";
+            } else {
+                output = "[" + outputs.join(", ") + "]";
+                if (tag) {
+                    output = `<${object["__tag__"]}>${output}`;
                 }
             }
-
-
+            return output;
+        } else if (object instanceof Map){
+            let keys = Array.from(object.keys());
+            let output;
+            if (keys.length === 1 && keys[0] === "__dict__") {
+                const dict = object.get("__dict__");
+                output = this.renderValueOneLine(dict, heapVersion, visited);
+            } else {
+                let outputs = [];
+                object.forEach((value, key) => {
+                    if (isHeapRef(key)) {
+                        const realKey = this.cache.getHeapObject(heapVersion, key.id);
+                        if (typeof realKey === "string") {
+                            if (realKey.startsWith("__")) {
+                                return;
+                            }
+                        }
+                    }
+                    const keyDisplay = this.renderValueOneLine(key, heapVersion, visited);
+                    const valueDisplay = this.renderValueOneLine(value, heapVersion, visited);
+                    outputs.push(keyDisplay + ": " + valueDisplay);
+                });
+                output = "{" + outputs.join(", ") + "}";
+            }
+            let tag = object["__tag__"];
+            if (tag === "type") {
+                tag = "class";
+            }
+            if (tag) {
+                if (output === "{}") {
+                    output = "";
+                }
+                output = `<${tag}>${output}`;
+            }
+            return output;
+        } else {
+            throw new Error("Unsupported type: " + JSON.stringify(object));
         }
-
-        return {
-            codeBox,
-            childMap
-        };
+    }
+    
+    renderValue(prefix, indent, value, heapVersion, visited, path): string[] {
+        const localVisited = new Set(visited);
+        const oneLine = this.renderValueOneLine(value, heapVersion, localVisited);
+        const widthLimit = 20;
+        if (indent.length + prefix.length + oneLine.length < widthLimit) {
+            for (let id of localVisited) {
+                visited.add(id);
+            }
+            return [indent.concat(prefix).concat(oneLine)];
+        } else {
+            return this.renderValueMultiLine(prefix, indent, value, heapVersion, visited, path);
+        }
+    }
+    
+    renderValueMultiLine(prefix, indent, value, heapVersion, visited, path): string[] {
+        // log.write(`RenderValueMultiline(${inspect(path)}, ${inspect(value)})\n`);
+        if (!isHeapRef(value)) {
+            
+            return [indent.concat(prefix).concat(this.stringify(value))];
+        }
+        const ref = value;
+        const refId = ref.id;
+        const childPath = [...path, refId];
+        const oid = this.cache.heapLookup(heapVersion, refId);
+        if (!oid) {
+            return ["{}"];
+        }
+        let object = this.cache.getObject(oid);
+        
+        if (visited.has(refId) && (typeof object !== "string")) {
+            return ["*" + refId];
+        }
+        visited.add(refId);
+        let lines = [];
+        if (typeof object === "string") {
+            lines.push(indent.concat(prefix).concat(JSON.stringify(object)));
+        } else if (Array.isArray(object)) {
+            let begin;
+            let end;
+            let tag = object["__tag__"];
+            if (tag === "tuple") {
+                begin = "( ";
+                end = ")";
+            } else if (tag === "set") {
+                begin = "{ ";
+                end = "}";
+            } else {
+                begin = "[ ";
+                end = "]";
+                if (tag) {
+                    begin = `<${tag}>`.concat(begin);
+                }
+            }
+            lines.push(indent.concat(prefix).concat(begin));
+            for (let i = 0; i < object.length; i++) {
+                let item = object[i];
+                lines.push(...
+                    this.renderValue(
+                        "", indent.concat("  "), 
+                        item, heapVersion, visited, childPath)
+                    );
+                if (i !== object.length - 1) {
+                    lines[lines.length - 1] += ", ";
+                }
+            }
+            lines.push(indent.concat(end));
+        } else if (object instanceof Map) {
+            let tag = object["__tag__"];
+            if (tag === "type") {
+                tag = "class";
+            }
+            let keys = Array.from(object.keys());
+            if (keys.length === 1 && keys[0] === "__dict__") {
+                const dict = object.get("__dict__");
+                const display = this.renderValue(prefix.concat(`<${tag}>`), indent, dict, heapVersion, visited, childPath);
+                lines.push(...display);
+            } else {
+                let begin = "{";
+                if (tag) {
+                    begin = `<${tag}>${begin}`;
+                }
+                lines.push(indent.concat(prefix).concat(begin));
+                for (let i = 0; i < keys.length; i++) {
+                    let key = keys[i];
+                    if (isHeapRef(key)) {
+                        const realKey = this.cache.getHeapObject(heapVersion, key.id);
+                        if (typeof realKey === "string") {
+                            if (realKey.startsWith("__")) {
+                                continue;
+                            }
+                        }
+                    }
+                    const keyDisplay = this.renderValue("", "", key, heapVersion, visited, childPath);
+                    lines.push(...keyDisplay.slice(0, keyDisplay.length - 1));
+                    const keyDisplayLastLine = keyDisplay[keyDisplay.length - 1];
+                    let value = object.get(key);
+                    const valueDisplay = this.renderValue(
+                        keyDisplayLastLine + ": ", indent + "  ", value, heapVersion, visited, childPath);
+                    lines.push(...valueDisplay);
+                    if (i !== keys.length - 1) {
+                        lines[lines.length - 1] += ", ";
+                    }
+                }
+                lines.push(indent + "}");
+            }
+        } else {
+            throw new Error("Unsupported type: " + JSON.stringify(object));
+        }
+        
+        return lines;
+    }
+    
+    stringify(value: any): string {
+        if (value == null) {
+            return "None";
+        } else if (value === true) {
+            return "True";
+        } else if (value === false) {
+            return "False";
+        } else {
+            return JSON.stringify(value);
+        }
+    }
+    
+    getVarValue(varName: string, funCall: FunCall, snapshot: Snapshot) {
+        let varValue: any;
+        const locals = this.cache.getHeapObject(snapshot.heap, funCall.locals);
+        if (locals.has(varName)) {
+            varValue = locals.get(varName);
+        }
+        if (funCall.globals) {
+            const globals = this.context.dataCache.getHeapObject(snapshot.heap, funCall.globals);
+            if (globals.has(varName)) {
+                varValue = globals.get(varName);
+            }
+        }
+        if (funCall.closure_cellvars) {
+            const cellvars = funCall.closure_cellvars;
+            if (cellvars.has(varName)) {
+                varValue = cellvars.get(varName);
+                if (isHeapRef(varValue)) {
+                    varValue = this.context.dataCache.getHeapObject(snapshot.heap, varValue.id);
+                    varValue = varValue.get("ob_ref");
+                }
+            }
+        }
+        if (funCall.closure_freevars) {
+            const freevars = funCall.closure_freevars;
+            if (freevars.has(varName)) {
+                varValue = freevars.get(varName);
+                if (isHeapRef(varValue)) {
+                    varValue = this.context.dataCache.getHeapObject(snapshot.heap, varValue.id);
+                    varValue = varValue.get("ob_ref");
+                }
+            }
+        }
+        return varValue;
     }
 
     buildChildCallMap(funNode: any, funCall: FunCall): Map<Snapshot, SubEntryGroup[]> {
@@ -511,177 +705,104 @@ export class FunCallRenderer implements ZoomRenderable {
         }
     }
 
-    renderVariableAssignmentValues(snapshot: Snapshot, funNode: any, funCall: FunCall, nextSnapshot: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
-        // Display variable values for assignments
-
-        const varName = this.astInfo.getVarAssignmentOnLine(funNode, snapshot.line_no);
-        if (varName) {
-            if (nextSnapshot) {
-                let varValue: any;
-                const locals = this.cache.getHeapObject(nextSnapshot.heap, funCall.locals);
-                if (locals.has(varName)) {
-                    varValue = locals.get(varName);
-                }
-                if (funCall.globals) {
-                    const globals = this.context.dataCache.getHeapObject(nextSnapshot.heap, funCall.globals);
-                    if (globals.has(varName)) {
-                        varValue = globals.get(varName);
-                    }
-                }
-                if (funCall.closure_cellvars) {
-                    const cellvars = funCall.closure_cellvars;
-                    if (cellvars.has(varName)) {
-                        varValue = cellvars.get(varName);
-                        if (isHeapRef(varValue)) {
-                            varValue = this.context.dataCache.getHeapObject(nextSnapshot.heap, varValue.id);
-                            varValue = varValue.get("ob_ref");
-                        }
-                    }
-                }
-                if (funCall.closure_freevars) {
-                    const freevars = funCall.closure_freevars;
-                    if (freevars.has(varName)) {
-                        varValue = freevars.get(varName);
-                        if (isHeapRef(varValue)) {
-                            varValue = this.context.dataCache.getHeapObject(nextSnapshot.heap, varValue.id);
-                            varValue = varValue.get("ob_ref");
-                        }
-                    }
-                }
-                const varValueDisplay = this.getVarValueDisplay(nextSnapshot, varValue, childMap);
-                const prefix = `${varName} = `;
-                const tboxes: Box[][] = varValueDisplay.map((boxes, idx) => {
-                    if (idx === 0) {
-                        return [
-                            {
-                                type: "text",
-                                text: prefix,
-                                color: VARIABLE_DISPLAY_COLOR
-                            } as TextBox,
-                            ...boxes
-                        ];
-                    } else {
-                        return [
-                            {
-                                type: "text",
-                                text: Array(prefix.length + 1).join(" ")
-                            } as TextBox,
-                            ...boxes
-                        ]
-                    }
-                });
-                valueDisplayStrings.push(...tboxes);
-            }
-        }
-        return [];
-    }
-
-    renderUpdatedHeapObjects(funNode: any, funCallExpanded: FunCall, entry: Snapshot, nextEntry: Snapshot, childMap: Map<Box, ZoomRenderable>, valueDisplayStrings: Box[][]) {
-        let varNameAssigned = this.astInfo.getVarAssignmentOnLine(funNode, entry.line_no);
-        const locals = funCallExpanded.locals;
-        if (nextEntry) {
-            const nextVariables = this.context.dataCache.getHeapObject(nextEntry.heap, locals);
-            const currentVariables = this.context.dataCache.getHeapObject(entry.heap, locals);
-
+    renderUpdatedHeapObjects(snapshot: Snapshot, nextSnapshot: Snapshot, funNode: any): string[] {
+        let varNameAssigned = this.astInfo.getVarAssignmentOnLine(funNode, snapshot.line_no);
+        const locals = this.funCall.locals;
+        if (nextSnapshot) {
+            let varlines: string[] = [];
+            const nextVariables = this.context.dataCache.getHeapObject(nextSnapshot.heap, locals);
+            const currentVariables = this.context.dataCache.getHeapObject(snapshot.heap, locals);
+            
             for (let varName of currentVariables.keys()) {
                 if (varName === varNameAssigned) {
+                    // ignore because it was the assignment, and would have been handled by the other method
                     continue;
                 }
                 const value = currentVariables.get(varName);
                 if (isHeapRef(value)) {
                     const nextValue = nextVariables.get(varName);
-                    const headValueChanged = hasHeapValueChanged(value.id, this.context.dataCache, entry.heap, nextEntry.heap);
-                    
+                    const headValueChanged = hasHeapValueChanged(value.id, this.context.dataCache, snapshot.heap, nextSnapshot.heap);
                     if (!nextValue || headValueChanged) {
-                        const varValueDisplay = this.getVarValueDisplay(nextEntry, nextValue, childMap);
-                        const taggedVarValueDisplay: Box[][] = varValueDisplay.map((line, idx) => {
-                            if (idx === 0) {
-                                return [
-                                    textBox(`${varName} = `, VARIABLE_DISPLAY_COLOR),
-                                    ...line
-                                ];
-                            } else {
-                                return [
-                                    textBox(Array(`${varName} = `.length + 1).join(" "), VARIABLE_DISPLAY_COLOR),
-                                    ...line
-                                ];;
-                            }
-                        });
-                        valueDisplayStrings.push(...taggedVarValueDisplay);
+                        let display = this.renderValue(`${varName} = `, '', nextValue, nextSnapshot.heap, new Set(), []);
+                        varlines.push(...display);
                     }
                 }
             }
-        }    
+            const nextGlobals = this.context.dataCache.getHeapObject(nextSnapshot.heap, this.funCall.globals);
+            const currentGlobals = this.context.dataCache.getHeapObject(snapshot.heap, this.funCall.globals);
+            
+            if (currentGlobals) {
+                for (let varName of currentGlobals.keys()) {
+                    if (varName === varNameAssigned) {
+                        continue;
+                    }
+                    const value = currentGlobals.get(varName);
+                    if (isHeapRef(value)) {
+                        const nextValue = nextGlobals.get(varName);
+                        const headValueChanged = hasHeapValueChanged(value.id, this.context.dataCache, snapshot.heap, nextSnapshot.heap);
+                        
+                        if (!nextValue || headValueChanged) {
+                            let display = this.renderValue(`${varName} = `, '', nextValue, nextSnapshot.heap, new Set(), []);
+                            varlines.push(...display);
+                        }
+                    }
+                }
+            }
+            return varlines;
+        } else { 
+            return [];
+        }
     }
 
-    renderReturnValues(
-        funNode: any, 
-        funCall: FunCall,
-        entry: Snapshot, 
-        nextEntry: Snapshot, 
-        childMap: Map<Box, ZoomRenderable>,
-        valueDisplayStrings: Box[][]
-    ) {
+    renderReturnValues(snapshot: Snapshot, nextSnapshot: Snapshot, funNode: any): string[] {
         // Display variable values for return statements
-        const returnStatement = this.astInfo.getReturnStatementOnLine(funNode, entry.line_no);
+        const returnStatement = this.astInfo.getReturnStatementOnLine(funNode, snapshot.line_no);
 
         if (returnStatement) {
-            const entryToUse = nextEntry || entry;
-            const variables = this.context.dataCache.getHeapObject(entryToUse.heap, funCall.locals);
-            const varValue = variables.get("<ret val>");
-            const valueDisplay = this.getVarValueDisplay(entryToUse, varValue, childMap);
-            const tagged: Box[][] = valueDisplay.map((line, idx) => {
-                if (idx === 0) {
-                    return [ textBox(`<ret val> = `, VARIABLE_DISPLAY_COLOR), ...line ];
-                } else {
-                    return [ textBox(Array(`<ret val> = `.length + 1).join(" "), VARIABLE_DISPLAY_COLOR), ...line ];
-                }
-            });
-            valueDisplayStrings.push(...tagged);
+            const snapshotToUse = nextSnapshot || snapshot;
+            const variables = this.context.dataCache.getHeapObject(snapshotToUse.heap, this.funCall.locals);
+            const value = variables.get("<ret val>");
+            const display = this.renderValue(`<ret val> = `, '', value, snapshotToUse.heap, new Set(), []);
+            return display;
+            // const valueDisplay = this.getVarValueDisplay(snapshotToUse, varValue, childMap);
+            // const tagged: Box[][] = valueDisplay.map((line, idx) => {
+            //     if (idx === 0) {
+            //         return [ textBox(`<ret val> = `, VARIABLE_DISPLAY_COLOR), ...line ];
+            //     } else {
+            //         return [ textBox(Array(`<ret val> = `.length + 1).join(" "), VARIABLE_DISPLAY_COLOR), ...line ];
+            //     }
+            // });
+            // valueDisplayStrings.push(...tagged);
+        } else {
+            return [];
         }
     }
 
-    layoutFunctionSignature(funNode: any, funCall: FunCall, lineNumberWidth: number, childMap: Map<Box, ZoomRenderable>) {
+    layoutFunctionSignature(funNode: any, funCall: FunCall, lineNumberWidth: number, codeBox: ContainerBox) {
         const startPos = this.astInfo.getStartPos(funNode);
-        const funSigBox: ContainerBox = {
-            type: "container",
-            direction: "horizontal",
-            children: [
-                // {
-                //     type: "text",
-                //     text: String(startPos.line).padEnd(lineNumberWidth) + "  ",
-                //     color: LINE_NUMBER_COLOR
-                // },
-                {
-                    type: "text",
-                    text: this.codeInfo.codeLines[startPos.line - 1],
-                    color: CODE_COLOR
-                }
-            ]
-        };
+        const funSigBox: ContainerBox = horizontalBox();
+        const funSigLine = this.codeInfo.codeLines[startPos.line - 1];
+        funSigBox.children.push(textBox(funSigLine, CODE_COLOR));
         const snapshot = this.cache.getFunCallSnapshots(funCall.id)[0];
-        const variables = this.context.dataCache.getHeapObject(snapshot.heap, funCall.locals);
+        const variables = this.cache.getHeapObject(snapshot.heap, funCall.locals);
         const parameters = this.astInfo.getFunNodeParameters(funNode);
+        
+        const paramsDisplay: string[] = [];
         for (let paramName of parameters) {
             let value = variables.get(paramName);
-            const rows = this.getVarValueDisplay(snapshot, value, childMap);
-            funSigBox.children.push({
-                type: "text",
-                text: `  ${paramName} = `,
-                color: VARIABLE_DISPLAY_COLOR
-            });
-            const outerBox: Box = {
-                type: "container",
-                direction: "vertical",
-                children: rows.map((cells) => ({
-                    type: "container",
-                    direction: "horizontal",
-                    children: cells
-                }))
-            } as Box;
-            funSigBox.children.push(outerBox);
+            const display = this.renderValue(`${paramName} = `, "", value, snapshot.heap, new Set(), []);
+            paramsDisplay.push(...display);
+            
         }
-
+        
+        if (paramsDisplay.length > 0) {
+            funSigBox.children.push(textBox(' ' + paramsDisplay[0], VARIABLE_DISPLAY_COLOR));
+        }
+        codeBox.children.push(funSigBox);
+        codeBox.children.push(...paramsDisplay.slice(1).map((line) => {
+            return textBox("".padStart(funSigLine.length + 1) + line, VARIABLE_DISPLAY_COLOR);
+        }));
+    
         return funSigBox;
     }
 
@@ -847,46 +968,45 @@ function isObjectRef(thing: any): boolean {
 }
 
 function hasHeapValueChanged(id: number, cache: DataCache, heapOne: number, heapTwo: number) {
-    return cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id);
-    // if (cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id)) {
-    //     return true;
-    // } else {
-    //     const thingOne = cache.getHeapObject(heapOne, id);
-    //     const thingTwo = cache.getHeapObject(heapTwo, id);
-    //     if (Array.isArray(thingOne)) {
-    //         if (thingOne.length !== thingTwo.length) {
-    //             return true;
-    //         }
-    //         for (let i = 0; i < thingOne.length; i++) {
-    //             if (thingOne[i] !== thingTwo[i]) {
-    //                 return true;
-    //             } else if (isHeapRef(thingOne[i])) {
-    //                 if (hasHeapValueChanged(thingOne[i].id, cache, heapOne, heapTwo)) {
-    //                     return true;
-    //                 }
-    //             }
-    //         }
-    //         return false;
-    //     } else if (thingOne instanceof Map) {
-    //         if (thingOne.size !== thingTwo.size) {
-    //             return true;
-    //         }
-    //         for (let prop of thingOne.keys()) {
-    //             const valueOne = thingOne.get(prop);
-    //             const valueTwo = thingTwo.get(prop);
-    //             if (valueOne !== valueTwo) {
-    //                 return true;
-    //             } else if (isHeapRef(valueOne)) {
-    //                 if (hasHeapValueChanged(valueOne.id, cache, heapOne, heapTwo)) {
-    //                     return true;
-    //                 }
-    //             }
-    //         }
-    //         return false;
-    //     } else {
-    //         return false;
-    //     }
-    // }
+    if (cache.heapLookup(heapOne, id) !== cache.heapLookup(heapTwo, id)) {
+        return true;
+    } else {
+        const thingOne = cache.getHeapObject(heapOne, id);
+        const thingTwo = cache.getHeapObject(heapTwo, id);
+        if (Array.isArray(thingOne)) {
+            if (thingOne.length !== thingTwo.length) {
+                return true;
+            }
+            for (let i = 0; i < thingOne.length; i++) {
+                if (thingOne[i] !== thingTwo[i]) {
+                    return true;
+                } else if (isHeapRef(thingOne[i])) {
+                    if (hasHeapValueChanged(thingOne[i].id, cache, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else if (thingOne instanceof Map) {
+            if (thingOne.size !== thingTwo.size) {
+                return true;
+            }
+            for (let prop of thingOne.keys()) {
+                const valueOne = thingOne.get(prop);
+                const valueTwo = thingTwo.get(prop);
+                if (valueOne !== valueTwo) {
+                    return true;
+                } else if (isHeapRef(valueOne)) {
+                    if (hasHeapValueChanged(valueOne.id, cache, heapOne, heapTwo)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } else {
+            return false;
+        }
+    }
 }
 
 function getValueDisplay(

@@ -1,142 +1,96 @@
 import termios
 import sys
 import tty
-import fcntl
 import os
 from urllib import request
 import json
-import traceback
 from functools import reduce
-
-class HistoryAPI(object):
-    def __init__(self):
-        self.session_cookie = None
+import atexit
+import sqlite3
+from term_util import *
+from text_pane import *
     
-    def fetch_fun_call(self, id):
-        req = request.Request("http://localhost:1338/api/FunCallExpanded?id=%d" % id)
-        if self.session_cookie:
-            req.add_header("Cookie", self.session_cookie)
-        response = request.urlopen(req)
-        result = json.loads(response.read())
-        set_cookie = response.getheader("Set-Cookie")
-        if set_cookie:
-            self.session_cookie = response.getheader("Set-Cookie").split(";")[0]
-        return result
+def display_source(file_lines, code_pane):
+    gutter_width = len(str(len(file_lines) + 1))
+
+    lines = []
+    for i, line in enumerate(file_lines):
+        line = line.replace("\t", "    ")
+        lineno = i + 1
+        lineno_display = str(i + 1).rjust(gutter_width) + ' '
+        line_display = lineno_display + line
+        lines.append(line_display)
+
+    code_pane.set_lines(lines)
+
+class ObjectCache:
+    def __init__(self, conn, cursor):
+        self.cache = {}
+        self.conn = conn
+        self.cursor = cursor
     
-    def fetch_code_file(self, id):
-        response = request.urlopen("http://localhost:1338/api/CodeFile?id=%d" % id)
-        return json.loads(response.read())
-
-class Position(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-def write(value):
-    print('\x1B' + value, end = '')
-    sys.stdout.flush()
-
-def clear_screen():
-    write('\x1B[0m')
-    write('\x1B[2J')
-    write('\x1Bc')
-    
-def goto(x, y):
-    write('[%d;%df' % (y, x))
-    
-def print_at(x, y, text):
-    goto(x, y)
-    print(text, end = '')
-    sys.stdout.flush()
-
-def get_input():
-    fl_state = fcntl.fcntl(sys.stdin.fileno(), fcntl.F_GETFL)
-    data = sys.stdin.read(1)
-    if data == '\x1b':
-        # temporarily set stdin to non-blocking mode so I can fetch
-        # each character that's immediately available
-        fcntl.fcntl(sys.stdin.fileno(), fcntl.F_SETFL, fl_state | os.O_NONBLOCK)
-        codes = ""
-        while True:
-            ch = sys.stdin.read(1)
-            if ch == '':
-                # reset stdin back to blocking mode
-                fcntl.fcntl(sys.stdin.fileno(), fcntl.F_SETFL, fl_state)
-                break
-            else:
-                codes += ch
-        data += codes
-    return data
-
-def mouse_motion_on():
-    write('\x1B[?1003h')
-    
-def mouse_motion_off():
-    write('\x1B[?1003l')
-
-def mouse_on():
-    write('\x1B[?1000h')
-
-def mouse_off():
-    write('\x1B[?1000l')
-
-class Event(object):
-    def __init__(self, etype, **kwargs):
-        self.type = etype
-        self.__dict__.update(kwargs)
-    
-    def __repr__(self):
-        parts = [self.type]
-        for attr, value in self.__dict__.items():
-            if attr != "type":
-                parts.append("%s=%s" % (attr, value))
-        return "Evt(%s)" % (" ".join(parts))
-
-def decode_input(an_input):
-    events = []
-    codes = list(map(ord, an_input))
-    while len(codes) > 0:
-        if codes[0:3] == [27, 91, 77]:
-            # mouse event
-            if codes[3] == 32:
-                event = Event("mousedown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 35:
-                x = codes[4] - 32
-                y = codes[5] - 32
-                event = Event("mouseup", x = x, y = y)
-                events.append(event)
-                if len(events) == 2 and events[0].type == "mousedown":
-                    # generate a click event
-                    events.append(Event("click", x = x, y = y))
-                codes = codes[6:]
-            elif codes[3] == 96:
-                event = Event("wheeldown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 97:
-                event = Event("wheelup", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-        else:
-            # don't understand
-            break
-    return events
-    
-class CodeDisplayLine(object):
-    def __init__(self, code, snapshot):
-        self.code = code
-        self.snapshots = [snapshot]
-    
-    @property
-    def line_no(self):
-        return self.snapshots[0]['line_no']
+    def put_snapshot(self, snapshot):
+        key = "Snapshot/%d" % snapshot["id"]
+        self.cache[key] = snapshot
         
-    def add(self, snapshot):
-        self.snapshots.append(snapshot)
+    def get_snapshot(self, id):
+        key = "Snapshot/%d" % id
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            snapshot = self.cursor.execute("select * from Snapshot where id = ?", (id,)).fetchone()
+            self.cache[key] = snapshot
+            return snapshot
+            
+    def get_fun_call(self, id):
+        key = "FunCall/%d" % id
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            fun_call = self.cursor.execute("select * from FunCall where id = ?", (id,)).fetchone()
+            self.cache[key] = fun_call
+            return fun_call
+    
+    def get_fun(self, id):
+        key = "Fun/%d" % id
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            fun = self.cursor.execute("select * from Fun where id = ?", (id,)).fetchone()
+            self.cache[key] = fun
+            return fun
+    
+    def get_code_file(self, id):
+        key = "CodeFile/%d" % id
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            code_file = self.cursor.execute("select * from CodeFile where id = ?", (id,)).fetchone()
+            self.cache[key] = code_file
+            return code_file
 
-class TimeNav(object):
+class TimeNav:
+    def __init__(self, hist_filename):
+        self.hist_filename = hist_filename
+        termsize = os.get_terminal_size()
+        code_pane_width = termsize.columns
+        code_pane_height = termsize.lines - 1
+        self.code_pane = TextPane(Box(1, 1, code_pane_width, code_pane_height))
+        self.status_pane = TextPane(Box(1, termsize.lines, termsize.columns, 1))
+        self.init_db()
+        self.cache = ObjectCache(self.conn, self.cursor)
+    
+    def init_db(self):
+        # https://docs.python.org/3/library/sqlite3.html
+        def dict_factory(cursor, row):
+            d = {}
+            for idx, col in enumerate(cursor.description):
+                d[col[0]] = row[idx]
+            return d
+        
+        self.conn = sqlite3.connect(self.hist_filename)
+        self.conn.row_factory = dict_factory
+        self.cursor = self.conn.cursor()
     
     def save_term_settings(self):
         self.original_settings = termios.tcgetattr(sys.stdin)
@@ -152,52 +106,188 @@ class TimeNav(object):
     
     def run(self):
         self.save_term_settings()
-        api = HistoryAPI()
-        try:
-            tty.setraw(sys.stdin)
-            clear_screen()
+        atexit.register(self.clean_up)
+        tty.setraw(sys.stdin)
+        clear_screen()
+        
+        snapshot = self.cache.get_snapshot(1)
+        self.last_snapshot = self.cursor.execute("select * from Snapshot order by id desc limit 1").fetchone()
+        fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+        fun = self.cache.get_fun(fun_call["fun_id"])
+        code_file = self.cache.get_code_file(fun["code_file_id"])
+        
+        lines = code_file["source"].split("\n")
+        display_source(lines, self.code_pane)
+        self.code_pane.set_highlight(snapshot["line_no"] - 1)
+        self.scroll_to_line_if_needed(snapshot["line_no"], lines)
+        self.update_status(snapshot)
+        
+        while True:
+            inp = get_input()
+            if inp == "q":
+                break
+            data = list(map(ord, inp))
+            if data == RIGHT_ARROW:
+                next = self.cache.get_snapshot(snapshot["id"] + 1)
+            elif data == LEFT_ARROW:
+                next = self.cache.get_snapshot(snapshot["id"] - 1)
+            elif data == DOWN_ARROW:
+                next = self.step_over(snapshot)
+            elif data == UP_ARROW:
+                next = self.step_over_backward(snapshot)
+            else:
+                continue
+
+            if next:
+                snapshot = next
+            fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+            fun = self.cache.get_fun(fun_call["fun_id"])
+            code_file = self.cache.get_code_file(fun["code_file_id"])
             
-            fun_call = api.fetch_fun_call(1)
+            self.code_pane.set_highlight(snapshot["line_no"] - 1)
+            self.scroll_to_line_if_needed(snapshot["line_no"], lines)
             
-            code_file = api.fetch_code_file(fun_call['code_file_id'])
-            code_lines = code_file['source'].split('\n')
-            snapshots = fun_call['snapshots']
+            self.update_status(snapshot)
             
-            code_display_lines = []
-            curr_line = None
-            for i, snapshot in enumerate(snapshots):
-                if curr_line and curr_line.line_no == snapshot['line_no']:
-                    curr_line.add(snapshot)
-                else:
-                    curr_line = CodeDisplayLine(code_lines[snapshot['line_no'] - 1], snapshot)
-                    code_display_lines.append(curr_line)
-            
-            largest_line_no = reduce(
-                lambda l, snapshot: max(l, snapshot['line_no']), snapshots, 0)
-            gutter_width = len(str(largest_line_no))
-            
-            for i, display in enumerate(code_display_lines):
-                line_no = display.line_no
-                line_no_display = '\u001b[36m' + str(line_no).rjust(gutter_width) + '\u001b[0m'
-                print_at(1, i + 1, line_no_display + '  ' + display.code)
-            
-            mouse_on()
-            # mouse_motion_on()
-            
-            while True:
-                answer = get_input()
-                if answer == "q":
-                    break
-                if answer[0] == '\x1B':
-                    events = decode_input(answer)
-                    
-                    print(events, end = '')
-                sys.stdout.flush()
-            
-            self.clean_up()
-        except Exception as e:
-            self.clean_up()
-            raise e
+    def update_status(self, snapshot):
+        fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+        fun = self.cache.get_fun(fun_call["fun_id"])
+        message = "Step %d of %d: %s() line %d" % (
+            snapshot["id"], 
+            self.last_snapshot["id"],
+            fun["name"],
+            snapshot["line_no"]
+        )
+        termsize = os.get_terminal_size()
+        message = message[0:termsize.columns].center(termsize.columns)
+        self.status_pane.set_lines([message])
+        self.status_pane.set_highlight(0)
     
+    def step_over(self, snapshot):
+        fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+        step1 = """
+            select *
+            from Snapshot
+            where id > ? 
+                and (
+                    (fun_call_id = ? and line_no != ?) 
+                    or (fun_call_id == ?)
+                )
+            order by id limit 1
+        """
+        result = self.cursor.execute(step1, (snapshot["id"], fun_call["id"], snapshot["line_no"], fun_call["parent_id"])).fetchone()
+        step2 = """
+            select *
+            from Snapshot
+            where id > ?
+                and fun_call_id = ?
+            order by id desc limit 1
+        """
+        last = self.cursor.execute(step2, (snapshot["id"], snapshot["fun_call_id"])).fetchone()
+        if last and result and last["id"] < result["id"]:
+            result = last
+        if result is None:
+            step3 = """
+                select *
+                from Snapshot
+                where id > ?
+                    and fun_call_id = ?
+                order by id limit 1
+            """
+            result = self.cursor.execute(step3, (snapshot["id"], snapshot["fun_call_id"])).fetchone()
+        
+        if result:
+            self.cache.put_snapshot(result)
+        return result
+        
+    def step_over_backward(self, snapshot):
+        fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+        result = None
+        step1 = """
+            select * from Snapshot
+            where id < ?
+                and (
+                    (fun_call_id = ? and line_no != ?) or 
+                    (fun_call_id == ?)
+                )
+            order by id desc limit 1
+        """
+        prev = self.cursor.execute(step1, (snapshot["id"], snapshot["fun_call_id"], snapshot["line_no"], fun_call["parent_id"])).fetchone()
+        step2 = """
+            select *
+            from Snapshot
+            where id < ?
+                and fun_call_id = ?
+            order by id limit 1
+        """
+        first = self.cursor.execute(step2, (snapshot["id"], snapshot["fun_call_id"])).fetchone()
+        if prev:
+            if first and first["id"] > prev["id"]:
+                result = first
+            else:
+                if prev["fun_call_id"] == snapshot["fun_call_id"]:
+                    prev_fun_call = self.cache.get_fun_call(prev["fun_call_id"])
+                    prev_prev = self.cursor.execute(step1, (
+                        prev["id"], 
+                        prev["fun_call_id"], 
+                        prev["line_no"], 
+                        prev_fun_call["parent_id"]
+                    )).fetchone()
+                    if prev_prev:
+                        if first and first["id"] > prev_prev["id"]:
+                            result = first
+                        else:
+                            prev_prev_fun_call = self.cache.get_fun_call(prev_prev["fun_call_id"])
+                            step3 = """
+                                select *
+                                from Snapshot
+                                where id > ? 
+                                    and (
+                                        (fun_call_id = ? and line_no != ?) 
+                                        or (fun_call_id == ?)
+                                    )
+                                order by id limit 1
+                            """
+                            result = self.cursor.execute(step3, (
+                                prev_prev["id"],
+                                prev_prev["fun_call_id"],
+                                prev_prev["line_no"],
+                                fun_call["parent_id"]
+                            )).fetchone() or prev_prev
+                    else:
+                        result = prev
+                else:
+                    result = prev
+        else:
+            step4 = """
+                select *
+                from Snapshot
+                where id < ?
+                    and fun_call_id = ?
+                order by id desc limit 1
+            """
+            result = self.cursor.execute(step4, (snapshot["id"], snapshot["fun_call_id"])).fetchone()
+        return result
+            
+    def scroll_to_line_if_needed(self, line, lines):
+        offset = self.code_pane.top_offset
+        box = self.code_pane.box
+        if line > (offset + box.height - 1):
+            offset = min(
+                len(lines) - box.height,
+                line - box.height // 2
+            )
+        if line < (offset + 1):
+            offset = max(0, line - box.height // 2)
+        self.code_pane.scroll_top_to(offset)
+
 if __name__ == "__main__":
-    TimeNav().run()
+    if len(sys.argv) < 2:
+        print("Please provide a history file.")
+    else:
+        timenav = TimeNav(sys.argv[1])
+        try:
+            timenav.run()
+        except Exception as e:
+            timenav.clean_up()
+            raise e

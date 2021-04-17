@@ -21,6 +21,7 @@ export function DataCache(db) {
             if (key.startsWith("Object/")) {
                 data = jsonLike.parse(data, true);
             }
+            // log.write(`adding map entry: ${key} = ${inspect(data)}\n`);
             map.set(key, data);
         }
     }

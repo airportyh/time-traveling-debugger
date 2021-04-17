@@ -24,6 +24,7 @@ const getFunCallByParentStatement = db.prepare("select * from FunCall where pare
 const getChildFunCallIds = db.prepare("select id from FunCall where parent_id is ?");
 const getFun = db.prepare("select * from Fun where id = ?");
 const getSnapshotsByFunCall = db.prepare("select * from Snapshot where fun_call_id = ?");
+const getLastSnapshot = db.prepare("select * from Snapshot order by id desc limit 1");
 const getSnapshotsIdsByFunCall = db.prepare("select id from Snapshot where fun_call_id = ?");
 const getFirstSnapshotInFunCall = db.prepare(`
     select *
@@ -271,9 +272,6 @@ function fetchFunCallFunAndCodeFile(funCall, attachments, alreadyFetched) {
 }
 
 function getObjectsForSnapshot(snapshot, funCall, attachments, alreadyFetched) {
-    if (snapshot.id == 247) {
-        debugger
-    }
     getObjectsDeep(
         new HeapRef(funCall.locals), 
         snapshot.heap,
@@ -418,6 +416,12 @@ app.get("/api/Rewind", (req, res) => {
     return res.json(expandSnapshot(snapshot, alreadyFetched));
 });
 
+app.get("/api/GotoEnd", (req, res) => {
+    const alreadyFetched = useAlreadyFetched(req);
+    const snapshot = getLastSnapshot.get();
+    return res.json(expandSnapshot(snapshot, alreadyFetched));
+});
+
 // app.get("/api/StepOutBackward", (req, res) => {
 //     const objectsAlreadyFetched = useObjectsAlreadyFetched(req);
 //     const funCallsAlreadyFetched = useFunCallsAlreadyFetched(req);
@@ -474,22 +478,27 @@ function getAttachmentsForSnapshot(snapshot, attachments, alreadyFetched) {
         // get fun and code file if needed
         
         const funKey = "Fun/" + myFunCall.fun_id;
-        if (!isIn(funKey, alreadyFetched)) {
-            const fun = getFun.get(myFunCall.fun_id);
+        let fun = attachments[funKey];
+        if (!fun) {
+            fun = getFun.get(myFunCall.fun_id);
             attachments[funKey] = fun;
             alreadyFetched[funKey] = true;
-            
-            const codeFileKey = "CodeFile/" + fun.code_file_id;
-            if (!isIn(codeFileKey, alreadyFetched)) {
-                const codeFile = getCodeFile.get(fun.code_file_id);
-                attachments[codeFileKey] = codeFile;
-                alreadyFetched[codeFileKey] = true;
-            }
+        }
+        const codeFileKey = "CodeFile/" + fun.code_file_id;
+        if (!isIn(codeFileKey, alreadyFetched)) {
+            const codeFile = getCodeFile.get(fun.code_file_id);
+            attachments[codeFileKey] = codeFile;
+            alreadyFetched[codeFileKey] = true;
         }
     }
 }
 
 function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
+    return getObjectsDeep_(ref, heapVersion, attachments, alreadyFetched, 0);
+}
+
+function getObjectsDeep_(ref, heapVersion, attachments, alreadyFetched, depth) {
+    const indent = Array(depth).join(" ");
     let dbObject;
     let id;
     let objKey;
@@ -506,6 +515,7 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
                 attachments[heapRefKey] = null;
                 return;
             }
+            alreadyFetched[heapRefKey] = true;
             id = dbHeapRef.object_id;
             attachments[heapRefKey] = id;
             objKey = "Object/" + id;
@@ -513,24 +523,36 @@ function getObjectsDeep(ref, heapVersion, attachments, alreadyFetched) {
     } else {
         return;
     }
-    // if (isIn(objKey, alreadyFetched)) {
-    //     return;
-    // } else {
-    dbObject = getObject(id);    
-    // }
+    dbObject = getObject(id);
     attachments[objKey] = dbObject.data;
     alreadyFetched[objKey] = true;
     const object = parse(dbObject.data, true);
-    if (Array.isArray(object)) {
-        for (let j = 0; j < object.length; j++) {
-            let item = object[j];
-            getObjectsDeep(item, heapVersion, attachments, alreadyFetched);
+    if (object.__tag__ === "function") {
+        const funId = object.get("fun_id");
+        const funKey = "Fun/" + funId;
+        const fun = getFun.get(funId);
+        if (!alreadyFetched[funKey]) {
+            attachments[funKey] = fun;
+            alreadyFetched[funKey] = true;
         }
-    } else if (object instanceof Map) {
-        object.forEach((value, key) => {
-            getObjectsDeep(key, heapVersion, attachments, alreadyFetched);
-            getObjectsDeep(value, heapVersion, attachments, alreadyFetched);
-        });
+        const freevars = object.get("closure_freevars");
+        if (freevars) {
+            freevars.forEach((heapRef, varname) => {
+                getObjectsDeep_(heapRef, heapVersion, attachments, alreadyFetched, depth + 1);
+            });
+        }
+    } else {
+        if (Array.isArray(object)) {
+            for (let j = 0; j < object.length; j++) {
+                let item = object[j];
+                getObjectsDeep_(item, heapVersion, attachments, alreadyFetched, depth + 1);
+            }
+        } else if (object instanceof Map) {
+            object.forEach((value, key) => {
+                getObjectsDeep_(key, heapVersion, attachments, alreadyFetched, depth + 1);
+                getObjectsDeep_(value, heapVersion, attachments, alreadyFetched, depth + 1);
+            });
+        }
     }
 }
 

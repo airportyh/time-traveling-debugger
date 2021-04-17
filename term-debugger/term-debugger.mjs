@@ -1,6 +1,7 @@
 /*
 TODO:
 
+* skip to the end
 * have to press i twice to step in?
 * switch to left and right arrow for step in and out
 * allow collapsing of data structures
@@ -152,6 +153,10 @@ function TermDebugger() {
             stepOut();
         } else if (String(data) == "r" || String(data) == "p") {
             stepBackward();
+        } else if (String(data) == "e") {
+            gotoEnd();
+        } else if (String(data) == "b") {
+            gotoBeginning();
         } else if (isMouseClick(data)) {
             const x = data[4] - 32;
             const y = data[5] - 32;
@@ -209,6 +214,14 @@ function TermDebugger() {
             logSnapshot(snapshot);
             await cache.update(snapshot);
         }
+    }
+    
+    async function gotoBeginning() {
+        await stepWithFetch(`${url}/api/SnapshotExpanded?id=1`);
+    }
+    
+    async function gotoEnd() {
+        await stepWithFetch(`${url}/api/GotoEnd`);
     }
     
     async function stepForward() {

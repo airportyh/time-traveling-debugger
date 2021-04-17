@@ -17,13 +17,17 @@ export class PythonASTInfo implements ASTInfo {
         return line && line.substring(node.col_offset) || "";
     }
     
-    getFunNode(name: string): any {
+    getFunNode(name: string, lineNo: number): any {
         if (name === "<module>") {
             return this.ast;
         }
         const funs = [];
-        findNodes(this.ast, (node) => node.type === "FunctionDef", funs);
-        return funs.filter((node) => node.name === name)[0];
+        findNodes(this.ast, (node) => {
+            return node.type === "FunctionDef" &&
+                node.name === name &&
+                node.lineno === lineNo;
+        }, funs);
+        return funs[0];
     }
     
     getFunNodeParameters(funNode: any): string[] {
@@ -117,7 +121,7 @@ export class PythonASTInfo implements ASTInfo {
         const astInfo = new PythonASTInfo(ast, codeLines);
         // console.log("source", astInfo.getSource(ast.body[0]));
         console.log(astInfo.ast);
-        const fib = astInfo.getFunNode("fib");
+        const fib = astInfo.getFunNode("fib", 4);
         console.log(fib);
         console.log("allUserDefinedFunctions", astInfo.getUserDefinedFunctions());
         const calls = astInfo.getCallExpressionsOnLine(fib, 4);

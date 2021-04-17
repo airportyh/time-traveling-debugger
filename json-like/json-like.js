@@ -1,8 +1,10 @@
+// *123
 function Ref(id) {
     this.id = id;
 }
 exports.Ref = Ref;
 
+// ^123
 function HeapRef(id) {
     this.id = id;
 }
@@ -34,7 +36,7 @@ function parse(input) {
     let ws = zeroOrMore(characterMatching("\u0020\u000A\u000D\u0009"));
     let hex = characterMatching("0123456789abcdefABCDEF");
     let escape = choice([characterMatching('"\\\/bfnrt'), sequence([literal("u"), hex, hex, hex, hex])]);
-    let character = choice([sequence([literal("\\"), escape]), characterMatching((c) => c !== '"' && c !== '\\')]);
+    let character = choice([sequence([literal("\\"), escape], (values) => values[1]), characterMatching((c) => c !== '"' && c !== '\\')]);
     let characters = zeroOrMore(character);
     let string = sequence([literal('"'), characters, literal('"')], (data) => {
         return data[1].join("");
@@ -123,49 +125,51 @@ function parse(input) {
 exports.parse = parse;
 
 function test() {
-
     const testCases = [
-        "-1.2",
-        "5",
-        "123",
-        "-12",
-        "-6",
-        "12.50",
-        "-5.6",
-        "12.5e10",
-        "4e5",
-        "abc",
-        "[1, 2.5, -0.5]",
-        "[1,2.5,-0.5]",
-        "[1,2.5-0.5]",
-        `"abcde"`,
-        `"abc\tde"`,
-        `"\\u1234"`,
-        "{}",
-        `{"a": 1}`,
-        `{"a": 1, "b": 2}`,
-        `{"hello": true, "world": false, "yo": null}`,
-        `[{ "name": "jerry", "friends": [ {"name": "shanda"} ] }]`,
-        `{ {"id": 1}: "brown" }`,
-        `{ *123456: ^1234 }`,
-        `{ "funCall": 2, "variables": *215}`,
-        `<tuple>[1, 2]`,
-        `<tuple>[]`,
-        `<function>{}`,
-        `<Point>{ "x": 1, "y": 2 }`,
+        // "-1.2",
+        // "5",
+        // "123",
+        // "-12",
+        // "-6",
+        // "12.50",
+        // "-5.6",
+        // "12.5e10",
+        // "4e5",
+        // "abc",
+        // "[1, 2.5, -0.5]",
+        // "[1,2.5,-0.5]",
+        // "[1,2.5-0.5]",
+        //`"abcde"`,
+        `"[\\"a\\", \\"b\\", \\"c\\"]"`,
+        // `"abc\tde"`,
+        // `"\\u1234"`,
+        // "{}",
+        // `{"a": 1}`,
+        // `{"a": 1, "b": 2}`,
+        // `{"hello": true, "world": false, "yo": null}`,
+        // `[{ "name": "jerry", "friends": [ {"name": "shanda"} ] }]`,
+        // `{ {"id": 1}: "brown" }`,
+        // `{ *123456: ^1234 }`,
+        // `{ "funCall": 2, "variables": *215}`,
+        // `<tuple>[1, 2]`,
+        // `<tuple>[]`,
+        // `<set>[]`,
+        // `<function>{}`,
+        // `<Point>{ "x": 1, "y": 2 }`,
+        // `^123`
     ];
 
     for (let testCase of testCases) {
         try {
             const output = parse(testCase, 0);
             if (output) {
-                console.log(`"${testCase}" =`, output);
+                console.log(`"${testCase}" =`, JSON.stringify(output));
             } else {
                 console.log(`"${testCase}" no parse found.`);
             }
         } catch (e) {
             console.log(`${e.message} for ${testCase}.`);
-            console.log(e.stack);
+            // console.log(e.message);
         }
     }
     

@@ -14,7 +14,7 @@ export type Pos = { line: number, col: number };
 
 export interface ASTInfo {
     getSource(node: any): string;
-    getFunNode(name: string): any;
+    getFunNode(name: string, lineNo: number): any;
     getFunNodeParameters(funNode: any): string[];
     hasSignature(funNode: any): boolean;
     getUserDefinedFunctions(): string[];
