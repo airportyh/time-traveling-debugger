@@ -16,10 +16,14 @@ class Box:
 		self.height = height
 
 class TextPane:
-	def __init__(self, box):
+	def __init__(self, box=None):
 		self.box = box
 		self.lines = []
 		self.highlighted = None
+		
+	def set_box(self, box):
+		self.box = box
+		self.render()
 
 	def set_lines(self, lines):
 		self.lines = lines
@@ -30,6 +34,8 @@ class TextPane:
 		self.render()
 
 	def render(self):
+		if self.box is None:
+			return
 		for i in range(self.box.height):
 			if i < len(self.lines):
 				line = self.lines[i]
@@ -42,6 +48,12 @@ class TextPane:
 			y = self.box.top + i
 			goto(x, y)
 			print(line, end='')
+			
+class SplitPane:
+	def __init__(self, box, direction, children):
+		self.box = box
+		self.direction = direction # 'vertical' or 'horizontal'
+		self.children = children
 
 def write(value):
     print('\x1B' + value, end = '')
