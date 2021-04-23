@@ -44,7 +44,7 @@ create table CodeFile (
 
 create table FunCode (
     id integer primary key,
-    name integer,
+    name text,
     code_file_id integer,
     line_no integer,
     local_varnames text,

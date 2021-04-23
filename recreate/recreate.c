@@ -3,176 +3,799 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sqlite3.h>
+#include <errno.h>
+#include "errors.h"
+#include "uthash.h"
 
-typedef struct HistoryRecreatorStruct {
-    sqlite3 *db;
-    bool log;
-    unsigned long snapshotId;
-} HistoryRecreator;
+typedef struct _CodeFile {
+    unsigned long id;
+    char *filename;
+    UT_hash_handle hh;
+} CodeFile;
 
-// Code for SuperFashHash is from http://www.azillionmonkeys.com/qed/hash.html
-#include <stdint.h>
-#undef get16bits
-#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) \
-  || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
-#define get16bits(d) (*((const uint16_t *) (d)))
-#endif
+typedef struct _AddrRef {
+    unsigned long addr;
+    unsigned long id;
+    UT_hash_handle hh;
+} AddrRef;
 
-#if !defined (get16bits)
-#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)\
-                       +(uint32_t)(((const uint8_t *)(d))[0]) )
-#endif
+typedef struct _FunHandler {
+    char *funName;
+    int (*fun)(char *line, unsigned int pos);
+    UT_hash_handle hh;
+} FunHandler;
 
-uint32_t SuperFastHash (const char * data, int len) {
-uint32_t hash = len, tmp;
-int rem;
+typedef struct _MemberMapKey {
+    unsigned long container;
+    long key;
+} MemberMapKey;
 
-    if (len <= 0 || data == NULL) return 0;
+typedef struct _MemberMapEntry {
+    MemberMapKey key;
+    unsigned long ref;
+    UT_hash_handle hh;
+} MemberMapEntry;
 
-    rem = len & 3;
-    len >>= 2;
+typedef struct _FunCode {
+    unsigned long id;
+    unsigned long addr;
+    // TODO local varnames
+    UT_hash_handle hh;
+} FunCode;
 
-    /* Main loop */
-    for (;len > 0; len--) {
-        hash  += get16bits (data);
-        tmp    = (get16bits (data+2) << 11) ^ hash;
-        hash   = (hash << 16) ^ tmp;
-        data  += 2*sizeof (uint16_t);
-        hash  += hash >> 11;
-    }
+typedef struct _FunCall {
+    unsigned long id;
+    FunCode *funCode;
+    unsigned long localsId;
+    unsigned long globalsId;
+    // TODO cellvars and freevars
+    struct _FunCall *parent;
+} FunCall;
 
-    /* Handle end cases */
-    switch (rem) {
-        case 3: hash += get16bits (data);
-                hash ^= hash << 16;
-                hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
-                hash += hash >> 11;
-                break;
-        case 2: hash += get16bits (data);
-                hash ^= hash << 11;
-                hash += hash >> 17;
-                break;
-        case 1: hash += (signed char)*data;
-                hash ^= hash << 10;
-                hash += hash >> 1;
-    }
+#define STR_TYPE 1
+#define INT_TYPE 2
+#define NONE_TYPE 3
+#define BOOL_TYPE 4
+#define ADDR_TYPE 5
 
-    /* Force "avalanching" of final 127 bits */
-    hash ^= hash << 3;
-    hash += hash >> 5;
-    hash ^= hash << 4;
-    hash += hash >> 17;
-    hash ^= hash << 25;
-    hash += hash >> 6;
+typedef struct _AnyValue {
+    char type;
+    union {
+        struct {
+            char *chars;
+            int length;
+        } str;
+        long number;
+        bool boolean;
+        unsigned long addr;
+    };
+} AnyValue;
 
-    return hash;
-}
+// <Global State>
 
-int processBasedir(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// The database
+sqlite3 *db;
 
-int processNewCode(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// File parser state
+char *filename;
+FILE *file;
+char *sqlite_filename;
+char *line = NULL;
+unsigned int line_no = 1;
 
-int processPushFrame(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// verbose flag
+bool verbose;
 
-int processPopFrame(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// Auto-generated unique IDs
+char typeId = 1;
+unsigned long snapshotId = 1;
+unsigned long valueId = 1;
+unsigned long codeFileId = 1;
+unsigned long funCodeId = 1;
+unsigned long funCallId = 1;
 
-int processNewString(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// Stack
+FunCall *stack = NULL;
 
-int processNewObject(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
+// Specific type ids
+char intTypeId;
+char strTypeId;
+char boolTypeId;
+char listTypeId;
+char dictTypeId;
+char moduleTypeId;
+char objectTypeId;
+char functionTypeId;
+char noneTypeId;
+char refTypeId;
+char deletedTypeId;
 
-int processNewDict(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
-
-int processDictStoreSubscript(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
-
-int processNewModule(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    return 0;
-}
-
+// Prepared statements
 sqlite3_stmt *insertSnapshotStmt;
-int processVisit(char *line, unsigned int pos, HistoryRecreator *recreator) {
-    sqlite3 *db = recreator->db;
-    bool log = recreator->log;
-    // parse a number
-    unsigned long num;
-    if (sscanf(line + pos, "%ld", &num) == 1) {
-        if (log) {
-            printf("int: %ld\n", num);
-        }
+sqlite3_stmt *insertValueStmt;
+sqlite3_stmt *insertFunCodeStmt;
+sqlite3_stmt *insertFunCallStmt;
+sqlite3_stmt *insertCodeFileStmt;
+sqlite3_stmt *insertTypeStmt;
+sqlite3_stmt *insertMemberStmt;
+sqlite3_stmt *updateSnapshotStartFunCallStmt;
+
+// Hashtables
+
+CodeFile *code_files = NULL;
+FunCode *funCodes = NULL;
+AddrRef *addrToId = NULL;
+FunHandler *funLookup = NULL;
+MemberMapEntry *memberMap = NULL;
+
+
+// </Global State>
+
+// Convinience macros
+#define RETURN_PARSE_ERROR(pos) \
+set_error(1, "Parse Error on line %d column %d (%s:%d).\n", line_no, pos + 1, __FILE__, __LINE__); \
+return 1;
+
+// Code/idea taken from: https://www.lemoda.net/c/sqlite-insert/
+// These helpers assume that the surrounding function returns an error code,
+// and that "db" is an accessible sqlite3 * variable.
+#define SQLITE(f)                                                          \
+    {                                                                      \
+        int i;                                                             \
+        i = sqlite3_ ## f;                                                 \
+        if (i != SQLITE_OK) {                                              \
+            set_error(i, "%s failed with status %d on line %d: %s\n",      \
+                     #f, i, __LINE__, sqlite3_errmsg(db));                 \
+            return 1;                                                      \
+        }                                                                  \
+    }                                                                      \
+
+#define SQLITE_STEP(stmt)                                        \
+    {                                                            \
+        int i;                                                   \
+        i = sqlite3_step(stmt);                                  \
+        if (i != SQLITE_DONE) {                                  \
+            set_error(i, "Step failed - %s", sqlite3_errmsg(db));\
+            return 1;                                            \
+        }                                                        \
+    }                                                            \
+
+static inline int parseLongArg(int *i, long *value) {
+    int pos;
+    if (sscanf(line + (*i), "%ld%n", value, &pos) == 1) {
+        (*i) += pos;
     } else {
-        printf("Parse error on line %d column %d.\n", 4, pos + 1);
-        return -1;
+        RETURN_PARSE_ERROR(*i);
     }
 
-    unsigned long id = recreator->snapshotId++;
+    if (line[*i] == ',') {
+        (*i)++;
+        if (line[*i] == ' ') {
+            (*i)++;
+        }
+    }
 
-    int code = sqlite3_bind_int(insertSnapshotStmt, 1, id);
-    if (code != SQLITE_OK) {
-        printf("Failed to bind 1st parameter for insert visit statement. Code %d\n", code);
+    return 0;
+}
+
+static inline int parseULongArg(int *i, long *value) {
+    int pos;
+    if (sscanf(line + (*i), "%lu%n", value, &pos) == 1) {
+        (*i) += pos;
+    } else {
+        RETURN_PARSE_ERROR(*i);
+    }
+
+    if (line[*i] == ',') {
+        (*i)++;
+        if (line[*i] == ' ') {
+            (*i)++;
+        }
+    }
+
+    return 0;
+}
+
+static inline int parseAddrArg(int *i, long *value) {
+    int pos;
+    if (sscanf(line + (*i), "*%lu%n", value, &pos) == 1) {
+        (*i) += pos;
+    } else {
+        RETURN_PARSE_ERROR(*i);
+    }
+
+    if (line[*i] == ',') {
+        (*i)++;
+        if (line[*i] == ' ') {
+            (*i)++;
+        }
+    }
+
+    return 0;
+}
+
+static inline int parseIntArg(int *i, int *value) {
+    int pos;
+    if (sscanf(line + (*i), "%d%n", value, &pos) == 1) {
+        (*i) += pos;
+    } else {
+        RETURN_PARSE_ERROR(*i);
+    }
+
+    if (line[*i] == ',') {
+        (*i)++;
+        if (line[*i] == ' ') {
+            (*i)++;
+        }
+    }
+
+    return 0;
+}
+
+static inline int parseStringArg(int *ii, char **string, int *strLength) {
+    int string_start;
+    int i = *ii;
+    if (line[i] == '\'') {
+        // parse a string surrounded by 's
+        i++;
+        string_start = i;
+        while (line[i] != '\'' && line[i] != '\0') {
+            i++;
+        }
+        if (line[i] == '\0') {
+            RETURN_PARSE_ERROR(i);
+        }
+        i++;
+    } else if (line[i] == '"') {
+        // parse a string surrounded by "s
+        i++;
+        string_start = i;
+        while (line[i] != '"' && line[i] != '\0') {
+            i++;
+        }
+        if (line[i] == '\0') {
+            RETURN_PARSE_ERROR(i);
+        }
+        i++;
+    }
+
+    (*strLength) = i - string_start - 1;
+    (*string) = line + string_start;
+
+    if (line[i] == ',') {
+        i++;
+        if (line[i] == ' ') {
+            i++;
+        }
+    }
+
+    (*ii) = i;
+
+    return 0;
+}
+
+static inline int parseAnyArg(int *i, AnyValue *value) {
+    char chr = line[*i];
+    if (chr == '\'' || chr == '"') {
+        char *string;
+        int strLength;
+        CALL(parseStringArg(i, &string, &strLength));
+        value->type = STR_TYPE;
+        value->str.chars = string;
+        value->str.length = strLength;
+    } else if (chr >= 48 && chr <= 57 || chr == 45) { // digit or '-'
+        long number;
+        CALL(parseLongArg(i, &number));
+        value->type = INT_TYPE;
+        value->number = number;
+    } else if (strncmp(line + (*i), "True", 4) == 0) {
+        value->type = BOOL_TYPE;
+        value->boolean = 1;
+        (*i) += 4;
+    } else if (strncmp(line + (*i), "False", 5) == 0) {
+        value->type = BOOL_TYPE;
+        value->boolean = 1;
+        (*i) += 5;
+    } else if (strncmp(line + (*i), "None", 4) == 0) {
+        value->type = NONE_TYPE;
+        (*i) += 4;
+    } else if (chr == '*') {
+        long addr;
+        (*i)++;
+        CALL(parseULongArg(i, &addr));
+        value->type = ADDR_TYPE;
+        value->addr = addr;
+    } else {
+        RETURN_PARSE_ERROR(i);
+    }
+
+    if (line[*i] == ',') {
+        (*i)++;
+        if (line[*i] == ' ') {
+            (*i)++;
+        }
+    }
+
+    return 0;
+}
+
+
+int addType(char *typename, char *tid) {
+    *tid = typeId++;
+
+    SQLITE(bind_int(insertTypeStmt, 1, *tid));
+    SQLITE(bind_text(insertTypeStmt, 2, typename, -1, SQLITE_STATIC));
+    SQLITE_STEP(insertTypeStmt);
+    SQLITE(reset(insertTypeStmt));
+
+    return 0;
+}
+
+int installTypes() {
+    CALL(addType("int", &intTypeId));
+    CALL(addType("str", &strTypeId));
+    CALL(addType("bool", &boolTypeId));
+    CALL(addType("list", &listTypeId));
+    CALL(addType("dict", &dictTypeId));
+    CALL(addType("module", &moduleTypeId));
+    CALL(addType("object", &objectTypeId));
+    CALL(addType("function", &functionTypeId));
+    CALL(addType("none", &noneTypeId));
+    CALL(addType("<ref>", &refTypeId));
+    CALL(addType("<deleted>", &deletedTypeId));
+
+    return 0;
+}
+
+int readFile(char *filename, char **fileContents) {
+    // https://stackoverflow.com/a/14002993
+
+    FILE *f = fopen(filename, "r");
+    if (f == NULL) {
+        set_error(1, "%s", strerror(errno));
         return 1;
     }
+    CALL(fseek(f, 0, SEEK_END));
+    long fsize = ftell(f);
+    CALL(fseek(f, 0, SEEK_SET));  /* same as rewind(f); */
 
-    code = sqlite3_bind_null(insertSnapshotStmt, 2);
-    if (code != SQLITE_OK) {
-        printf("Failed to bind 2nd parameter for insert visit statement. Code %d\n", code);
-        return 1;
+    char *string = malloc(fsize + 1);
+    int read = fread(string, 1, fsize, f);
+    CALL(fclose(f));
+
+    string[read] = 0;
+    *fileContents = string;
+    return 0;
+}
+
+int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
+    CodeFile *code_file;
+
+    HASH_FIND(hh, code_files, filename, filenameLen, code_file);
+    if (code_file == NULL) {
+        // Add code file entry
+        // TODO: check for malloc not working
+        code_file = (CodeFile *)malloc(sizeof(CodeFile));
+        memset(code_file, 0, sizeof(CodeFile));
+        code_file->id = codeFileId++;
+        *id = code_file->id;
+        code_file->filename = (char *)malloc(sizeof(char) * (filenameLen + 1));
+        strncpy(code_file->filename, filename, filenameLen);
+        code_file->filename[filenameLen] = '\0';
+        HASH_ADD_KEYPTR(hh, code_files, code_file->filename, filenameLen, code_file);
+        if (verbose) {
+            printf("Added code file: %s with id %ld\n", code_file->filename, code_file->id);
+        }
+
+        char *fileContents;
+        CALL(readFile(code_file->filename, &fileContents));
+
+        SQLITE(bind_int64(insertCodeFileStmt, 1, code_file->id));
+        SQLITE(bind_text(insertCodeFileStmt, 2, code_file->filename, -1, SQLITE_STATIC));
+        SQLITE(bind_text(insertCodeFileStmt, 3, fileContents, -1, SQLITE_STATIC));
+        SQLITE_STEP(insertCodeFileStmt);
+        SQLITE(reset(insertCodeFileStmt));
+
+        free(fileContents);
+    } else {
+        printf("Found code file: %s\n", code_file->filename);
     }
 
-    code = sqlite3_bind_null(insertSnapshotStmt, 3);
-    if (code != SQLITE_OK) {
-        printf("Failed to bind 3rd parameter for insert visit statement. Code %d\n", code);
+    return 0;
+}
+
+unsigned long getValueId(unsigned long addr) {
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToId, &addr, addrRef);
+    if (addrRef == NULL) {
+        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+        memset(addrRef, 0, sizeof(AddrRef));
+        addrRef->addr = addr;
+        addrRef->id = valueId++;
+        HASH_ADD_INT(addrToId, addr, addrRef);
+    }
+    return addrRef->id;
+}
+
+int insertBoolValue(unsigned long id, char typeId, 
+    unsigned long versionId, char value) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_int(insertValueStmt, 4, value));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int insertLongValue(unsigned long id, char typeId, 
+    unsigned long versionId, long value) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_int64(insertValueStmt, 4, value));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int insertULongValue(unsigned long id, char typeId, 
+    unsigned long versionId, unsigned long value) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_int64(insertValueStmt, 4, value));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int insertNullValue(unsigned long id, char typeId, 
+    unsigned long versionId) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_null(insertValueStmt, 4));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int insertStringValue(unsigned long id, char typeId, 
+    unsigned long versionId, AnyValue *value) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_text(insertValueStmt, 4, value->str.chars, value->str.length, SQLITE_STATIC));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int getTypeByValue(AnyValue *value, char *typeId) {
+    if (value->type == NONE_TYPE) {
+        *typeId = noneTypeId;
+    } else if (value->type == INT_TYPE) {
+        *typeId = intTypeId;
+    } else {
+        set_error(1, "Unsupported type: %d", value->type);
         return 1;
+    }
+    return 0;
+}
+
+int getRefId(unsigned long dictId, unsigned long keyId, unsigned long version, unsigned long *refId) {
+    MemberMapEntry *entry;
+    MemberMapKey key;
+    key.container = dictId;
+    key.key = keyId;
+    HASH_FIND(hh, memberMap, &key, sizeof(MemberMapKey), entry);
+    if (entry != NULL) {
+        *refId = entry->ref;
+    } else {
+        *refId = valueId++;
+        SQLITE(bind_int64(insertMemberStmt, 1, dictId));
+        SQLITE(bind_int64(insertMemberStmt, 2, keyId));
+        SQLITE(bind_int64(insertMemberStmt, 3, *refId));
+        SQLITE_STEP(insertMemberStmt);
+        SQLITE(reset(insertMemberStmt));
+        entry = (MemberMapEntry *)malloc(sizeof(MemberMapEntry));
+        memset(entry, 0, sizeof(MemberMapEntry));
+        entry->key.container = dictId;
+        entry->key.key = keyId;
+        entry->ref = *refId;
+        HASH_ADD(hh, memberMap, key, sizeof(MemberMapKey), entry);
+    }
+    return 0;
+}
+
+int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long version) {
+    unsigned long keyId;
+    unsigned long valueId;
+    if (key->type == ADDR_TYPE) {
+        AddrRef *keyAddrRef;
+        HASH_FIND_INT(addrToId, &key->addr, keyAddrRef);
+        if (keyAddrRef == NULL) {
+            set_error(1, "Lookup error for addrToId[%lu]", key->addr);
+            return 1;
+        }
+        keyId = keyAddrRef->id;
+    }
+    unsigned long refId;
+    CALL(getRefId(dictId, keyId, version, &refId));
+
+    switch (value->type) {
+        case STR_TYPE:
+            CALL(insertStringValue(refId, strTypeId, version, value));
+            break;
+        case INT_TYPE:
+            CALL(insertLongValue(refId, intTypeId, version, value->number));
+            break;
+        case NONE_TYPE:
+            CALL(insertNullValue(refId, noneTypeId, version));
+            break;
+        case BOOL_TYPE:
+            CALL(insertBoolValue(refId, boolTypeId, version, value->boolean));
+            break;
+        case ADDR_TYPE:
+            {
+                AddrRef *valueAddrRef;
+                HASH_FIND_INT(addrToId, &value->addr, valueAddrRef);
+                if (valueAddrRef == NULL) {
+                    set_error(1, "Lookup error for addrToId[%lu]", value->addr);
+                    return 1;
+                }
+                valueId = valueAddrRef->id;
+
+                unsigned long refId;
+                CALL(getRefId(dictId, keyId, version, &refId));
+                CALL(insertULongValue(refId, refTypeId, version, valueId));
+                break;
+            }
     }
 
-    code = sqlite3_bind_int(insertSnapshotStmt, 4, num);
-    if (code != SQLITE_OK) {
-        printf("Failed to bind 4th parameter for insert visit statement. Code %d\n", code);
-        return 1;
-    }
+    return 0;
 
-    if (sqlite3_step(insertSnapshotStmt) != SQLITE_DONE) {
-        printf("Failed to perform insert visit statement: %s\n", sqlite3_errmsg(db));
-        return 1;
-    }
+}
+
+int processBasedir(char *line, unsigned int pos) {
+    return 0;
+}
+
+int processNewCode(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    char *filename;
+    int filenameLen;
+    CALL(parseStringArg(&i, &filename, &filenameLen));
+
+    unsigned long codeFileId;
+    CALL(loadCodeFile(filename, filenameLen, &codeFileId));
+
+    char *funName;
+    int funNameLen;
+    CALL(parseStringArg(&i, &funName, &funNameLen));
+    int line_no;
+    CALL(parseIntArg(&i, &line_no));
+
+    unsigned long id = funCodeId++;
+    SQLITE(bind_int64(insertFunCodeStmt, 1, id));
+    SQLITE(bind_text(insertFunCodeStmt, 2, funName, funNameLen, SQLITE_STATIC));
+    SQLITE(bind_int64(insertFunCodeStmt, 3, codeFileId));
+    SQLITE(bind_int(insertFunCodeStmt, 4, line_no));
+
+    // TODO: local var names, free and cell var names
+    SQLITE_STEP(insertFunCodeStmt);
+    SQLITE(reset(insertFunCodeStmt));
+
+    FunCode *funCode = (FunCode *)malloc(sizeof(FunCode));
+    memset(funCode, 0, sizeof(FunCode));
+    funCode->id = id;
+    funCode->addr = addr;
+    HASH_ADD_INT(funCodes, addr, funCode);
+
+    return 0;
+}
+
+int processPushFrame(char *line, unsigned int i) {
+
     
-    if (log) {
+    unsigned long codeHeapId;
+    CALL(parseULongArg(&i, &codeHeapId));
+
+    FunCode *funCode;
+    HASH_FIND_INT(funCodes, &codeHeapId, funCode);
+    if (funCode == NULL) {
+        set_error(1, "Cannot found fun code for addr %lu", codeHeapId);
+        return 1;
+    }
+
+    unsigned long globalVarsId;
+    CALL(parseULongArg(&i, &globalVarsId));
+    unsigned long localVarsId;
+    CALL(parseULongArg(&i, &localVarsId));
+    unsigned long globalsId = getValueId(globalVarsId);
+    unsigned long localsId = valueId++;
+    unsigned long callId = funCallId++;
+    
+    FunCall *funCall = (FunCall *)malloc(sizeof(FunCall));
+    memset(funCall, 0, sizeof(FunCall));
+    funCall->id = callId;
+    funCall->funCode = NULL; // TODO
+    funCall->localsId = localsId;
+    funCall->globalsId = globalsId;
+    funCall->parent = stack;
+
+    stack = funCall;
+
+    CALL(insertNullValue(localsId, dictTypeId, snapshotId));
+    // TODO set up params into locals
+
+    SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 1, funCall->id));
+    SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 2, snapshotId));
+    SQLITE_STEP(updateSnapshotStartFunCallStmt);
+    SQLITE(reset(updateSnapshotStartFunCallStmt));
+
+    SQLITE(bind_int64(insertFunCallStmt, 1, callId));
+    SQLITE(bind_int64(insertFunCallStmt, 2, funCode->id));
+    SQLITE(bind_int64(insertFunCallStmt, 3, localsId));
+    SQLITE(bind_int64(insertFunCallStmt, 4, globalsId));
+    SQLITE(bind_null(insertFunCallStmt, 5)); // TODO cellvars
+    SQLITE(bind_null(insertFunCallStmt, 6)); // TODO freevars
+    if (funCall->parent) {
+        SQLITE(bind_int64(insertFunCallStmt, 7, funCall->parent->id));
+    } else {
+        SQLITE(bind_null(insertFunCallStmt, 7));
+    }
+    SQLITE_STEP(insertFunCallStmt);
+    SQLITE(reset(insertFunCallStmt));
+
+    return 0;
+}
+
+int processPopFrame(char *line, unsigned int pos) {
+    if (stack) {
+        FunCall *parent = stack->parent;
+        free(stack);
+        stack = parent;
+    } else {
+        set_error(1, "Tried to pop empty stack.");
+        return 1;
+    }
+    return 0;
+}
+
+int processNewString(char *line, unsigned int i) {
+    long addr;
+    CALL(parseLongArg(&i, &addr));
+    char *string;
+    int strLength;
+    CALL(parseStringArg(&i, &string, &strLength));
+
+    if (verbose) {
+        printf("str: %.*s\n", strLength, string);
+    }
+
+    unsigned long id = getValueId(addr);
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, strTypeId));
+    SQLITE(bind_int64(insertValueStmt, 3, snapshotId));
+    SQLITE(bind_text(insertValueStmt, 4, string, strLength, SQLITE_STATIC));
+    SQLITE_STEP(insertValueStmt);
+    if (verbose) {
+        printf("Inserting new string succeeded!\n");
+    }
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int processNewObject(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    char *typeName;
+    int typeNameLen;
+    CALL(parseStringArg(&i, &typeName, &typeNameLen));
+    unsigned long typeAddr;
+    CALL(parseAddrArg(&i, &typeAddr));
+    unsigned long oid = getValueId(addr);
+    unsigned long dictAddr = 0;
+    // dictAddr is optional, so we can ignore failure
+    // below
+    parseULongArg(&i, &dictAddr);
+    unsigned long dictId = 0;
+    if (dictAddr) {
+        dictId = getValueId(dictAddr);
+    }
+
+    unsigned long id = valueId++;
+    CALL(insertULongValue(id, objectTypeId, snapshotId, dictId));
+    
+    return 0;
+}
+
+int processNewDict(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long dictId = getValueId(addr);
+    CALL(insertNullValue(dictId, dictTypeId, snapshotId));
+
+    AnyValue key;
+    AnyValue value;
+    while (true) {
+        if (parseAnyArg(&i, &key) == 0) {
+            CALL(parseAnyArg(&i, &value));
+            CALL(setItem(dictId, &key, &value, snapshotId));
+        } else {
+            clear_error();
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int processDictStoreSubscript(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    AnyValue key;
+    AnyValue value;
+    CALL(parseAnyArg(&i, &key));
+    CALL(parseAnyArg(&i, &value));
+
+    unsigned long dictId = getValueId(addr);
+    CALL(setItem(dictId, &key, &value, snapshotId));
+
+    return 0;
+}
+
+int processNewModule(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long id = getValueId(addr);
+    CALL(insertNullValue(id, moduleTypeId, snapshotId));
+    return 0;
+}
+
+int processVisit(char *line, unsigned int i) {
+    // parse a number
+    long num;
+    CALL(parseLongArg(&i, &num));
+
+    unsigned long id = snapshotId++;
+    SQLITE(bind_int(insertSnapshotStmt, 1, id));
+    if (stack) {
+        SQLITE(bind_int64(insertSnapshotStmt, 2, stack->id));
+    } else {
+        SQLITE(bind_null(insertSnapshotStmt, 2));
+    }
+    SQLITE(bind_null(insertSnapshotStmt, 3));
+    SQLITE(bind_int(insertSnapshotStmt, 4, num));
+    SQLITE_STEP(insertSnapshotStmt);
+    if (verbose) {
         printf("Visiting line %ld succeeded!\n", num);
     }
-
-    if (sqlite3_reset(insertSnapshotStmt) != SQLITE_OK) {
-        printf("Failed to reset insert visit statement: %s\n", sqlite3_errmsg(db));
-        return 1;
-    }
+    SQLITE(reset(insertSnapshotStmt));
     return 0;
 }
 
-int processReturnValue(char *line, unsigned int pos, HistoryRecreator *recreator) {
+int processReturnValue(char *line, unsigned int pos) {
     return 0;
 }
 
-#define FUN_LOOKUP_SIZE 997
+int registerFun(char *fun_name, int (*fun)(char *line, unsigned int pos)) {
+    FunHandler *handler;
+    handler = (FunHandler *)malloc(sizeof(FunHandler));
+    handler->funName = fun_name;
+    handler->fun = fun;
+    HASH_ADD_KEYPTR(hh, funLookup, fun_name, strlen(fun_name), handler);
 
-static int (*funLookup[FUN_LOOKUP_SIZE])(char *line, unsigned int pos, HistoryRecreator *recreator);
-
-void registerFun(char *fun_name, int (*fun)(char *line, unsigned int pos, HistoryRecreator *recreator)) {
-    int length = strlen(fun_name);
-    unsigned int idx = SuperFastHash(fun_name, length) % FUN_LOOKUP_SIZE;
-    funLookup[idx] = fun;
+    return 0;
 }
 
 void registerFuns() {
@@ -189,11 +812,27 @@ void registerFuns() {
     registerFun("POP_FRAME", processPopFrame);
 }
 
-int prepareStatements(sqlite3 *db) {
-    if (SQLITE_OK != sqlite3_prepare_v2(db, "insert into Snapshot values (?, ?, ?, ?)", -1, &insertSnapshotStmt, NULL)) {
-        printf("Error preparing insert statement.\n");
-        return 1;
-    }
+int prepareStatements() {
+    SQLITE(prepare_v2(db, "insert into Snapshot values (?, ?, ?, ?)", -1, &insertSnapshotStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Value values (?, ?, ?, ?)", -1, &insertValueStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into FunCode values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCodeStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into FunCall values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCallStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Type values (?, ?)", -1, &insertTypeStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Member values(?, ?, ?)", -1, &insertMemberStmt, NULL));
+    SQLITE(prepare_v2(db, "update Snapshot set start_fun_call_id = ? where id = ?", -1, &updateSnapshotStartFunCallStmt, NULL));
+    return 0;
+}
+
+int finalizeStatements() {
+    CALL(sqlite3_finalize(insertSnapshotStmt));
+    CALL(sqlite3_finalize(insertValueStmt));
+    CALL(sqlite3_finalize(insertFunCodeStmt));
+    CALL(sqlite3_finalize(insertFunCallStmt));
+    CALL(sqlite3_finalize(insertCodeFileStmt));
+    CALL(sqlite3_finalize(insertTypeStmt));
+    CALL(sqlite3_finalize(insertMemberStmt));
+    CALL(sqlite3_finalize(updateSnapshotStartFunCallStmt));
     return 0;
 }
 
@@ -204,109 +843,7 @@ bool endsWith (char* base, char* str) {
     return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
 }
 
-// int parse(char *line, int line_no, bool log) {
-//     // expect '('
-//     if (line[i] == '(') {
-//         i++;
-//     } else {
-//         printf("Parse failed on line %d column %d.\n", line_no, i + 1);
-//         printf("    %s\n", line);
-//         return 1;
-//     }
-
-//     // parse arguments
-//     while (1) {
-//         char chr = line[i];
-//         if (chr == '\'') {
-//             // parse a string surrounded by 's
-//             i++;
-//             int string_start = i;
-//             while (line[i] != '\'' && line[i] != '\0') {
-//                 i++;
-//             }
-//             if (line[i] == '\0') {
-//                 printf("Unexpected end of line on line %d column %d.\n", line_no, i + 1);
-//                 return 1;
-//             }
-//             if (log) {
-//                 printf("str: %.*s\n", i - string_start, line + string_start);
-//             }
-//             i++;
-//         } else if (chr == '"') {
-//             // parse a string surrounded by "s
-//             i++;
-//             int string_start = i;
-//             while (line[i] != '"' && line[i] != '\0') {
-//                 i++;
-//             }
-//             if (line[i] == '\0') {
-//                 printf("Unexpected end of line on line %d column %d.\n", line_no, i + 1);
-//                 return 1;
-//             }
-//             if (log) {
-//                 printf("str: %.*s\n", i - string_start, line + string_start);
-//             }
-//             i++;
-//         } else if (chr == '*') {
-//             i++;
-//             long num;
-//             int pos;
-//             if (sscanf(line + i, "%ld%n", &num, &pos) == 1) {
-//                 if (log) {
-//                     printf("heap ref: %ld\n", num);
-//                 }
-//                 i += pos;
-//             } else {
-//                 printf("Parse error on line %d column %d.\n", line_no, i + 1);
-//                 return 1;
-//             }
-//         } else if (chr == 'N') {
-//             if (strncmp(line + i, "None", 4) == 0) {
-//                 if (log) {
-//                     printf("None\n");
-//                 }
-//                 i += 4;
-//             } else {
-//                 printf("Parse error on line %d column %d.\n", line_no, i + 1);
-//                 return 1;
-//             }
-//         } else if (chr >= 48 && chr <= 57) {
-//             // parse a number
-//             long num;
-//             int pos;
-//             if (sscanf(line + i, "%ld%n", &num, &pos) == 1) {
-//                 if (log) {
-//                     printf("int: %ld\n", num);
-//                 }
-//                 i += pos;
-//             } else {
-//                 printf("Parse error on line %d column %d.\n", line_no, i + 1);
-//                 return 1;
-//             }
-//         } else if (chr == ')') {
-//             return 0;
-//         } else {
-//             printf("Parse error on line %d column %d.\n", line_no, i + 1);
-//             return 1;
-//         }
-//         // Successfully parsed an arg, now parse a comma or closing paran.
-//         if (line[i] == ')') {
-//             return 0;
-//         }
-//         if (line[i] == ',') {
-//             i++;
-//             if (line[i] == ' ') {
-//                 i++;
-//             }
-//             continue;
-//         } else {
-//             printf("Parse error on line %d column %d.\n", line_no, i + 1);
-//             return 1;
-//         }
-//     }
-// }
-
-int processEvent(char *line, int line_no, HistoryRecreator *recreator) {
+int processEvent(char *line, int line_no) {
     int i = 0;
     while (true) {
         char chr = line[i];
@@ -317,46 +854,36 @@ int processEvent(char *line, int line_no, HistoryRecreator *recreator) {
     }
 
     if (line[i] != '(') {
-        printf("Parse error on line %d column %d\n", line_no, i);
-        return 1;
+        RETURN_PARSE_ERROR(i);
     }
     
-    uint32_t hash = SuperFastHash(line, i);
-    uint32_t index = hash % FUN_LOOKUP_SIZE;
-    int (*fun)(char *line, unsigned int pos, HistoryRecreator *recreator) = funLookup[index];
-    if (fun == NULL) {
-        printf("No process function found for %.*s\n", i, line);
+    FunHandler *handler;
+    HASH_FIND(hh, funLookup, line, i, handler);
+    if (handler == NULL) {
+        fprintf(stderr, "No process function found for %.*s\n", i, line);
         return 1;
     }
-    return fun(line, i + 1, recreator);
+    return handler->fun(line, i + 1);
 }
 
 int main(int argc, char *argv[]) {
-    char *filename;
-    FILE *file;
     ssize_t read;
     size_t len;
-    char * line = NULL;
-    int line_no = 1;
-    bool log = false;
 
-    HistoryRecreator *recreator;
-    char *sqlite_filename;
-    sqlite3* db;
-
+    atexit(finalize_error);
 
     if (argc < 2 || !endsWith(filename = argv[1], ".rewind")) {
         printf("Please provide a .rewind file\n");
         return 1;
     }
 
-    if (argc >= 3 && strcmp(argv[2], "log") == 0) {
-        log = true;
+    if (argc >= 3 && strcmp(argv[2], "verbose") == 0) {
+        verbose = true;
     }
 
     registerFuns();
 
-    if (log) {
+    if (verbose) {
         printf("Processing %s...\n", filename);
     }
 
@@ -372,30 +899,15 @@ int main(int argc, char *argv[]) {
     strncpy(sqlite_filename, filename, strlen(filename) - 7);
     strcpy(sqlite_filename + strlen(filename) - 7, ".sqlite");
 
-    if (log) {
+    if (verbose) {
         printf("Opening SQLite file %s\n", sqlite_filename);
     }
 
-    if (sqlite3_open(sqlite_filename, &db) != SQLITE_OK) {
-        printf("Error opening DB: %s\n", sqlite3_errmsg(db));
-        free(sqlite_filename);
-        return 1;
-    }
-
-    free(sqlite_filename);
-
-    recreator = (HistoryRecreator *)malloc(sizeof(HistoryRecreator));
-    recreator->log = log;
-    recreator->db = db;
-    recreator->snapshotId = 1;
-
-    if (prepareStatements(db) != 0) {
-        printf("Error preparing db statements: %s\n", sqlite3_errmsg(db));
-        free(recreator);
-        return 1;
-    }
+    SQLITE(open(sqlite_filename, &db));
+    CALL(prepareStatements());
+    CALL(installTypes());
     
-    if (log) {
+    if (verbose) {
         printf("Opened SQLite database.\n");
     }
 
@@ -404,10 +916,10 @@ int main(int argc, char *argv[]) {
         if (read == -1) {
             break;
         }
-        if (log) {
-            printf("\nLine: %s\n", line);
+        if (verbose) {
+            printf("\nLine: %s", line);
         }
-        if (processEvent(line, line_no, recreator) != 0) {
+        if (processEvent(line, line_no) != 0) {
             break;
         }
         line_no++;
@@ -417,8 +929,8 @@ int main(int argc, char *argv[]) {
         free(line);
     }
 
-    sqlite3_finalize(insertSnapshotStmt);
-    sqlite3_close(db);
-    free(recreator);
-    fclose(file);
+    free(sqlite_filename);
+    CALL(finalizeStatements());
+    CALL(sqlite3_close(db));
+    CALL(fclose(file));
 }

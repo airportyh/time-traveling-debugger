@@ -1,1 +1,1 @@
-gcc -g recreate.c -o recreate.bin -l sqlite3
+gcc -g -Wreturn-type recreate.c -o recreate.bin -l sqlite3
