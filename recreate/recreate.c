@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <sqlite3.h>
 #include <errno.h>
+#include <unistd.h>
 #include "errors.h"
 #include "uthash.h"
 
@@ -40,8 +41,16 @@ typedef struct _FunCode {
     unsigned long id;
     unsigned long addr;
     // TODO local varnames
+    char **localVarnames;
+    int numLocals;
     UT_hash_handle hh;
 } FunCode;
+
+typedef struct _StrToIdEntry {
+    char *str;
+    unsigned long id;
+    UT_hash_handle hh;
+} StrToIdEntry;
 
 typedef struct _FunCall {
     unsigned long id;
@@ -81,6 +90,7 @@ char *filename;
 FILE *file;
 char *sqlite_filename;
 char *line = NULL;
+size_t lineLen = 0;
 unsigned int line_no = 1;
 
 // verbose flag
@@ -110,24 +120,26 @@ char noneTypeId;
 char refTypeId;
 char deletedTypeId;
 
+// Specific value ids
+unsigned long retvalId;
+
 // Prepared statements
-sqlite3_stmt *insertSnapshotStmt;
-sqlite3_stmt *insertValueStmt;
-sqlite3_stmt *insertFunCodeStmt;
-sqlite3_stmt *insertFunCallStmt;
-sqlite3_stmt *insertCodeFileStmt;
-sqlite3_stmt *insertTypeStmt;
-sqlite3_stmt *insertMemberStmt;
-sqlite3_stmt *updateSnapshotStartFunCallStmt;
+sqlite3_stmt *insertSnapshotStmt = NULL;
+sqlite3_stmt *insertValueStmt = NULL;
+sqlite3_stmt *insertFunCodeStmt = NULL;
+sqlite3_stmt *insertFunCallStmt = NULL;
+sqlite3_stmt *insertCodeFileStmt = NULL;
+sqlite3_stmt *insertTypeStmt = NULL;
+sqlite3_stmt *insertMemberStmt = NULL;
+sqlite3_stmt *updateSnapshotStartFunCallStmt = NULL;
 
 // Hashtables
-
 CodeFile *code_files = NULL;
 FunCode *funCodes = NULL;
 AddrRef *addrToId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL;
-
+StrToIdEntry *strToId = NULL;
 
 // </Global State>
 
@@ -319,7 +331,6 @@ static inline int parseAnyArg(int *i, AnyValue *value) {
     return 0;
 }
 
-
 int addType(char *typename, char *tid) {
     *tid = typeId++;
 
@@ -327,22 +338,6 @@ int addType(char *typename, char *tid) {
     SQLITE(bind_text(insertTypeStmt, 2, typename, -1, SQLITE_STATIC));
     SQLITE_STEP(insertTypeStmt);
     SQLITE(reset(insertTypeStmt));
-
-    return 0;
-}
-
-int installTypes() {
-    CALL(addType("int", &intTypeId));
-    CALL(addType("str", &strTypeId));
-    CALL(addType("bool", &boolTypeId));
-    CALL(addType("list", &listTypeId));
-    CALL(addType("dict", &dictTypeId));
-    CALL(addType("module", &moduleTypeId));
-    CALL(addType("object", &objectTypeId));
-    CALL(addType("function", &functionTypeId));
-    CALL(addType("none", &noneTypeId));
-    CALL(addType("<ref>", &refTypeId));
-    CALL(addType("<deleted>", &deletedTypeId));
 
     return 0;
 }
@@ -398,7 +393,7 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
 
         free(fileContents);
     } else {
-        printf("Found code file: %s\n", code_file->filename);
+        *id = code_file->id;
     }
 
     return 0;
@@ -525,8 +520,13 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
             return 1;
         }
         keyId = keyAddrRef->id;
+    } else if (key->type == INT_TYPE) {
+        keyId = key->number;
+    } else {
+        set_error(1, "Unsupported key type: %d", key->type);
+        return 1;
     }
-    unsigned long refId;
+    unsigned long refId = 0;
     CALL(getRefId(dictId, keyId, version, &refId));
 
     switch (value->type) {
@@ -552,7 +552,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
                 }
                 valueId = valueAddrRef->id;
 
-                unsigned long refId;
+                unsigned long refId = 0;
                 CALL(getRefId(dictId, keyId, version, &refId));
                 CALL(insertULongValue(refId, refTypeId, version, valueId));
                 break;
@@ -561,6 +561,76 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
 
     return 0;
 
+}
+
+int addString(unsigned long id, char *string, int strLength) {
+    if (strLength == -1) {
+        strLength = strlen(string);
+    }
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, strTypeId));
+    SQLITE(bind_int64(insertValueStmt, 3, snapshotId));
+    SQLITE(bind_text(insertValueStmt, 4, string, strLength, SQLITE_STATIC));
+    SQLITE_STEP(insertValueStmt);
+    if (verbose) {
+        printf("Inserting new string succeeded!\n");
+    }
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+int seedData() {
+    CALL(addType("int", &intTypeId));
+    CALL(addType("str", &strTypeId));
+    CALL(addType("bool", &boolTypeId));
+    CALL(addType("list", &listTypeId));
+    CALL(addType("dict", &dictTypeId));
+    CALL(addType("module", &moduleTypeId));
+    CALL(addType("object", &objectTypeId));
+    CALL(addType("function", &functionTypeId));
+    CALL(addType("none", &noneTypeId));
+    CALL(addType("<ref>", &refTypeId));
+    CALL(addType("<deleted>", &deletedTypeId));
+
+    retvalId = valueId++;
+    CALL(addString(retvalId, "<ret val>", -1));
+
+    return 0;
+}
+
+int setLocal(int idx, AnyValue *value, unsigned long version) {
+    if (stack == NULL) {
+        set_error(1, "Stack is empty");
+        return 1;
+    }
+    FunCode *funCode = stack->funCode;
+    if (idx >= funCode->numLocals) {
+        set_error(1, "Local variable index out of bounds: %d of %d", idx, funCode->numLocals);
+        return 1;
+    }
+    char *varname = funCode->localVarnames[idx];
+    StrToIdEntry *entry = NULL;
+    HASH_FIND_STR(strToId, varname, entry);
+    unsigned long key;
+    if (entry != NULL) {
+        key = entry->id;
+    } else {
+        key = valueId++;
+        CALL(addString(key, varname, -1));
+        
+        entry = (StrToIdEntry *)malloc(sizeof(StrToIdEntry));
+        entry->str = varname;
+        entry->id = key;
+        HASH_ADD_KEYPTR(hh, strToId, varname, strlen(varname), entry);
+    }
+
+    AnyValue keyValue;
+    keyValue.type = INT_TYPE;
+    keyValue.number = key;
+    CALL(setItem(stack->localsId, &keyValue, value, version));
+
+    return 0;
 }
 
 int processBasedir(char *line, unsigned int pos) {
@@ -583,28 +653,76 @@ int processNewCode(char *line, unsigned int i) {
     int line_no;
     CALL(parseIntArg(&i, &line_no));
 
+    // TODO: local var names, free and cell var names
+    int numLocals;
+    CALL(parseIntArg(&i, &numLocals));
+    char **localVarnames = NULL;
+    
+    int localsCSVLen = 0;
+    char *localsCSV = NULL;
+    if (numLocals > 0) {
+        localVarnames = (char **)malloc(sizeof(char *) * numLocals);
+        for (int j = 0; j < numLocals; j++) {
+            char *paramName;
+            int paramNameLen;
+            CALL(parseStringArg(&i, &paramName, &paramNameLen));
+            localsCSVLen += paramNameLen;
+            if (j != 0) {
+                localsCSVLen++;
+            }
+            char *paramNameCopy = (char *)malloc(sizeof(char) * (paramNameLen + 1));
+            strncpy(paramNameCopy, paramName, paramNameLen);
+            paramNameCopy[paramNameLen] = '\0';
+            localVarnames[j] = paramNameCopy;
+        }
+
+        localsCSV = (char *)malloc(sizeof(char) * (localsCSVLen + 1));
+        int cursor = 0;
+        for (int j = 0; j < numLocals; j++) {
+            if (j != 0) {
+                localsCSV[cursor] = ',';
+                cursor++;
+            }
+            int len = strlen(localVarnames[j]);
+            strncpy(localsCSV + cursor, localVarnames[j], len);
+            cursor += len;
+        }
+        localsCSV[cursor] = '\0';
+    }
+
     unsigned long id = funCodeId++;
     SQLITE(bind_int64(insertFunCodeStmt, 1, id));
     SQLITE(bind_text(insertFunCodeStmt, 2, funName, funNameLen, SQLITE_STATIC));
     SQLITE(bind_int64(insertFunCodeStmt, 3, codeFileId));
     SQLITE(bind_int(insertFunCodeStmt, 4, line_no));
 
-    // TODO: local var names, free and cell var names
+    if (localsCSV == NULL) {
+        SQLITE(bind_null(insertFunCodeStmt, 5));
+    } else {
+        SQLITE(bind_text(insertFunCodeStmt, 5, localsCSV, -1, SQLITE_STATIC));
+    }
+    SQLITE(bind_null(insertFunCodeStmt, 6));
+    SQLITE(bind_null(insertFunCodeStmt, 7));
+
     SQLITE_STEP(insertFunCodeStmt);
     SQLITE(reset(insertFunCodeStmt));
+
+    if (localsCSV) {
+        free(localsCSV);
+    }
 
     FunCode *funCode = (FunCode *)malloc(sizeof(FunCode));
     memset(funCode, 0, sizeof(FunCode));
     funCode->id = id;
     funCode->addr = addr;
+    funCode->localVarnames = localVarnames;
+    funCode->numLocals = numLocals;
     HASH_ADD_INT(funCodes, addr, funCode);
 
     return 0;
 }
 
 int processPushFrame(char *line, unsigned int i) {
-
-    
     unsigned long codeHeapId;
     CALL(parseULongArg(&i, &codeHeapId));
 
@@ -626,7 +744,7 @@ int processPushFrame(char *line, unsigned int i) {
     FunCall *funCall = (FunCall *)malloc(sizeof(FunCall));
     memset(funCall, 0, sizeof(FunCall));
     funCall->id = callId;
-    funCall->funCode = NULL; // TODO
+    funCall->funCode = funCode;
     funCall->localsId = localsId;
     funCall->globalsId = globalsId;
     funCall->parent = stack;
@@ -634,7 +752,12 @@ int processPushFrame(char *line, unsigned int i) {
     stack = funCall;
 
     CALL(insertNullValue(localsId, dictTypeId, snapshotId));
-    // TODO set up params into locals
+    
+    for (int j = 0; j < funCode->numLocals; j++) {
+        AnyValue arg;
+        CALL(parseAnyArg(&i, &arg));
+        CALL(setLocal(j, &arg, snapshotId));
+    }
 
     SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 1, funCall->id));
     SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 2, snapshotId));
@@ -682,16 +805,8 @@ int processNewString(char *line, unsigned int i) {
     }
 
     unsigned long id = getValueId(addr);
-    SQLITE(bind_int64(insertValueStmt, 1, id));
-    SQLITE(bind_int(insertValueStmt, 2, strTypeId));
-    SQLITE(bind_int64(insertValueStmt, 3, snapshotId));
-    SQLITE(bind_text(insertValueStmt, 4, string, strLength, SQLITE_STATIC));
-    SQLITE_STEP(insertValueStmt);
-    if (verbose) {
-        printf("Inserting new string succeeded!\n");
-    }
-    SQLITE(reset(insertValueStmt));
-
+    CALL(addString(id, string, strLength));
+    
     return 0;
 }
 
@@ -762,6 +877,55 @@ int processNewModule(char *line, unsigned int i) {
     return 0;
 }
 
+int processNewFunction(char *line, unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long codeHeapId;
+    CALL(parseULongArg(&i, &codeHeapId));
+    FunCode *funCode;
+    HASH_FIND_INT(funCodes, &codeHeapId, funCode);
+
+    if (funCode == NULL) {
+        set_error(1, "Fun code not found for %lu", codeHeapId);
+        return 1;
+    }
+
+    unsigned long id = getValueId(addr);
+    CALL(insertULongValue(id, functionTypeId, snapshotId, funCode->id));
+
+    return 0;
+}
+
+int processCallStart(char *l, unsigned int i) {
+    ssize_t read;
+    read = getline(&line, &lineLen, file);
+    if (read == -1) {
+        set_error(1, "EOF reached after CALL_START");
+        return 1;
+    }
+    if (strncmp("CALL_END", line, 8) == 0) {
+        SQLITE(bind_int(updateSnapshotStartFunCallStmt, 1, 0));
+        SQLITE(bind_int(updateSnapshotStartFunCallStmt, 2, snapshotId));
+        SQLITE_STEP(updateSnapshotStartFunCallStmt);
+        SQLITE(reset(updateSnapshotStartFunCallStmt));
+    } else if (strncmp("PUSH_FRAME", line, 10) == 0) {
+        i = 10;
+        if (line[i] != '(') {
+            RETURN_PARSE_ERROR(i);
+        }
+        CALL(processPushFrame(line, i + 1))
+    } else {
+        set_error(1, "Unexpected event on line %d: %s", line_no, line);
+        return 1;
+    }
+
+    return 0;
+}
+
+int processCallEnd(char *line, unsigned int i) {
+    return 0;
+}
+
 int processVisit(char *line, unsigned int i) {
     // parse a number
     long num;
@@ -784,7 +948,29 @@ int processVisit(char *line, unsigned int i) {
     return 0;
 }
 
-int processReturnValue(char *line, unsigned int pos) {
+int processReturnValue(char *line, unsigned int i) {
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    AnyValue key;
+    key.type = INT_TYPE;
+    key.number = retvalId;
+
+    CALL(setItem(
+        stack->localsId,
+        &key,
+        &value,
+        snapshotId
+    ));
+    return 0;
+}
+
+int processStoreFast(char *line, unsigned int i) {
+    int idx;
+    CALL(parseIntArg(&i, &idx));
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    CALL(setLocal(idx, &value, snapshotId));
+
     return 0;
 }
 
@@ -810,6 +996,10 @@ void registerFuns() {
     registerFun("DICT_STORE_SUBSCRIPT", processDictStoreSubscript);
     registerFun("RETURN_VALUE", processReturnValue);
     registerFun("POP_FRAME", processPopFrame);
+    registerFun("NEW_FUNCTION", processNewFunction);
+    registerFun("CALL_START", processCallStart);
+    registerFun("CALL_END", processCallEnd);
+    registerFun("STORE_FAST", processStoreFast);
 }
 
 int prepareStatements() {
@@ -866,9 +1056,16 @@ int processEvent(char *line, int line_no) {
     return handler->fun(line, i + 1);
 }
 
+int createSchema() {
+    char *contents;
+    CALL(readFile("schema.sql", &contents));
+    SQLITE(exec(db, contents, NULL, 0, NULL));
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     ssize_t read;
-    size_t len;
 
     atexit(finalize_error);
 
@@ -903,16 +1100,32 @@ int main(int argc, char *argv[]) {
         printf("Opening SQLite file %s\n", sqlite_filename);
     }
 
+    // Remove the database file if it's already there.
+    if(access(sqlite_filename, F_OK) == 0) {
+        CALL(remove(sqlite_filename));
+    }
+
     SQLITE(open(sqlite_filename, &db));
+
+    CALL(createSchema());
     CALL(prepareStatements());
-    CALL(installTypes());
+    CALL(seedData());
     
     if (verbose) {
         printf("Opened SQLite database.\n");
     }
 
+    // SQLITE(exec(db, "PRAGMA journal_mode=off;", NULL, 0, NULL));
+    // SQLITE(exec(db, "PRAGMA cache_size=-5000", NULL, 0, NULL));
+    // SQLITE(exec(db, "PRAGMA journal_mode=WAL;", NULL, 0, NULL));
+    // SQLITE(exec(db, "PRAGMA synchronous=off;", NULL, 0, NULL));
+    // SQLITE(exec(db, "pragma temp_store = memory;", NULL, 0, NULL));
+    // SQLITE(exec(db, "pragma mmap_size = 30000000000;", NULL, 0, NULL));
+
+    SQLITE(exec(db, "begin transaction", NULL, 0, NULL));
+
     while (1) {
-        read = getline(&line, &len, file);
+        read = getline(&line, &lineLen, file);
         if (read == -1) {
             break;
         }
@@ -923,7 +1136,17 @@ int main(int argc, char *argv[]) {
             break;
         }
         line_no++;
+
+        // if (line_no % 600 == 0) {
+        //     if (verbose) {
+        //         printf("Line: %d\n", line_no);
+        //     }
+        //     SQLITE(exec(db, "end transaction", NULL, 0, NULL));
+        //     SQLITE(exec(db, "begin transaction", NULL, 0, NULL));
+        // }
     }
+
+    SQLITE(exec(db, "end transaction", NULL, 0, NULL));
 
     if (line) {
         free(line);

@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 int error_code = 0;
-#define ERROR_MESSAGE_MAX_SIZE 100
+#define ERROR_MESSAGE_MAX_SIZE 200
 char error_message[ERROR_MESSAGE_MAX_SIZE];
 
 void set_error(int code, char *format, ...) {
