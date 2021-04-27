@@ -1,3 +1,53 @@
+/*
+TODO
+====
+
+* closures (freevars / cellvars)
+    * new_cell
+    * store_deref
+* lists
+    * review list log methods
+    * list_append
+    * list_extend
+    * list_store_index
+    * list_resize_and_shift
+    * list_store_subscript_slice ?
+    * list_delete_subscript
+    * list_delete_subscript_slice
+    * list_insert ?
+    * list_remove ?
+    * list_pop ?
+    * list_clear ?
+    * list_reverse ?
+    * list_sort ?
+* string
+    * string_inplace_add_result
+* dict
+    * new_derived_dict
+    * dict_delete_subscript
+    * dict_clear ?
+    * dict_pop ?
+    * dict_pop_item ?
+    * dict_set_default ?
+    * dict_replace ?
+* set
+    * new_set
+    * set_update
+    * set_add
+    * set_clear
+    * set_discard
+* object
+    * object_assoc_dict
+* exceptions
+* tuples
+    * new_tuple
+* generators
+    * yield_value
+* change store fast to use array instead of dict
+* organize code better?
+* bring in uthash.h - convert it into a .c file
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -526,7 +576,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
         set_error(1, "Unsupported key type: %d", key->type);
         return 1;
     }
-    unsigned long refId = 0;
+    unsigned long refId;
     CALL(getRefId(dictId, keyId, version, &refId));
 
     switch (value->type) {
@@ -552,7 +602,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
                 }
                 valueId = valueAddrRef->id;
 
-                unsigned long refId = 0;
+                unsigned long refId;
                 CALL(getRefId(dictId, keyId, version, &refId));
                 CALL(insertULongValue(refId, refTypeId, version, valueId));
                 break;
