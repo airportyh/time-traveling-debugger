@@ -12,7 +12,7 @@ create table Value (
     id integer,
     type tinyint,
     version integer,
-    value,
+    value text,
     
     constraint Value_pk primary key (id, version)
     constraint Value_fk_type_id foreign key (type)

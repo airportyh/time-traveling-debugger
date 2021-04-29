@@ -3,8 +3,8 @@ TODO
 ====
 
 * closures (freevars / cellvars)
-    * new_cell
-    * store_deref
+    * new_cell (done)
+    * store_deref (done)
 * lists
     * review list log methods
     * list_append
@@ -46,6 +46,8 @@ TODO
 * change store fast to use array instead of dict
 * organize code better?
 * bring in uthash.h - convert it into a .c file
+* object lifetime - implement destroy
+* fix crash in pyrewind to enable proper Python install with libs
 */
 
 #include <stdio.h>
@@ -57,6 +59,8 @@ TODO
 #include <unistd.h>
 #include "errors.h"
 #include "uthash.h"
+#include "utarray.h"
+#include "utstring.h"
 
 typedef struct _CodeFile {
     unsigned long id;
@@ -72,7 +76,7 @@ typedef struct _AddrRef {
 
 typedef struct _FunHandler {
     char *funName;
-    int (*fun)(char *line, unsigned int pos);
+    int (*fun)(unsigned int pos);
     UT_hash_handle hh;
 } FunHandler;
 
@@ -90,9 +94,12 @@ typedef struct _MemberMapEntry {
 typedef struct _FunCode {
     unsigned long id;
     unsigned long addr;
-    // TODO local varnames
     char **localVarnames;
     int numLocals;
+    char **cellVarnames;
+    int numCellVars;
+    char **freeVarnames;
+    int numFreeVars;
     UT_hash_handle hh;
 } FunCode;
 
@@ -101,6 +108,12 @@ typedef struct _StrToIdEntry {
     unsigned long id;
     UT_hash_handle hh;
 } StrToIdEntry;
+
+typedef struct _ListsEntry {
+    unsigned long listId;
+    UT_array *array;
+    UT_hash_handle hh;
+} ListsEntry;
 
 typedef struct _FunCall {
     unsigned long id;
@@ -129,6 +142,8 @@ typedef struct _AnyValue {
         unsigned long addr;
     };
 } AnyValue;
+
+UT_icd anyValueIcd = { sizeof(AnyValue), NULL, NULL, NULL };
 
 // <Global State>
 
@@ -169,9 +184,13 @@ char functionTypeId;
 char noneTypeId;
 char refTypeId;
 char deletedTypeId;
+char cellTypeId;
 
 // Specific value ids
 unsigned long retvalId;
+
+// call start seek
+unsigned long callStartSeekSnapshotId = 0;
 
 // Prepared statements
 sqlite3_stmt *insertSnapshotStmt = NULL;
@@ -190,6 +209,7 @@ AddrRef *addrToId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL;
 StrToIdEntry *strToId = NULL;
+ListsEntry *lists = NULL;
 
 // </Global State>
 
@@ -221,6 +241,24 @@ return 1;
             return 1;                                            \
         }                                                        \
     }                                                            \
+
+// https://ben-bai.blogspot.com/2013/03/c-string-startswith-endswith-indexof.html
+bool endsWith (char* base, char* str) {
+    int blen = strlen(base);
+    int slen = strlen(str);
+    return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
+}
+
+static inline int makeStrCopy(char *str, int len, char **copy) {
+    *copy = (char *)malloc(sizeof(char) * (len + 1));
+    if (*copy == NULL) {
+        set_error(1, "malloc failed for makeStrCopy");
+        return 1;
+    }
+    strncpy(*copy, str, len);
+    (*copy)[len] = '\0';
+    return 0;
+}
 
 static inline int parseLongArg(int *i, long *value) {
     int pos;
@@ -381,6 +419,29 @@ static inline int parseAnyArg(int *i, AnyValue *value) {
     return 0;
 }
 
+static inline int parseVarStrArgs(unsigned int *i, char ***strs, int *numStrs, UT_string **strsCSV) {
+    CALL(parseIntArg(i, numStrs));
+    if (*numStrs > 0) {
+        utstring_new(*strsCSV);
+        *strs = (char **)malloc(sizeof(char *) * (*numStrs));
+        for (int j = 0; j < (*numStrs); j++) {
+            char *str;
+            int strLen;
+            CALL(parseStringArg(i, &str, &strLen));
+            char *strCopy;
+            CALL(makeStrCopy(str, strLen, &strCopy));
+            (*strs)[j] = strCopy;
+
+            utstring_printf(*strsCSV, "%s", strCopy);
+            if (j < (*numStrs) - 1) {
+                utstring_printf(*strsCSV, ",");
+            }
+        }
+    }
+
+    return 0;
+}
+
 int addType(char *typename, char *tid) {
     *tid = typeId++;
 
@@ -462,6 +523,17 @@ unsigned long getValueId(unsigned long addr) {
     return addrRef->id;
 }
 
+int getValueIdSoft(unsigned long addr, unsigned long *id) {
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToId, &addr, addrRef);
+    if (addrRef == NULL) {
+        set_error(1, "Failed to find ID for address %lu", addr);
+        return 1;
+    }
+    *id = addrRef->id;
+    return 0;
+}
+
 int insertBoolValue(unsigned long id, char typeId, 
     unsigned long versionId, char value) {
     SQLITE(bind_int64(insertValueStmt, 1, id));
@@ -519,6 +591,27 @@ int insertStringValue(unsigned long id, char typeId,
     SQLITE_STEP(insertValueStmt);
     SQLITE(reset(insertValueStmt));
 
+    return 0;
+}
+
+int insertAnyValue(unsigned long id, char typeId,
+    unsigned long versionId, AnyValue *value) {
+    if (value->type == ADDR_TYPE) {
+        unsigned long valueId = getValueId(value->addr);
+        CALL(insertULongValue(id, typeId, versionId, valueId));
+    } else if (value->type == INT_TYPE) {
+        CALL(insertLongValue(id, typeId, versionId, value->number));
+    } else if (value->type == BOOL_TYPE) {
+        CALL(insertBoolValue(id, typeId, versionId, value->boolean));
+    } else if (value->type == NONE_TYPE) {
+        CALL(insertNullValue(id, typeId, versionId));
+    } else if (value->type == STR_TYPE) {
+        set_error(1, "Inserting strings is not allow except for NEW_STRING events");
+        return 1;
+    } else {
+        set_error(1, "Unknow value type for AnyValue: %d", value->type);
+        return 1;
+    }
     return 0;
 }
 
@@ -642,6 +735,7 @@ int seedData() {
     CALL(addType("none", &noneTypeId));
     CALL(addType("<ref>", &refTypeId));
     CALL(addType("<deleted>", &deletedTypeId));
+    CALL(addType("<cell>", &cellTypeId));
 
     retvalId = valueId++;
     CALL(addString(retvalId, "<ret val>", -1));
@@ -683,11 +777,11 @@ int setLocal(int idx, AnyValue *value, unsigned long version) {
     return 0;
 }
 
-int processBasedir(char *line, unsigned int pos) {
+int processBasedir(unsigned int pos) {
     return 0;
 }
 
-int processNewCode(char *line, unsigned int i) {
+int processNewCode(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     char *filename;
@@ -703,42 +797,20 @@ int processNewCode(char *line, unsigned int i) {
     int line_no;
     CALL(parseIntArg(&i, &line_no));
 
-    // TODO: local var names, free and cell var names
     int numLocals;
-    CALL(parseIntArg(&i, &numLocals));
     char **localVarnames = NULL;
-    
-    int localsCSVLen = 0;
-    char *localsCSV = NULL;
-    if (numLocals > 0) {
-        localVarnames = (char **)malloc(sizeof(char *) * numLocals);
-        for (int j = 0; j < numLocals; j++) {
-            char *paramName;
-            int paramNameLen;
-            CALL(parseStringArg(&i, &paramName, &paramNameLen));
-            localsCSVLen += paramNameLen;
-            if (j != 0) {
-                localsCSVLen++;
-            }
-            char *paramNameCopy = (char *)malloc(sizeof(char) * (paramNameLen + 1));
-            strncpy(paramNameCopy, paramName, paramNameLen);
-            paramNameCopy[paramNameLen] = '\0';
-            localVarnames[j] = paramNameCopy;
-        }
+    UT_string *localsCSV = NULL;
+    CALL(parseVarStrArgs(&i, &localVarnames, &numLocals, &localsCSV));
 
-        localsCSV = (char *)malloc(sizeof(char) * (localsCSVLen + 1));
-        int cursor = 0;
-        for (int j = 0; j < numLocals; j++) {
-            if (j != 0) {
-                localsCSV[cursor] = ',';
-                cursor++;
-            }
-            int len = strlen(localVarnames[j]);
-            strncpy(localsCSV + cursor, localVarnames[j], len);
-            cursor += len;
-        }
-        localsCSV[cursor] = '\0';
-    }
+    int numCellVars;
+    char **cellVarnames = NULL;
+    UT_string *cellVarsCSV = NULL;
+    CALL(parseVarStrArgs(&i, &cellVarnames, &numCellVars, &cellVarsCSV));
+
+    int numFreeVars;
+    char **freeVarnames = NULL;
+    UT_string *freeVarsCSV = NULL;
+    CALL(parseVarStrArgs(&i, &freeVarnames, &numFreeVars, &freeVarsCSV));
 
     unsigned long id = funCodeId++;
     SQLITE(bind_int64(insertFunCodeStmt, 1, id));
@@ -749,10 +821,20 @@ int processNewCode(char *line, unsigned int i) {
     if (localsCSV == NULL) {
         SQLITE(bind_null(insertFunCodeStmt, 5));
     } else {
-        SQLITE(bind_text(insertFunCodeStmt, 5, localsCSV, -1, SQLITE_STATIC));
+        SQLITE(bind_text(insertFunCodeStmt, 5, utstring_body(localsCSV), -1, SQLITE_STATIC));
     }
-    SQLITE(bind_null(insertFunCodeStmt, 6));
-    SQLITE(bind_null(insertFunCodeStmt, 7));
+
+    if (cellVarsCSV == NULL) {
+        SQLITE(bind_null(insertFunCodeStmt, 6));
+    } else {
+        SQLITE(bind_text(insertFunCodeStmt, 6, utstring_body(cellVarsCSV), -1, SQLITE_STATIC));
+    }
+
+    if (freeVarsCSV == NULL) {
+        SQLITE(bind_null(insertFunCodeStmt, 7));
+    } else {
+        SQLITE(bind_text(insertFunCodeStmt, 7, utstring_body(freeVarsCSV), -1, SQLITE_STATIC));
+    }
 
     SQLITE_STEP(insertFunCodeStmt);
     SQLITE(reset(insertFunCodeStmt));
@@ -767,13 +849,19 @@ int processNewCode(char *line, unsigned int i) {
     funCode->addr = addr;
     funCode->localVarnames = localVarnames;
     funCode->numLocals = numLocals;
+    funCode->cellVarnames = cellVarnames;
+    funCode->numCellVars = numCellVars;
+    funCode->freeVarnames = freeVarnames;
+    funCode->numFreeVars = numFreeVars;
+
     HASH_ADD_INT(funCodes, addr, funCode);
 
     return 0;
 }
 
-int processPushFrame(char *line, unsigned int i) {
+int processPushFrame(unsigned int i) {
     unsigned long codeHeapId;
+
     CALL(parseULongArg(&i, &codeHeapId));
 
     FunCode *funCode;
@@ -802,24 +890,67 @@ int processPushFrame(char *line, unsigned int i) {
     stack = funCall;
 
     CALL(insertNullValue(localsId, dictTypeId, snapshotId));
-    
+
+    // clear call start seek
+    if (callStartSeekSnapshotId != 0) {
+        SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 1, funCall->id));
+        SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 2, callStartSeekSnapshotId));
+        SQLITE_STEP(updateSnapshotStartFunCallStmt);
+        SQLITE(reset(updateSnapshotStartFunCallStmt));
+        callStartSeekSnapshotId = 0;
+    }
+
     for (int j = 0; j < funCode->numLocals; j++) {
         AnyValue arg;
         CALL(parseAnyArg(&i, &arg));
         CALL(setLocal(j, &arg, snapshotId));
     }
 
-    SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 1, funCall->id));
-    SQLITE(bind_int64(updateSnapshotStartFunCallStmt, 2, snapshotId));
-    SQLITE_STEP(updateSnapshotStartFunCallStmt);
-    SQLITE(reset(updateSnapshotStartFunCallStmt));
+    UT_string *cellIdsCSV = NULL;
+    if (funCode->numCellVars > 0) {
+        utstring_new(cellIdsCSV);
+        for (int j = 0; j < funCode->numCellVars; j++) {
+            unsigned long addr;
+            CALL(parseAddrArg(&i, &addr));
+            unsigned long cellId;
+            CALL(getValueIdSoft(addr, &cellId));
+            utstring_printf(cellIdsCSV, "%lu", cellId);
+            if (j < funCode->numCellVars - 1) {
+                utstring_printf(cellIdsCSV, ",");
+            }
+        }
+    }
+
+    UT_string *freeCellIdsCSV = NULL;
+    if (funCode->numFreeVars > 0) {
+        utstring_new(freeCellIdsCSV);
+        for (int j = 0; j < funCode->numFreeVars; j++) {
+            unsigned long addr;
+            CALL(parseAddrArg(&i, &addr));
+            unsigned long freeCellId;
+            CALL(getValueIdSoft(addr, &freeCellId));
+            utstring_printf(freeCellIdsCSV, "%lu", freeCellId);
+            if (j < funCode-> numFreeVars - 1) {
+                utstring_printf(freeCellIdsCSV, ",");
+            }
+        }
+    }
 
     SQLITE(bind_int64(insertFunCallStmt, 1, callId));
     SQLITE(bind_int64(insertFunCallStmt, 2, funCode->id));
     SQLITE(bind_int64(insertFunCallStmt, 3, localsId));
     SQLITE(bind_int64(insertFunCallStmt, 4, globalsId));
-    SQLITE(bind_null(insertFunCallStmt, 5)); // TODO cellvars
-    SQLITE(bind_null(insertFunCallStmt, 6)); // TODO freevars
+    if (cellIdsCSV == NULL) {
+        SQLITE(bind_null(insertFunCallStmt, 5));
+    } else {
+        SQLITE(bind_text(insertFunCallStmt, 5, utstring_body(cellIdsCSV), -1, SQLITE_STATIC));
+    }
+
+    if (freeCellIdsCSV == NULL) {
+        SQLITE(bind_null(insertFunCallStmt, 6));
+    } else {
+        SQLITE(bind_text(insertFunCallStmt, 6, utstring_body(freeCellIdsCSV), -1, SQLITE_STATIC));
+    }
     if (funCall->parent) {
         SQLITE(bind_int64(insertFunCallStmt, 7, funCall->parent->id));
     } else {
@@ -831,7 +962,7 @@ int processPushFrame(char *line, unsigned int i) {
     return 0;
 }
 
-int processPopFrame(char *line, unsigned int pos) {
+int processPopFrame(unsigned int pos) {
     if (stack) {
         FunCall *parent = stack->parent;
         free(stack);
@@ -843,7 +974,7 @@ int processPopFrame(char *line, unsigned int pos) {
     return 0;
 }
 
-int processNewString(char *line, unsigned int i) {
+int processNewString(unsigned int i) {
     long addr;
     CALL(parseLongArg(&i, &addr));
     char *string;
@@ -860,7 +991,64 @@ int processNewString(char *line, unsigned int i) {
     return 0;
 }
 
-int processNewObject(char *line, unsigned int i) {
+int processNewList(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToId, &addr, addrRef);
+    unsigned long listId = valueId++;
+    if (addrRef != NULL) {
+        addrRef->id = listId;
+    } else {
+        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+        memset(addrRef, 0, sizeof(AddrRef));
+        addrRef->addr = addr;
+        addrRef->id = listId;
+        HASH_ADD_INT(addrToId, addr, addrRef);
+    }
+    CALL(insertNullValue(listId, listTypeId, snapshotId));
+    UT_array *list = NULL;
+    utarray_new(list, &anyValueIcd);
+    AnyValue value;
+    int idx = 0;
+    while (parseAnyArg(&i, &value) == 0) {
+        utarray_push_back(list, &value);
+        AnyValue key;
+        key.type = INT_TYPE;
+        key.number = idx;
+        CALL(setItem(listId, &key, &value, snapshotId));
+        idx++;
+    }
+    if (has_error()) {
+        clear_error();
+    }
+    ListsEntry *entry = (ListsEntry *)malloc(sizeof(ListsEntry));
+    memset(entry, 0, sizeof(ListsEntry));
+    entry->listId = listId;
+    entry->array = list;
+    HASH_ADD_INT(lists, listId, entry);
+
+    return 0;
+}
+
+int processListStoreIndex(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    int idx;
+    CALL(parseIntArg(&i, &idx));
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    unsigned long listId;
+    CALL(getValueIdSoft(addr, &listId));
+    AnyValue keyValue;
+    keyValue.type = INT_TYPE;
+    keyValue.number = idx;
+    CALL(setItem(listId, &keyValue, &value, snapshotId));
+
+    return 0;
+}
+
+int processNewObject(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     char *typeName;
@@ -884,7 +1072,7 @@ int processNewObject(char *line, unsigned int i) {
     return 0;
 }
 
-int processNewDict(char *line, unsigned int i) {
+int processNewDict(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long dictId = getValueId(addr);
@@ -905,7 +1093,7 @@ int processNewDict(char *line, unsigned int i) {
     return 0;
 }
 
-int processDictStoreSubscript(char *line, unsigned int i) {
+int processDictStoreSubscript(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     AnyValue key;
@@ -919,7 +1107,7 @@ int processDictStoreSubscript(char *line, unsigned int i) {
     return 0;
 }
 
-int processNewModule(char *line, unsigned int i) {
+int processNewModule(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long id = getValueId(addr);
@@ -927,7 +1115,33 @@ int processNewModule(char *line, unsigned int i) {
     return 0;
 }
 
-int processNewFunction(char *line, unsigned int i) {
+int processNewCell(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    unsigned long id = valueId++;
+    CALL(insertAnyValue(id, cellTypeId, snapshotId, &value));
+    AddrRef *addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+    memset(addrRef, 0, sizeof(AddrRef));
+    addrRef->addr = addr;
+    addrRef->id = id;
+    HASH_ADD_INT(addrToId, addr, addrRef);
+    return 0;
+}
+
+int processStoreDeref(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long id;
+    CALL(getValueIdSoft(addr, &id));
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    CALL(insertAnyValue(id, cellTypeId, snapshotId, &value));
+    return 0;
+}
+
+int processNewFunction(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long codeHeapId;
@@ -946,37 +1160,25 @@ int processNewFunction(char *line, unsigned int i) {
     return 0;
 }
 
-int processCallStart(char *l, unsigned int i) {
-    ssize_t read;
-    read = getline(&line, &lineLen, file);
-    if (read == -1) {
-        set_error(1, "EOF reached after CALL_START");
-        return 1;
-    }
-    if (strncmp("CALL_END", line, 8) == 0) {
+int processCallStart(unsigned int i) {
+    // subtract 1 to get the ID of the previous snapshot saved
+    callStartSeekSnapshotId = snapshotId - 1;
+
+    return 0;
+}
+
+int processCallEnd(unsigned int i) {
+    if (callStartSeekSnapshotId != 0) {
         SQLITE(bind_int(updateSnapshotStartFunCallStmt, 1, 0));
-        SQLITE(bind_int(updateSnapshotStartFunCallStmt, 2, snapshotId));
+        SQLITE(bind_int(updateSnapshotStartFunCallStmt, 2, callStartSeekSnapshotId));
         SQLITE_STEP(updateSnapshotStartFunCallStmt);
         SQLITE(reset(updateSnapshotStartFunCallStmt));
-    } else if (strncmp("PUSH_FRAME", line, 10) == 0) {
-        i = 10;
-        if (line[i] != '(') {
-            RETURN_PARSE_ERROR(i);
-        }
-        CALL(processPushFrame(line, i + 1))
-    } else {
-        set_error(1, "Unexpected event on line %d: %s", line_no, line);
-        return 1;
+        callStartSeekSnapshotId = 0;
     }
-
     return 0;
 }
 
-int processCallEnd(char *line, unsigned int i) {
-    return 0;
-}
-
-int processVisit(char *line, unsigned int i) {
+int processVisit(unsigned int i) {
     // parse a number
     long num;
     CALL(parseLongArg(&i, &num));
@@ -998,7 +1200,7 @@ int processVisit(char *line, unsigned int i) {
     return 0;
 }
 
-int processReturnValue(char *line, unsigned int i) {
+int processReturnValue(unsigned int i) {
     AnyValue value;
     CALL(parseAnyArg(&i, &value));
     AnyValue key;
@@ -1014,7 +1216,7 @@ int processReturnValue(char *line, unsigned int i) {
     return 0;
 }
 
-int processStoreFast(char *line, unsigned int i) {
+int processStoreFast(unsigned int i) {
     int idx;
     CALL(parseIntArg(&i, &idx));
     AnyValue value;
@@ -1024,7 +1226,7 @@ int processStoreFast(char *line, unsigned int i) {
     return 0;
 }
 
-int registerFun(char *fun_name, int (*fun)(char *line, unsigned int pos)) {
+int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
     FunHandler *handler;
     handler = (FunHandler *)malloc(sizeof(FunHandler));
     handler->funName = fun_name;
@@ -1043,6 +1245,10 @@ void registerFuns() {
     registerFun("NEW_OBJECT", processNewObject);
     registerFun("NEW_DICT", processNewDict);
     registerFun("NEW_MODULE", processNewModule);
+    registerFun("NEW_CELL", processNewCell);
+    registerFun("NEW_LIST", processNewList);
+    registerFun("LIST_STORE_INDEX", processListStoreIndex);
+    registerFun("STORE_DEREF", processStoreDeref);
     registerFun("DICT_STORE_SUBSCRIPT", processDictStoreSubscript);
     registerFun("RETURN_VALUE", processReturnValue);
     registerFun("POP_FRAME", processPopFrame);
@@ -1054,7 +1260,7 @@ void registerFuns() {
 
 int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into Snapshot values (?, ?, ?, ?)", -1, &insertSnapshotStmt, NULL));
-    SQLITE(prepare_v2(db, "insert into Value values (?, ?, ?, ?)", -1, &insertValueStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Value values (?1, ?2, ?3, ?4) on conflict(id, version) do update set type = ?2, value = ?4", -1, &insertValueStmt, NULL));
     SQLITE(prepare_v2(db, "insert into FunCode values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCodeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into FunCall values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCallStmt, NULL));
     SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
@@ -1076,13 +1282,6 @@ int finalizeStatements() {
     return 0;
 }
 
-// https://ben-bai.blogspot.com/2013/03/c-string-startswith-endswith-indexof.html
-bool endsWith (char* base, char* str) {
-    int blen = strlen(base);
-    int slen = strlen(str);
-    return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
-}
-
 int processEvent(char *line, int line_no) {
     int i = 0;
     while (true) {
@@ -1101,9 +1300,9 @@ int processEvent(char *line, int line_no) {
     HASH_FIND(hh, funLookup, line, i, handler);
     if (handler == NULL) {
         fprintf(stderr, "No process function found for %.*s\n", i, line);
-        return 1;
+        return 0;
     }
-    return handler->fun(line, i + 1);
+    return handler->fun(i + 1);
 }
 
 int createSchema() {
