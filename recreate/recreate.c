@@ -2,34 +2,15 @@
 TODO
 ====
 
-* closures (freevars / cellvars)
-    * new_cell (done)
-    * store_deref (done)
-* lists
-    * review list log methods
-    * list_append
-    * list_extend
-    * list_store_index
-    * list_resize_and_shift
-    * list_store_subscript_slice ?
-    * list_delete_subscript
-    * list_delete_subscript_slice
-    * list_insert ?
-    * list_remove ?
-    * list_pop ?
-    * list_clear ?
-    * list_reverse ?
-    * list_sort ?
+* tuples
+    * new_tuple
 * string
     * string_inplace_add_result
 * dict
+    * dict_clear (done)
+    * dict_set_all
     * new_derived_dict
-    * dict_delete_subscript
-    * dict_clear ?
-    * dict_pop ?
-    * dict_pop_item ?
-    * dict_set_default ?
-    * dict_replace ?
+    * dict_delete_subscript (done)
 * set
     * new_set
     * set_update
@@ -39,15 +20,17 @@ TODO
 * object
     * object_assoc_dict
 * exceptions
-* tuples
-    * new_tuple
 * generators
     * yield_value
 * change store fast to use array instead of dict
-* organize code better?
-* bring in uthash.h - convert it into a .c file
-* object lifetime - implement destroy
+* object lifetime - implement destroy / dealloc
 * fix crash in pyrewind to enable proper Python install with libs
+* closures (freevars / cellvars)
+    * new_cell (done)
+    * store_deref (done)
+* lists (done)
+* bring in uthash.h - convert it into a .c file (done)
+
 */
 
 #include <stdio.h>
@@ -108,12 +91,6 @@ typedef struct _StrToIdEntry {
     unsigned long id;
     UT_hash_handle hh;
 } StrToIdEntry;
-
-typedef struct _ListsEntry {
-    unsigned long listId;
-    UT_array *array;
-    UT_hash_handle hh;
-} ListsEntry;
 
 typedef struct _FunCall {
     unsigned long id;
@@ -177,6 +154,7 @@ char intTypeId;
 char strTypeId;
 char boolTypeId;
 char listTypeId;
+char tupleTypeId;
 char dictTypeId;
 char moduleTypeId;
 char objectTypeId;
@@ -201,6 +179,8 @@ sqlite3_stmt *insertCodeFileStmt = NULL;
 sqlite3_stmt *insertTypeStmt = NULL;
 sqlite3_stmt *insertMemberStmt = NULL;
 sqlite3_stmt *updateSnapshotStartFunCallStmt = NULL;
+sqlite3_stmt *getMemberValuesStmt = NULL;
+sqlite3_stmt *getMemberCountStmt = NULL;
 
 // Hashtables
 CodeFile *code_files = NULL;
@@ -209,7 +189,7 @@ AddrRef *addrToId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL;
 StrToIdEntry *strToId = NULL;
-ListsEntry *lists = NULL;
+// ListsEntry *lists = NULL;
 
 // </Global State>
 
@@ -459,6 +439,7 @@ int readFile(char *filename, char **fileContents) {
     FILE *f = fopen(filename, "r");
     if (f == NULL) {
         set_error(1, "%s", strerror(errno));
+        *fileContents = NULL;
         return 1;
     }
     CALL(fseek(f, 0, SEEK_END));
@@ -494,11 +475,17 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
         }
 
         char *fileContents;
-        CALL(readFile(code_file->filename, &fileContents));
+        if (readFile(code_file->filename, &fileContents) != 0) {
+            clear_error();
+        }
 
         SQLITE(bind_int64(insertCodeFileStmt, 1, code_file->id));
         SQLITE(bind_text(insertCodeFileStmt, 2, code_file->filename, -1, SQLITE_STATIC));
-        SQLITE(bind_text(insertCodeFileStmt, 3, fileContents, -1, SQLITE_STATIC));
+        if (fileContents == NULL) {
+            SQLITE(bind_null(insertCodeFileStmt, 3));
+        } else {
+            SQLITE(bind_text(insertCodeFileStmt, 3, fileContents, -1, SQLITE_STATIC));
+        }
         SQLITE_STEP(insertCodeFileStmt);
         SQLITE(reset(insertCodeFileStmt));
 
@@ -520,6 +507,21 @@ unsigned long getValueId(unsigned long addr) {
         addrRef->id = valueId++;
         HASH_ADD_INT(addrToId, addr, addrRef);
     }
+    return addrRef->id;
+}
+
+unsigned long getNewValueId(unsigned long addr) {
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToId, &addr, addrRef);
+    if (addrRef != NULL) {
+        HASH_DEL(addrToId, addrRef);
+        free(addrRef);
+    }
+    addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+    memset(addrRef, 0, sizeof(AddrRef));
+    addrRef->addr = addr;
+    addrRef->id = valueId++;
+    HASH_ADD_INT(addrToId, addr, addrRef);
     return addrRef->id;
 }
 
@@ -627,7 +629,7 @@ int getTypeByValue(AnyValue *value, char *typeId) {
     return 0;
 }
 
-int getRefId(unsigned long dictId, unsigned long keyId, unsigned long version, unsigned long *refId) {
+int getRefId(unsigned long dictId, unsigned long keyId, unsigned long *refId) {
     MemberMapEntry *entry;
     MemberMapKey key;
     key.container = dictId;
@@ -656,13 +658,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
     unsigned long keyId;
     unsigned long valueId;
     if (key->type == ADDR_TYPE) {
-        AddrRef *keyAddrRef;
-        HASH_FIND_INT(addrToId, &key->addr, keyAddrRef);
-        if (keyAddrRef == NULL) {
-            set_error(1, "Lookup error for addrToId[%lu]", key->addr);
-            return 1;
-        }
-        keyId = keyAddrRef->id;
+        CALL(getValueIdSoft(key->addr, &keyId));
     } else if (key->type == INT_TYPE) {
         keyId = key->number;
     } else {
@@ -670,7 +666,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
         return 1;
     }
     unsigned long refId;
-    CALL(getRefId(dictId, keyId, version, &refId));
+    CALL(getRefId(dictId, keyId, &refId));
 
     switch (value->type) {
         case STR_TYPE:
@@ -696,7 +692,7 @@ int setItem(unsigned long dictId, AnyValue *key, AnyValue *value, unsigned long 
                 valueId = valueAddrRef->id;
 
                 unsigned long refId;
-                CALL(getRefId(dictId, keyId, version, &refId));
+                CALL(getRefId(dictId, keyId, &refId));
                 CALL(insertULongValue(refId, refTypeId, version, valueId));
                 break;
             }
@@ -728,6 +724,7 @@ int seedData() {
     CALL(addType("str", &strTypeId));
     CALL(addType("bool", &boolTypeId));
     CALL(addType("list", &listTypeId));
+    CALL(addType("tuple", &tupleTypeId));
     CALL(addType("dict", &dictTypeId));
     CALL(addType("module", &moduleTypeId));
     CALL(addType("object", &objectTypeId));
@@ -991,42 +988,51 @@ int processNewString(unsigned int i) {
     return 0;
 }
 
-int processNewList(unsigned int i) {
-    unsigned long addr;
+int processNewCollection(unsigned int i, char collectionTypeId) {
+        unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     AddrRef *addrRef;
     HASH_FIND_INT(addrToId, &addr, addrRef);
-    unsigned long listId = valueId++;
+    unsigned long collId = valueId++;
     if (addrRef != NULL) {
-        addrRef->id = listId;
+        addrRef->id = collId;
     } else {
         addrRef = (AddrRef *)malloc(sizeof(AddrRef));
         memset(addrRef, 0, sizeof(AddrRef));
-        addrRef->addr = addr;
-        addrRef->id = listId;
+        addrRef ->addr = addr;
+        addrRef->id = collId;
         HASH_ADD_INT(addrToId, addr, addrRef);
     }
-    CALL(insertNullValue(listId, listTypeId, snapshotId));
-    UT_array *list = NULL;
-    utarray_new(list, &anyValueIcd);
-    AnyValue value;
+    CALL(insertNullValue(collId, collectionTypeId, snapshotId));
+
+    AnyValue key;
+    key.type = INT_TYPE;
     int idx = 0;
-    while (parseAnyArg(&i, &value) == 0) {
-        utarray_push_back(list, &value);
-        AnyValue key;
-        key.type = INT_TYPE;
-        key.number = idx;
-        CALL(setItem(listId, &key, &value, snapshotId));
-        idx++;
+    AnyValue *item;
+    while (true) {
+        item = malloc(sizeof(AnyValue));
+        if (parseAnyArg(&i, item) == 0) {
+            key.number = idx;
+            CALL(setItem(collId, &key, item, snapshotId));
+            idx++;
+        } else {
+            free(item);
+            clear_error();
+            break;
+        }
     }
-    if (has_error()) {
-        clear_error();
-    }
-    ListsEntry *entry = (ListsEntry *)malloc(sizeof(ListsEntry));
-    memset(entry, 0, sizeof(ListsEntry));
-    entry->listId = listId;
-    entry->array = list;
-    HASH_ADD_INT(lists, listId, entry);
+
+    return 0;
+}
+
+int processNewList(unsigned int i) {
+    CALL(processNewCollection(i, listTypeId));
+
+    return 0;
+}
+
+int processNewTuple(unsigned int i) {
+    CALL(processNewCollection(i, tupleTypeId));
 
     return 0;
 }
@@ -1044,6 +1050,232 @@ int processListStoreIndex(unsigned int i) {
     keyValue.type = INT_TYPE;
     keyValue.number = idx;
     CALL(setItem(listId, &keyValue, &value, snapshotId));
+
+    return 0;
+}
+
+int deleteItem(unsigned int containerId, AnyValue *key, unsigned long version) {
+    unsigned long keyId;
+    
+    if (key->type == ADDR_TYPE) {
+        CALL(getValueIdSoft(key->addr, &keyId));
+    } else if (key->type == INT_TYPE) {
+        keyId = key->number;
+    } else {
+        set_error(1, "Unsupported key type: %d", key->type);
+        return 1;
+    }
+
+    unsigned long refId;
+    CALL(getRefId(containerId, keyId, &refId));
+    CALL(insertNullValue(refId, deletedTypeId, version));
+    return 0;
+}
+
+int processListDeleteIndex(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    int idx;
+    CALL(parseIntArg(&i, &idx));
+    unsigned long listId;
+    CALL(getValueIdSoft(addr, &listId));
+    AnyValue key;
+    key.type = INT_TYPE;
+    key.number = idx;
+    CALL(deleteItem(listId, &key, snapshotId));
+
+    return 0;
+}
+
+int getContainerSize(unsigned long containerId, int *len) {
+    SQLITE(bind_int64(getMemberCountStmt, 1, containerId));
+    SQLITE(bind_int(getMemberCountStmt, 2, deletedTypeId));
+    SQLITE(bind_int64(getMemberCountStmt, 3, snapshotId));
+
+    int result = sqlite3_step(getMemberCountStmt);
+    if (result == SQLITE_ROW) {
+        *len = sqlite3_column_int(getMemberCountStmt, 0);
+        SQLITE(reset(getMemberCountStmt));
+        return 0;
+    } else {
+        SQLITE(reset(getMemberCountStmt));
+        set_error(1, "Failed to get member count");
+        return 1;
+    }
+}
+
+int processListExtend(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long listId = getValueId(addr);
+
+    
+    AnyValue key;
+    key.type = INT_TYPE;
+    AnyValue *item;
+
+    int index;
+    CALL(getContainerSize(listId, &index));
+
+    while (true) {
+        item = malloc(sizeof(AnyValue));
+        if (parseAnyArg(&i, item) == 0) {
+            key.number = index;
+            CALL(setItem(listId, &key, item, snapshotId));
+            index++;
+        } else {
+            free(item);
+            clear_error();
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int processListClear(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long listId;
+    CALL(getValueIdSoft(addr, &listId));
+
+    int len;
+    CALL(getContainerSize(listId, &len));
+
+    for (int i = 0; i < len; i++) {
+        AnyValue key;
+        key.type = INT_TYPE;
+        key.number = i;
+        CALL(deleteItem(listId, &key, snapshotId));
+    }
+
+    return 0;
+}
+
+int processListSetAll(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long listId;
+    CALL(getValueIdSoft(addr, &listId));
+
+    AnyValue key;
+    key.type = INT_TYPE;
+    int idx = 0;
+    AnyValue *item;
+    while (true) {
+        item = malloc(sizeof(AnyValue));
+        if (parseAnyArg(&i, item) == 0) {
+            key.number = idx;
+            CALL(setItem(listId, &key, item, snapshotId));
+            idx++;
+        } else {
+            free(item);
+            clear_error();
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int processListResizeAndShiftLeft(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long containerId;
+    CALL(getValueIdSoft(addr, &containerId));
+
+    int ilow;
+    CALL(parseIntArg(&i, &ilow));
+    int ihigh;
+    CALL(parseIntArg(&i, &ihigh));
+
+    int d = ihigh - ilow;
+    SQLITE(bind_int64(getMemberValuesStmt, 1, containerId));
+    SQLITE(bind_int64(getMemberValuesStmt, 2, ihigh));
+    SQLITE(bind_int64(getMemberValuesStmt, 3, snapshotId));
+    int numEntries = 0;
+
+    while (true) {
+        int result = sqlite3_step(getMemberValuesStmt);
+        if (result == SQLITE_DONE) {
+            break;
+        } else if (result == SQLITE_ROW) {
+            numEntries++;
+            // process a row
+            int key = sqlite3_column_int(getMemberValuesStmt, 0);
+            // unsigned long ref = sqlite3_column_int64(getMemberValuesStmt, 1);
+            char type = sqlite3_column_int(getMemberValuesStmt, 2);
+            int destKey = key - d;
+            unsigned long destRefId;
+            CALL(getRefId(containerId, destKey, &destRefId));
+            if (type == intTypeId || type == refTypeId) {
+                long value = sqlite3_column_int64(getMemberValuesStmt, 3);
+                CALL(insertLongValue(destRefId, type, snapshotId, value));
+            } else if (type == boolTypeId) {
+                char value = sqlite3_column_int(getMemberValuesStmt, 3);
+                CALL(insertBoolValue(destRefId, type, snapshotId, value));
+            } else {
+                CALL(insertNullValue(destRefId, type, snapshotId));
+            }
+        } else {
+            set_error(1, "Unexpected result from query %d", result);
+            return 1;
+        }
+    }
+
+    SQLITE(reset(getMemberValuesStmt));
+
+    for (int j = numEntries + ilow; j < numEntries + ihigh; j++) {
+        unsigned long destRefId;
+        CALL(getRefId(containerId, j, &destRefId));
+        CALL(insertNullValue(destRefId, deletedTypeId, snapshotId));
+    }
+
+    return 0;
+}
+
+int processListResizeAndShiftRight(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long containerId;
+    CALL(getValueIdSoft(addr, &containerId));
+
+    int ilow;
+    CALL(parseIntArg(&i, &ilow));
+    int ihigh;
+    CALL(parseIntArg(&i, &ihigh));
+    int d = ihigh - ilow;
+
+    SQLITE(bind_int64(getMemberValuesStmt, 1, containerId));
+    SQLITE(bind_int64(getMemberValuesStmt, 2, ihigh));
+    SQLITE(bind_int64(getMemberValuesStmt, 3, snapshotId));
+
+    while (true) {
+        int result = sqlite3_step(getMemberValuesStmt);
+        if (result == SQLITE_DONE) {
+            break;
+        } else if (result == SQLITE_ROW) {
+            int key = sqlite3_column_int(getMemberValuesStmt, 0);
+            char type = sqlite3_column_int(getMemberValuesStmt, 2);
+            int destKey = key + d + 1;
+            unsigned long destRefId;
+            CALL(getRefId(containerId, destKey, &destRefId));
+            if (type == intTypeId || type == refTypeId) {
+                long value = sqlite3_column_int64(getMemberValuesStmt, 3);
+                CALL(insertLongValue(destRefId, type, snapshotId, value));
+            } else if (type == boolTypeId) {
+                char value = sqlite3_column_int(getMemberValuesStmt, 3);
+                CALL(insertBoolValue(destRefId, type, snapshotId, value));
+            } else {
+                CALL(insertNullValue(destRefId, type, snapshotId));
+            }
+        } else {
+            set_error(1, "Unexpected result from query %d", result);
+            return 1;
+        }
+    }
+
+    SQLITE(reset(getMemberValuesStmt));
 
     return 0;
 }
@@ -1075,7 +1307,7 @@ int processNewObject(unsigned int i) {
 int processNewDict(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
-    unsigned long dictId = getValueId(addr);
+    unsigned long dictId = getNewValueId(addr);
     CALL(insertNullValue(dictId, dictTypeId, snapshotId));
 
     AnyValue key;
@@ -1101,9 +1333,102 @@ int processDictStoreSubscript(unsigned int i) {
     CALL(parseAnyArg(&i, &key));
     CALL(parseAnyArg(&i, &value));
 
-    unsigned long dictId = getValueId(addr);
+    unsigned long dictId;
+    CALL(getValueIdSoft(addr, &dictId));
     CALL(setItem(dictId, &key, &value, snapshotId));
 
+    return 0;
+}
+
+int processDictDeleteSubscript(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    AnyValue key;
+    CALL(parseAnyArg(&i, &key));
+
+    unsigned long dictId;
+    CALL(getValueIdSoft(addr, &dictId));
+
+    CALL(deleteItem(dictId, &key, snapshotId));
+
+    return 0;
+}
+
+int processDictClear(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long dictId;
+    CALL(getValueIdSoft(addr, &dictId));
+
+    SQLITE(bind_int64(getMemberValuesStmt, 1, dictId));
+    SQLITE(bind_int64(getMemberValuesStmt, 2, 0));
+    SQLITE(bind_int64(getMemberValuesStmt, 3, snapshotId));
+
+    while (true) {
+        int result = sqlite3_step(getMemberValuesStmt);
+        if (result == SQLITE_DONE) {
+            break;
+        } else if (result == SQLITE_ROW) {
+            unsigned long key = sqlite3_column_int64(getMemberValuesStmt, 0);
+            char type = sqlite3_column_int(getMemberValuesStmt, 2);
+            unsigned long refId;
+            CALL(getRefId(dictId, key, &refId));
+            CALL(insertNullValue(refId, deletedTypeId, snapshotId));
+        } else {
+            set_error(1, "Error querying member values");
+            return 1;
+        }
+    }
+
+    SQLITE(reset(getMemberValuesStmt));
+
+    return 0;
+}
+
+int processDictSetAll(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    AnyValue value;
+    CALL(parseAnyArg(&i, &value));
+    if (value.type != ADDR_TYPE) {
+        set_error(1, "DICT_SET_ALL can only work with addresses");
+        return 1;
+    }
+    unsigned long dictId;
+    CALL(getValueIdSoft(addr, &dictId));
+    unsigned long otherDictId;
+    CALL(getValueIdSoft(value.number, &otherDictId));
+
+    SQLITE(bind_int64(getMemberValuesStmt, 1, otherDictId));
+    SQLITE(bind_int64(getMemberValuesStmt, 2, 0));
+    SQLITE(bind_int64(getMemberValuesStmt, 3, snapshotId));
+
+    while (true) {
+        int result = sqlite3_step(getMemberValuesStmt);
+        if (result == SQLITE_DONE) {
+            break;
+        } else if (result == SQLITE_ROW) {
+            int key = sqlite3_column_int(getMemberValuesStmt, 0);
+            // unsigned long ref = sqlite3_column_int64(getMemberValuesStmt, 1);
+            char type = sqlite3_column_int(getMemberValuesStmt, 2);
+            unsigned long refId;
+            CALL(getRefId(dictId, key, &refId));
+            if (type == intTypeId || type == refTypeId) {
+                long value = sqlite3_column_int64(getMemberValuesStmt, 3);
+                CALL(insertLongValue(refId, type, snapshotId, value));
+            } else if (type == boolTypeId) {
+                char value = sqlite3_column_int(getMemberValuesStmt, 3);
+                CALL(insertBoolValue(refId, type, snapshotId, value));
+            } else {
+                CALL(insertNullValue(refId, type, snapshotId));
+            }
+        } else {
+            set_error(1, "Unexpected result from query %d", result);
+            return 1;
+        }
+    }
+
+    SQLITE(reset(getMemberValuesStmt));
     return 0;
 }
 
@@ -1157,6 +1482,10 @@ int processNewFunction(unsigned int i) {
     unsigned long id = getValueId(addr);
     CALL(insertULongValue(id, functionTypeId, snapshotId, funCode->id));
 
+    return 0;
+}
+
+int processObjectAssocDict(unsigned int i) {
     return 0;
 }
 
@@ -1238,24 +1567,43 @@ int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
 
 void registerFuns() {
     registerFun("REWIND_BASEDIR", processBasedir);
-    registerFun("NEW_CODE", processNewCode);
+    
     registerFun("VISIT", processVisit);
+    registerFun("NEW_CODE", processNewCode);
     registerFun("PUSH_FRAME", processPushFrame);
-    registerFun("NEW_STRING", processNewString);
-    registerFun("NEW_OBJECT", processNewObject);
-    registerFun("NEW_DICT", processNewDict);
-    registerFun("NEW_MODULE", processNewModule);
-    registerFun("NEW_CELL", processNewCell);
-    registerFun("NEW_LIST", processNewList);
-    registerFun("LIST_STORE_INDEX", processListStoreIndex);
-    registerFun("STORE_DEREF", processStoreDeref);
-    registerFun("DICT_STORE_SUBSCRIPT", processDictStoreSubscript);
     registerFun("RETURN_VALUE", processReturnValue);
     registerFun("POP_FRAME", processPopFrame);
     registerFun("NEW_FUNCTION", processNewFunction);
     registerFun("CALL_START", processCallStart);
     registerFun("CALL_END", processCallEnd);
     registerFun("STORE_FAST", processStoreFast);
+
+    registerFun("NEW_STRING", processNewString);
+    registerFun("NEW_OBJECT", processNewObject);
+    
+    registerFun("NEW_DICT", processNewDict);
+    registerFun("DICT_STORE_SUBSCRIPT", processDictStoreSubscript);
+    registerFun("DICT_DELETE_SUBSCRIPT", processDictDeleteSubscript);
+    registerFun("DICT_CLEAR", processDictClear);
+    registerFun("DICT_SET_ALL", processDictSetAll);
+    
+    registerFun("NEW_MODULE", processNewModule);
+    
+    registerFun("NEW_CELL", processNewCell);
+    registerFun("STORE_DEREF", processStoreDeref);
+
+    registerFun("NEW_TUPLE", processNewTuple);
+    
+    registerFun("NEW_LIST", processNewList);
+    registerFun("LIST_STORE_INDEX", processListStoreIndex);
+    registerFun("LIST_DELETE_INDEX", processListDeleteIndex);
+    registerFun("LIST_EXTEND", processListExtend);
+    registerFun("LIST_CLEAR", processListClear);
+    registerFun("LIST_SET_ALL", processListSetAll);
+    registerFun("LIST_RESIZE_AND_SHIFT_LEFT", processListResizeAndShiftLeft);
+    registerFun("LIST_RESIZE_AND_SHIFT_RIGHT", processListResizeAndShiftRight);
+    
+    registerFun("OBJECT_ASSOC_DICT", processObjectAssocDict);
 }
 
 int prepareStatements() {
@@ -1267,6 +1615,54 @@ int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into Type values (?, ?)", -1, &insertTypeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Member values(?, ?, ?)", -1, &insertMemberStmt, NULL));
     SQLITE(prepare_v2(db, "update Snapshot set start_fun_call_id = ? where id = ?", -1, &updateSnapshotStartFunCallStmt, NULL));
+    SQLITE(prepare_v2(db, 
+        "with MemberValues as ("
+            "select "
+                "key, "
+                "Member.value as ref, "
+                "type, "
+                "Value.value, "
+                "Value.version "
+            "from Member "
+            "inner join Value on (Member.value = Value.id) "
+            "where container = ? "
+            "and key >= ? "
+            "order by key "
+        ") "
+        "select "
+            "MemberValues.* "
+        "from "
+            "MemberValues, "
+            "("
+                "select "
+                    "key, "
+                    "max(version) as version "
+                "from MemberValues "
+                "where version <= ? "
+                "group by key "
+            ") as Versions "
+        "where "
+            "MemberValues.key = Versions.key and "
+            "MemberValues.version = Versions.version"
+        ,
+        -1,
+        &getMemberValuesStmt,
+        NULL
+    ));
+
+    SQLITE(prepare_v2(db, 
+        "select "
+            "count(distinct key) as count "
+        "from Member "
+        "inner join Value on (Member.value = Value.id) "
+        "where container = ? "
+        "and Value.type != ? "
+        "and version <= ? "
+        ,
+        -1,
+        &getMemberCountStmt,
+        NULL
+    ));
     return 0;
 }
 
