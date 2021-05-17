@@ -1,0 +1,355 @@
+
+recreate.c:433 - SQLITE_STEP(insertValueStmt);                                5 / 20
+recreate.c:771 - SQLITE(bind_null(insertFunCallStmt, 5));                     1 / 20
+recreate.c:500 - SQLITE_STEP(insertMemberStmt);                               6 / 20
+recreate.c:430 - SQLITE(bind_int(insertValueStmt, 2, typeId));                1 / 20
+recreate.c:501 - SQLITE(reset(insertMemberStmt));                             1 / 20
+recreate.c:492 - HASH_FIND(hh, memberMap, &key, sizeof(MemberMapKey), entry); 1 / 20
+recreate.c:457 - SQLITE_STEP(insertValueStmt);                                2 / 20
+recreate.c:614 - HASH_FIND_STR(strToId, varname, entry);                      1 / 20
+recreate.c:770 - SQLITE(bind_int64(insertFunCallStmt, 4, globalsId));         1 / 20
+recreate.c:530 - CALL(getRefId(dictId, keyId, version, &refId));              1 / 20
+
+Inside SQLITE:     17 / 20 (85%)
+Not inside SQLITE: 3  / 20 (15%)
+    Inside UTHash:     2  / 20 (10%)
+
+Sample 1:
+
+#0  0x00007ffff7e98cec in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2c914 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x0000555555558986 in insertLongValue (id=513985, typeId=1 '\001', versionId=411146, 
+    value=11) at recreate.c:433
+#4  0x000055555555abe0 in setItem (dictId=513984, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=411146) at recreate.c:537
+#5  0x000055555555c989 in setLocal (idx=0, value=0x7fffffffe230, version=411146)
+    at recreate.c:631
+#6  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278544, 11, None, None)\n", i=66) at recreate.c:759
+#7  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278544, 11, None, None)\n", i=10) at recreate.c:916
+#8  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278544, 11, None, None)\n", line_no=925086) at recreate.c:1056
+#9  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 2:
+
+#0  0x00007ffff7da638a in __libc_pwrite64 (fd=4, buf=0x555555617df8, count=4096, 
+    offset=38494208) at ../sysdeps/unix/sysv/linux/pwrite64.c:29
+#1  0x00007ffff7eb1b56 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7eb1bc2 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7ef8ce1 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f03230 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7efa18c in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7e98f3f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7ecb7d9 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7efbe47 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x00007ffff7efeaae in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#10 0x00007ffff7effa5d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#11 0x00007ffff7f02c44 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#12 0x00007ffff7f25391 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#13 0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#14 0x0000555555558986 in insertLongValue (id=473266, typeId=1 '\001', versionId=378562, 
+    value=1) at recreate.c:433
+#15 0x000055555555abe0 in setItem (dictId=473262, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=378562) at recreate.c:537
+#16 0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(1)\n", i=14)
+    at recreate.c:958
+#17 0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(1)\n", line_no=851760)
+    at recreate.c:1056
+#18 0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 3:
+
+#0  __GI___pthread_mutex_lock (mutex=0x555555567bb8) at ../nptl/pthread_mutex_lock.c:67
+#1  0x00007ffff7ecedc0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7ecf223 in sqlite3_bind_null () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x000055555555e878 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952276816, 8, None, None)\n", i=75) at recreate.c:771
+#4  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952276816, 8, None, None)\n", i=10) at recreate.c:916
+#5  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952276816, 8, None, None)\n", line_no=500289) at recreate.c:1056
+#6  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 4:
+
+#0  0x00007ffff7f2405c in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555558986 in insertLongValue (id=461136, typeId=1 '\001', versionId=368862, 
+    value=2) at recreate.c:433
+#3  0x000055555555abe0 in setItem (dictId=461135, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=368862) at recreate.c:537
+#4  0x000055555555c989 in setLocal (idx=0, value=0x7fffffffe230, version=368862)
+    at recreate.c:631
+#5  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", i=65) at recreate.c:759
+#6  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", i=10) at recreate.c:916
+#7  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", line_no=829941) at recreate.c:1056
+#8  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 5:
+
+#0  0x00007ffff7ed2a3a in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f015f6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f2c069 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x0000555555558986 in insertLongValue (id=352344, typeId=1 '\001', versionId=281828, 
+    value=5) at recreate.c:433
+#5  0x000055555555abe0 in setItem (dictId=352300, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=281828) at recreate.c:537
+#6  0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(5)\n", i=14)
+    at recreate.c:958
+#7  0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(5)\n", line_no=634113)
+    at recreate.c:1056
+#8  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 6:
+
+#0  0x00007ffff7f24bc1 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555559a2b in getRefId (dictId=388598, keyId=1, version=310840, 
+    refId=0x7fffffffe1e8) at recreate.c:500
+#3  0x000055555555ab3b in setItem (dictId=388598, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=310840) at recreate.c:530
+#4  0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(2)\n", i=14)
+    at recreate.c:958
+#5  0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(2)\n", line_no=699387)
+    at recreate.c:1056
+#6  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 7:
+
+#0  0x00007ffff7ecf189 in sqlite3_bind_int64 () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x0000555555558857 in insertLongValue (id=186708, typeId=1 '\001', versionId=149318, 
+    value=3) at recreate.c:430
+#2  0x000055555555abe0 in setItem (dictId=186684, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=149318) at recreate.c:537
+#3  0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(3)\n", i=14)
+    at recreate.c:958
+#4  0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(3)\n", line_no=335964)
+    at recreate.c:1056
+#5  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 8:
+
+#0  0x00007ffff7b310b1 in __GI___pthread_mutex_lock (mutex=0x555555567bb8)
+    at ../nptl/pthread_mutex_lock.c:115
+#1  0x00007ffff7f0d28f in sqlite3_reset () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555559a75 in getRefId (dictId=208067, keyId=46, version=166404, 
+    refId=0x7fffffffe038) at recreate.c:501
+#3  0x000055555555ab3b in setItem (dictId=208067, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=166404) at recreate.c:530
+#4  0x000055555555c989 in setLocal (idx=2, value=0x7fffffffe230, version=166404)
+    at recreate.c:631
+#5  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 1, None, None)\n", i=75) at recreate.c:759
+#6  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 1, None, None)\n", i=10) at recreate.c:916
+#7  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 1, None, None)\n", line_no=374406) at recreate.c:1056
+#8  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 9:
+
+#0  0x00007ffff7f2c02c in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555559a2b in getRefId (dictId=469058, keyId=44, version=375198, 
+    refId=0x7fffffffe038) at recreate.c:500
+#3  0x000055555555ab3b in setItem (dictId=469058, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=375198) at recreate.c:530
+#4  0x000055555555c989 in setLocal (idx=1, value=0x7fffffffe230, version=375198)
+    at recreate.c:631
+#5  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952274016, 5, None, None)\n", i=71) at recreate.c:759
+#6  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952274016, 5, None, None)\n", i=10) at recreate.c:916
+#7  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952274016, 5, None, None)\n", line_no=844194) at recreate.c:1056
+#8  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 10:
+
+#0  0x0000555555559801 in getRefId (dictId=449300, keyId=44, version=359394, 
+    refId=0x7fffffffe038) at recreate.c:492
+#1  0x000055555555ab3b in setItem (dictId=449300, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=359394) at recreate.c:530
+#2  0x000055555555c989 in setLocal (idx=1, value=0x7fffffffe230, version=359394)
+    at recreate.c:631
+#3  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 5, None, None)\n", i=71) at recreate.c:759
+#4  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 5, None, None)\n", i=10) at recreate.c:916
+#5  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 5, None, None)\n", line_no=808638) at recreate.c:1056
+#6  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 11:
+
+#0  0x00007ffff7b3285f in __pthread_mutex_unlock_usercnt (decr=1, mutex=0x555555567bb8)
+    at pthread_mutex_unlock.c:77
+#1  __GI___pthread_mutex_unlock (mutex=0x555555567bb8) at pthread_mutex_unlock.c:357
+#2  0x00007ffff7f2e7ab in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x0000555555558e4c in insertNullValue (id=204412, typeId=5 '\005', versionId=163480)
+    at recreate.c:457
+#4  0x000055555555e45f in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952280480, 2, None, None)\n", i=62) at recreate.c:754
+#5  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952280480, 2, None, None)\n", i=10) at recreate.c:916
+#6  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952280480, 2, None, None)\n", line_no=367827) at recreate.c:1056
+#7  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 12:
+
+#0  0x00007ffff7ecbf9f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7ecc2d0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7eff660 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7effa5d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f02c44 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f25391 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x0000555555558986 in insertLongValue (id=340442, typeId=1 '\001', versionId=272327, 
+    value=3) at recreate.c:433
+#8  0x000055555555abe0 in setItem (dictId=340440, key=0x7fffffffe210, value=0x7fffffffe270, 
+    version=272327) at recreate.c:537
+#9  0x000055555555c989 in setLocal (idx=1, value=0x7fffffffe270, version=272327)
+    at recreate.c:631
+#10 0x000055555555fc89 in processStoreFast (line=0x555555590900 "STORE_FAST(1, 3)\n", i=15)
+    at recreate.c:972
+#11 0x00005555555611b4 in processEvent (line=0x555555590900 "STORE_FAST(1, 3)\n", 
+    line_no=612736) at recreate.c:1056
+#12 0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 13:
+
+#0  0x00007ffff7ea6bbe in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7efa01d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7ecb862 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7ecba0a in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7ecbc4f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2b334 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x0000555555558e4c in insertNullValue (id=340987, typeId=5 '\005', versionId=272746)
+    at recreate.c:457
+#8  0x000055555555e45f in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952272720, 8, None, None)\n", i=62) at recreate.c:754
+#9  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952272720, 8, None, None)\n", i=10) at recreate.c:916
+#10 0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952272720, 8, None, None)\n", line_no=613683) at recreate.c:1056
+#11 0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 14:
+
+#0  0x00007ffff7f24058 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555559a2b in getRefId (dictId=246285, keyId=1, version=197144, 
+    refId=0x7fffffffe1e8) at recreate.c:500
+#3  0x000055555555ab3b in setItem (dictId=246285, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=197144) at recreate.c:530
+#4  0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(21)\n", i=15)
+    at recreate.c:958
+#5  0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(21)\n", 
+    line_no=443574) at recreate.c:1056
+#6  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 15:
+
+#0  0x000055555555bcbb in setLocal (idx=2, value=0x7fffffffe270, version=264365)
+    at recreate.c:614
+#1  0x000055555555fc89 in processStoreFast (line=0x555555590900 "STORE_FAST(2, 1)\n", i=15)
+    at recreate.c:972
+#2  0x00005555555611b4 in processEvent (line=0x555555590900 "STORE_FAST(2, 1)\n", 
+    line_no=594817) at recreate.c:1056
+#3  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 16:
+
+#0  0x00007ffff7e98698 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7ea7e9d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7efa7e3 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f071dd in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f07b26 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2d773 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x0000555555559a2b in getRefId (dictId=234091, keyId=1, version=187224, 
+    refId=0x7fffffffe1e8) at recreate.c:500
+#8  0x000055555555ab3b in setItem (dictId=234091, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=187224) at recreate.c:530
+#9  0x000055555555fbed in processReturnValue (line=0x555555590900 "RETURN_VALUE(1)\n", i=14)
+    at recreate.c:958
+#10 0x00005555555611b4 in processEvent (line=0x555555590900 "RETURN_VALUE(1)\n", line_no=421248)
+    at recreate.c:1056
+#11 0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 17:
+
+#0  0x00007ffff7efe151 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7effa5d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f02c44 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f25391 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x0000555555559a2b in getRefId (dictId=452420, keyId=42, version=361896, 
+    refId=0x7fffffffe038) at recreate.c:500
+#6  0x000055555555ab3b in setItem (dictId=452420, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=361896) at recreate.c:530
+#7  0x000055555555c989 in setLocal (idx=0, value=0x7fffffffe230, version=361896)
+    at recreate.c:631
+#8  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952277680, 10, None, None)\n", i=66) at recreate.c:759
+#9  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952277680, 10, None, None)\n", i=10) at recreate.c:916
+#10 0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952277680, 10, None, None)\n", line_no=814275) at recreate.c:1056
+#11 0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 18:
+
+#0  0x00007ffff7e97950 in sqlite3_mutex_leave () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7ecf1dd in sqlite3_bind_int64 () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x000055555555e808 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 2, None, None)\n", i=75) at recreate.c:770
+#3  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 2, None, None)\n", i=10) at recreate.c:916
+#4  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952278976, 2, None, None)\n", line_no=815589) at recreate.c:1056
+#5  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 19:
+
+#0  0x00007ffff7f019d6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2c069 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x0000555555559a2b in getRefId (dictId=252731, keyId=42, version=202134, 
+    refId=0x7fffffffe038) at recreate.c:500
+#4  0x000055555555ab3b in setItem (dictId=252731, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=202134) at recreate.c:530
+#5  0x000055555555c989 in setLocal (idx=0, value=0x7fffffffe230, version=202134)
+    at recreate.c:631
+#6  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952273584, 2, None, None)\n", i=65) at recreate.c:759
+#7  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952273584, 2, None, None)\n", i=10) at recreate.c:916
+#8  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952273584, 2, None, None)\n", line_no=454797) at recreate.c:1056
+#9  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135
+
+Sample 20:
+
+#0  0x000055555555a3bb in getRefId (dictId=334352, keyId=42, version=267432, 
+    refId=0x7fffffffe038) at recreate.c:507
+#1  0x000055555555ab3b in setItem (dictId=334352, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=267432) at recreate.c:530
+#2  0x000055555555c989 in setLocal (idx=0, value=0x7fffffffe230, version=267432)
+    at recreate.c:631
+#3  0x000055555555e4b8 in processPushFrame (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", i=65) at recreate.c:759
+#4  0x000055555555f7cb in processCallStart (
+    l=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", i=10) at recreate.c:916
+#5  0x00005555555611b4 in processEvent (
+    line=0x555555590900 "PUSH_FRAME(140334952872928, 140334953068736, 140334952787744, 2, None, None)\n", line_no=601719) at recreate.c:1056
+#6  0x0000555555561600 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1135

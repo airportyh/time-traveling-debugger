@@ -1,0 +1,50 @@
+$ time ./recreate.bin fib.25.rewind 
+On Linux
+
+real	0m4.656s
+user	0m3.844s
+sys	0m0.151s
+
+$ time python3 ../cpython/recreate.py fib.25.rewind 
+Reading from fib.25.rewind
+Recreating past states into fib.25.sqlite
+Warning: no process function for command REWIND_BASEDIR on line 1
+
+Complete
+
+real	0m48.221s
+user	0m33.929s
+sys	0m2.354s
+
+$ time python3 ../cpython/recreate2.py fib.25.rewind 
+
+real	0m44.116s
+user	0m32.091s
+sys	0m1.874s
+
+
+On Mac (8G Memory)
+
+$ time ./recreate.bin fib.25.rewind 
+
+real	0m3.806s
+user	0m3.561s
+sys	0m0.216s
+
+$ time recreate fib.25.rewind 
+python3 /Users/airportyh/Home/TimeTravel/bin/../cpython/recreate.py fib.25.rewind
+Reading from fib.25.rewind
+Recreating past states into fib.25.sqlite
+Warning: no process function for command REWIND_BASEDIR on line 1
+
+Complete
+
+real	1m5.619s
+user	0m55.472s
+sys	0m8.613s
+
+$ time python3 ../cpython/recreate2.py fib.25.rewind 
+
+real	1m3.408s
+user	0m56.705s
+sys	0m5.419s

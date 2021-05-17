@@ -1,0 +1,282 @@
+recreate.c:1121 - SQLITE(exec(db, "end transaction", NULL, 0, NULL));   (14 / 20) 70%
+recreate.c:1112 - if (processEvent(line, line_no) != 0) {               (6 / 20)  30%
+    recreate.c:1050 - HASH_FIND(hh, funLookup, line, i, handler);
+    recreate.c:456 - SQLITE_STEP(insertValueStmt);
+    recreate.c:176 - if (sscanf(line + (*i), "%ld%n", value, &pos) == 1) {
+    recreate.c:432 - SQLITE_STEP(insertValueStmt);
+
+But both recreate.c:456 and recreate.c:432 are inside the SQLite driver. So
+in reality, 16 / 20 (80%) of the time was spent inside of SQLite.
+
+Sample 1:
+
+#0  0x00007ffff7da638a in __libc_pwrite64 (fd=4, buf=0x555555928548, count=4096, 
+    offset=15118336) at ../sysdeps/unix/sysv/linux/pwrite64.c:29
+#1  0x00007ffff7eb1b56 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7eb1bc2 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7ef8ce1 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f03753 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#10 0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 2:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f0301e in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 3:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=4) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f037a0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 4:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f03137 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 5:
+
+#0  0x00007ffff7da9e3b in unlink () at ../sysdeps/unix/syscall-template.S:78
+#1  0x00007ffff7ecdf2b in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7ea7540 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7efa727 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f084dd in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 6:
+
+#0  0x0000555555560c91 in processEvent (line=0x55555558cba0 "VISIT(6)\n", line_no=336227)
+    at recreate.c:1050
+#1  0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 7:
+
+#0  __pthread_mutex_unlock_usercnt (decr=1, mutex=0x7ffff7fb1788) at pthread_mutex_unlock.c:58
+#1  __GI___pthread_mutex_unlock (mutex=0x7ffff7fb1788) at pthread_mutex_unlock.c:357
+#2  0x00007ffff7ea14b4 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7ea3270 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7ec176d in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f07409 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f24bab in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x0000555555558e0c in insertNullValue (id=347501, typeId=9 '\t', versionId=277946)
+    at recreate.c:456
+#9  0x000055555555abd1 in setItem (dictId=347499, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=277946) at recreate.c:539
+#10 0x000055555555c949 in setLocal (idx=1, value=0x7fffffffe230, version=277946)
+    at recreate.c:630
+#11 0x000055555555e478 in processPushFrame (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627479968, 3, None, None)\n", i=71) at recreate.c:758
+#12 0x000055555555f78b in processCallStart (
+    l=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627479968, 3, None, None)\n", i=10) at recreate.c:915
+#13 0x0000555555561174 in processEvent (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627479968, 3, None, None)\n", line_no=625371) at recreate.c:1055
+#14 0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 8:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f03137 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 9:
+
+#0  0x00007ffff7cfdf3b in char_buffer_rewind (buffer=0x7fffffffdaa0) at vfscanf-internal.c:484
+#1  __vfscanf_internal (s=s@entry=0x7fffffffdf40, format=format@entry=0x555555562018 "%ld%n", 
+    argptr=argptr@entry=0x7fffffffdf28, mode_flags=mode_flags@entry=2) at vfscanf-internal.c:484
+#2  0x00007ffff7cfd502 in __GI___isoc99_sscanf (s=0x55555558cbde "6, None, None)\n", 
+    format=0x555555562018 "%ld%n") at isoc99_sscanf.c:31
+#3  0x0000555555555783 in parseLongArg (i=0x7fffffffe184, value=0x7fffffffe160)
+    at recreate.c:176
+#4  0x0000555555555e07 in parseAnyArg (i=0x7fffffffe184, value=0x7fffffffe230) at recreate.c:299
+#5  0x000055555555e44f in processPushFrame (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627482128, 6, None, None)\n", i=62) at recreate.c:757
+#6  0x000055555555f78b in processCallStart (
+    l=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627482128, 6, None, None)\n", i=10) at recreate.c:915
+#7  0x0000555555561174 in processEvent (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627482128, 6, None, None)\n", line_no=425064) at recreate.c:1055
+#8  0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 10:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=4) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f037a0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 11:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f0301e in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 12:
+
+#0  0x00007ffff7f25d76 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#1  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x0000555555558946 in insertLongValue (id=255741, typeId=1 '\001', versionId=204536, 
+    value=1) at recreate.c:432
+#3  0x000055555555aba0 in setItem (dictId=255737, key=0x7fffffffe270, value=0x7fffffffe250, 
+    version=204536) at recreate.c:536
+#4  0x000055555555fbad in processReturnValue (line=0x55555558cba0 "RETURN_VALUE(1)\n", i=14)
+    at recreate.c:957
+#5  0x0000555555561174 in processEvent (line=0x55555558cba0 "RETURN_VALUE(1)\n", line_no=460194)
+    at recreate.c:1055
+#6  0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 13:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f03137 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 14:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=4) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f037a0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 15:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f03137 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 16:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=4) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f037a0 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 17:
+
+#0  0x00005555555597c1 in getRefId (dictId=440083, keyId=44, version=352012, 
+    refId=0x7fffffffe038) at recreate.c:491
+#1  0x000055555555aafb in setItem (dictId=440083, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=352012) at recreate.c:529
+#2  0x000055555555c949 in setLocal (idx=1, value=0x7fffffffe230, version=352012)
+    at recreate.c:630
+#3  0x000055555555e478 in processPushFrame (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627478032, 2, None, None)\n", i=71) at recreate.c:758
+#4  0x000055555555f78b in processCallStart (
+    l=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627478032, 2, None, None)\n", i=10) at recreate.c:915
+#5  0x0000555555561174 in processEvent (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627478032, 2, None, None)\n", line_no=792018) at recreate.c:1055
+#6  0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 18:
+
+#0  0x00005555555597c1 in getRefId (dictId=554728, keyId=42, version=443728, 
+    refId=0x7fffffffe038) at recreate.c:491
+#1  0x000055555555aafb in setItem (dictId=554728, key=0x7fffffffe140, value=0x7fffffffe230, 
+    version=443728) at recreate.c:529
+#2  0x000055555555c949 in setLocal (idx=0, value=0x7fffffffe230, version=443728)
+    at recreate.c:630
+#3  0x000055555555e478 in processPushFrame (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627475872, 3, None, None)\n", i=65) at recreate.c:758
+#4  0x000055555555f78b in processCallStart (
+    l=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627475872, 3, None, None)\n", i=10) at recreate.c:915
+#5  0x0000555555561174 in processEvent (
+    line=0x55555558cba0 "PUSH_FRAME(139662628072416, 139662628268224, 139662627475872, 3, None, None)\n", line_no=998379) at recreate.c:1055
+#6  0x00005555555614b3 in main (argc=2, argv=0x7fffffffe428) at recreate.c:1112
+
+Sample 19:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f0301e in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
+
+Sample 20:
+
+#0  0x00007ffff7daf3c7 in fdatasync (fd=5) at ../sysdeps/unix/sysv/linux/fdatasync.c:28
+#1  0x00007ffff7ecd9a6 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#2  0x00007ffff7f0301e in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#3  0x00007ffff7f03719 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#4  0x00007ffff7f0394f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#5  0x00007ffff7f08470 in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#6  0x00007ffff7f2621f in ?? () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#7  0x00007ffff7f2e41a in sqlite3_step () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#8  0x00007ffff7f2f265 in sqlite3_exec () from /lib/x86_64-linux-gnu/libsqlite3.so.0
+#9  0x000055555556153c in main (argc=2, argv=0x7fffffffe428) at recreate.c:1121
