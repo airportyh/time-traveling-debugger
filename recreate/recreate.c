@@ -3,6 +3,7 @@
 TODO
 ====
 
+* split up code into modules
 * test shortest_common_supersequence.py
 * test permutation_2.py
 * improve ergonomics of error handling code
@@ -22,7 +23,6 @@ TODO
 * test more real-world programs
 * object lifetime - implement destroy / dealloc
 * fix crash in pyrewind to enable proper Python install with libs
-* bring in uthash.h - convert it into a .c file
 * refactor input/output insertValue (done)
 * string
     * string_inplace_add_result (done)
@@ -1661,12 +1661,15 @@ int prepareStatements() {
 int finalizeStatements() {
     CALL(sqlite3_finalize(insertSnapshotStmt));
     CALL(sqlite3_finalize(insertValueStmt));
+    CALL(sqlite3_finalize(updateValueStmt));
     CALL(sqlite3_finalize(insertFunCodeStmt));
     CALL(sqlite3_finalize(insertFunCallStmt));
     CALL(sqlite3_finalize(insertCodeFileStmt));
     CALL(sqlite3_finalize(insertTypeStmt));
     CALL(sqlite3_finalize(insertMemberStmt));
     CALL(sqlite3_finalize(updateSnapshotStartFunCallStmt));
+    CALL(sqlite3_finalize(getMemberValuesStmt));
+    CALL(sqlite3_finalize(getMemberCountStmt));
     return 0;
 }
 
