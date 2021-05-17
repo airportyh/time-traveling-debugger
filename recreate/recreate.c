@@ -3,7 +3,7 @@
 TODO
 ====
 
-* split up code into modules
+* split up code into modules (done)
 * test shortest_common_supersequence.py
 * test permutation_2.py
 * improve ergonomics of error handling code
@@ -54,6 +54,8 @@ TODO
 #include "errors.h"
 #include "uthash.h"
 #include "utstring.h"
+#include "sqlite_helpers.h"
+#include "parse.h"
 
 typedef struct _CodeFile {
     unsigned long id;
@@ -111,25 +113,6 @@ typedef struct _FunCall {
     struct _FunCall *parent;
 } FunCall;
 
-#define STR_TYPE 1
-#define INT_TYPE 2
-#define NONE_TYPE 3
-#define BOOL_TYPE 4
-#define ADDR_TYPE 5
-
-typedef struct _AnyValue {
-    char type;
-    union {
-        struct {
-            char *chars;
-            int length;
-        } str;
-        long number;
-        bool boolean;
-        unsigned long addr;
-    };
-} AnyValue;
-
 // <Global State>
 
 // The database
@@ -139,9 +122,7 @@ sqlite3 *db;
 char *filename;
 FILE *file;
 char *sqlite_filename;
-char *line = NULL;
 size_t lineLen = 0;
-unsigned int line_no = 1;
 
 // verbose flag
 bool verbose;
@@ -201,233 +182,11 @@ StrToIdEntry *strToId = NULL; // only needed by setLocal. Can be removed once se
 
 // </Global State>
 
-// Convinience macros
-#define RETURN_PARSE_ERROR(pos) \
-set_error(1, "Parse Error on line %d column %d (%s:%d).\n", line_no, pos + 1, __FILE__, __LINE__); \
-return 1;
-
-// Code/idea taken from: https://www.lemoda.net/c/sqlite-insert/
-// These helpers assume that the surrounding function returns an error code,
-// and that "db" is an accessible sqlite3 * variable.
-#define SQLITE(f)                                                          \
-    {                                                                      \
-        int i;                                                             \
-        i = sqlite3_ ## f;                                                 \
-        if (i != SQLITE_OK) {                                              \
-            set_error(i, "%s failed with status %d on line %d: %s\n",      \
-                     #f, i, __LINE__, sqlite3_errmsg(db));                 \
-            return 1;                                                      \
-        }                                                                  \
-    }                                                                      \
-
-#define SQLITE_STEP(stmt)                                        \
-    {                                                            \
-        int i;                                                   \
-        i = sqlite3_step(stmt);                                  \
-        if (i != SQLITE_DONE) {                                  \
-            set_error(i, "Step failed - %s", sqlite3_errmsg(db));\
-            return 1;                                            \
-        }                                                        \
-    }                                                            \
-
 // https://ben-bai.blogspot.com/2013/03/c-string-startswith-endswith-indexof.html
 bool endsWith (char* base, char* str) {
     int blen = strlen(base);
     int slen = strlen(str);
     return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
-}
-
-static inline int makeStrCopy(char *str, int len, char **copy) {
-    *copy = (char *)malloc(sizeof(char) * (len + 1));
-    if (*copy == NULL) {
-        set_error(1, "malloc failed for makeStrCopy");
-        return 1;
-    }
-    strncpy(*copy, str, len);
-    (*copy)[len] = '\0';
-    return 0;
-}
-
-static inline int parseLongArg(int *i, long *value) {
-    int pos;
-    if (sscanf(line + (*i), "%ld%n", value, &pos) == 1) {
-        (*i) += pos;
-    } else {
-        RETURN_PARSE_ERROR(*i);
-    }
-
-    if (line[*i] == ',') {
-        (*i)++;
-        if (line[*i] == ' ') {
-            (*i)++;
-        }
-    }
-
-    return 0;
-}
-
-static inline int parseULongArg(int *i, long *value) {
-    int pos;
-    if (sscanf(line + (*i), "%lu%n", value, &pos) == 1) {
-        (*i) += pos;
-    } else {
-        RETURN_PARSE_ERROR(*i);
-    }
-
-    if (line[*i] == ',') {
-        (*i)++;
-        if (line[*i] == ' ') {
-            (*i)++;
-        }
-    }
-
-    return 0;
-}
-
-static inline int parseAddrArg(int *i, long *value) {
-    int pos;
-    if (sscanf(line + (*i), "*%lu%n", value, &pos) == 1) {
-        (*i) += pos;
-    } else {
-        RETURN_PARSE_ERROR(*i);
-    }
-
-    if (line[*i] == ',') {
-        (*i)++;
-        if (line[*i] == ' ') {
-            (*i)++;
-        }
-    }
-
-    return 0;
-}
-
-static inline int parseIntArg(int *i, int *value) {
-    int pos;
-    if (sscanf(line + (*i), "%d%n", value, &pos) == 1) {
-        (*i) += pos;
-    } else {
-        RETURN_PARSE_ERROR(*i);
-    }
-
-    if (line[*i] == ',') {
-        (*i)++;
-        if (line[*i] == ' ') {
-            (*i)++;
-        }
-    }
-
-    return 0;
-}
-
-static inline int parseStringArg(int *ii, char **string, int *strLength) {
-    int string_start;
-    int i = *ii;
-    if (line[i] == '\'') {
-        // parse a string surrounded by 's
-        i++;
-        string_start = i;
-        while (line[i] != '\'' && line[i] != '\0') {
-            i++;
-        }
-        if (line[i] == '\0') {
-            RETURN_PARSE_ERROR(i);
-        }
-        i++;
-    } else if (line[i] == '"') {
-        // parse a string surrounded by "s
-        i++;
-        string_start = i;
-        while (line[i] != '"' && line[i] != '\0') {
-            i++;
-        }
-        if (line[i] == '\0') {
-            RETURN_PARSE_ERROR(i);
-        }
-        i++;
-    }
-
-    (*strLength) = i - string_start - 1;
-    (*string) = line + string_start;
-
-    if (line[i] == ',') {
-        i++;
-        if (line[i] == ' ') {
-            i++;
-        }
-    }
-
-    (*ii) = i;
-
-    return 0;
-}
-
-static inline int parseAnyArg(int *i, AnyValue *value) {
-    char chr = line[*i];
-    if (chr == '\'' || chr == '"') {
-        char *string;
-        int strLength;
-        CALL(parseStringArg(i, &string, &strLength));
-        value->type = STR_TYPE;
-        value->str.chars = string;
-        value->str.length = strLength;
-    } else if (chr >= 48 && chr <= 57 || chr == 45) { // digit or '-'
-        long number;
-        CALL(parseLongArg(i, &number));
-        value->type = INT_TYPE;
-        value->number = number;
-    } else if (strncmp(line + (*i), "True", 4) == 0) {
-        value->type = BOOL_TYPE;
-        value->boolean = 1;
-        (*i) += 4;
-    } else if (strncmp(line + (*i), "False", 5) == 0) {
-        value->type = BOOL_TYPE;
-        value->boolean = 1;
-        (*i) += 5;
-    } else if (strncmp(line + (*i), "None", 4) == 0) {
-        value->type = NONE_TYPE;
-        (*i) += 4;
-    } else if (chr == '*') {
-        long addr;
-        (*i)++;
-        CALL(parseULongArg(i, &addr));
-        value->type = ADDR_TYPE;
-        value->addr = addr;
-    } else {
-        RETURN_PARSE_ERROR(i);
-    }
-
-    if (line[*i] == ',') {
-        (*i)++;
-        if (line[*i] == ' ') {
-            (*i)++;
-        }
-    }
-
-    return 0;
-}
-
-static inline int parseVarStrArgs(unsigned int *i, char ***strs, int *numStrs, UT_string **strsCSV) {
-    CALL(parseIntArg(i, numStrs));
-    if (*numStrs > 0) {
-        utstring_new(*strsCSV);
-        *strs = (char **)malloc(sizeof(char *) * (*numStrs));
-        for (int j = 0; j < (*numStrs); j++) {
-            char *str;
-            int strLen;
-            CALL(parseStringArg(i, &str, &strLen));
-            char *strCopy;
-            CALL(makeStrCopy(str, strLen, &strCopy));
-            (*strs)[j] = strCopy;
-
-            utstring_printf(*strsCSV, "%s", strCopy);
-            if (j < (*numStrs) - 1) {
-                utstring_printf(*strsCSV, ",");
-            }
-        }
-    }
-
-    return 0;
 }
 
 int addType(char *typename, char *tid) {
