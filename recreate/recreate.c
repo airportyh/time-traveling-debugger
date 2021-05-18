@@ -3,6 +3,7 @@
 TODO
 ====
 
+* unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)
 * review all uses of getValueId and maybe remove them
@@ -691,7 +692,13 @@ int processNewCode(unsigned int i) {
     SQLITE(reset(insertFunCodeStmt));
 
     if (localsCSV) {
-        free(localsCSV);
+        utstring_free(localsCSV);
+    }
+    if (cellVarsCSV) {
+        utstring_free(cellVarsCSV);
+    }
+    if (freeVarsCSV) {
+        utstring_free(freeVarsCSV);
     }
 
     FunCode *funCode = (FunCode *)malloc(sizeof(FunCode));
@@ -1575,7 +1582,7 @@ int createSchema() {
     char *contents;
     CALL(readFile("schema.sql", &contents));
     SQLITE(exec(db, contents, NULL, 0, NULL));
-
+    free(contents);
     return 0;
 }
 
