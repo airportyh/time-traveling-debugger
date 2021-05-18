@@ -22,6 +22,7 @@ create table Value (
 create table Member (
     container integer,
     key integer,
+    key_type tinyint, -- 0: ref, 1: integer, 2: real
     value integer,
     
     constraint Member_pk primary key (container, key)
