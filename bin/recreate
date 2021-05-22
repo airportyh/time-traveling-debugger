@@ -1,4 +1,4 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-echo "python3 $DIR/../cpython/recreate.py $@"
-python3 $DIR/../cpython/recreate.py $@
+echo "RECREATE_DIR=$DIR/../recreate/ $DIR/../recreate/recreate.bin $@"
+RECREATE_DIR=$DIR/../recreate/ $DIR/../recreate/recreate.bin $@
