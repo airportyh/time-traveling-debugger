@@ -1579,9 +1579,17 @@ int processEvent(char *line, int line_no) {
 }
 
 int createSchema() {
+    UT_string *schemaPath;
+    utstring_new(schemaPath);
+    char *recreateDir = getenv("RECREATE_DIR");
+    if (recreateDir == NULL) {
+        recreateDir = ".";
+    }
+    utstring_printf(schemaPath, "%s/schema.sql", recreateDir);
     char *contents;
-    CALL(readFile("schema.sql", &contents));
+    CALL(readFile(utstring_body(schemaPath), &contents));
     SQLITE(exec(db, contents, NULL, 0, NULL));
+    utstring_free(schemaPath);
     free(contents);
     return 0;
 }
