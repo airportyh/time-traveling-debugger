@@ -512,14 +512,12 @@ int createNewSequence(unsigned int i, char seqTypeId) {
     CALL(insertNullValue(id, seqTypeId, snapshotId));
 
     int idx = 0;
-    AnyValue *item;
+    AnyValue item;
     while (true) {
-        item = malloc(sizeof(AnyValue));
-        if (parseAnyArg(&i, item) == 0) {
-            CALL(setItem(id, idx, KEY_TYPE_INT, item, snapshotId));
+        if (parseAnyArg(&i, &item) == 0) {
+            CALL(setItem(id, idx, KEY_TYPE_INT, &item, snapshotId));
             idx++;
         } else {
-            free(item);
             clear_error();
             break;
         }
@@ -919,17 +917,15 @@ int processListExtend(unsigned int i) {
     CALL(parseULongArg(&i, &addr));
     unsigned long listId = getValueId(addr);
 
-    AnyValue *item;
+    AnyValue item;
     int index;
     CALL(getContainerSize(listId, &index));
 
     while (true) {
-        item = malloc(sizeof(AnyValue));
-        if (parseAnyArg(&i, item) == 0) {
-            CALL(setItem(listId, index, KEY_TYPE_INT, item, snapshotId));
+        if (parseAnyArg(&i, &item) == 0) {
+            CALL(setItem(listId, index, KEY_TYPE_INT, &item, snapshotId));
             index++;
         } else {
-            free(item);
             clear_error();
             break;
         }
@@ -955,14 +951,12 @@ int processListSetAll(unsigned int i) {
     CALL(getValueIdSoft(addr, &listId));
 
     int idx = 0;
-    AnyValue *item;
+    AnyValue item;
     while (true) {
-        item = malloc(sizeof(AnyValue));
-        if (parseAnyArg(&i, item) == 0) {
-            CALL(setItem(listId, idx, KEY_TYPE_INT, item, snapshotId));
+        if (parseAnyArg(&i, &item) == 0) {
+            CALL(setItem(listId, idx, KEY_TYPE_INT, &item, snapshotId));
             idx++;
         } else {
-            free(item);
             clear_error();
             break;
         }
