@@ -3,6 +3,7 @@
 TODO
 ====
 
+* debug list_test.py last return value does not seem to add snapshot at top level frame
 * unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)
@@ -144,6 +145,7 @@ unsigned long valueId = 1;
 unsigned long codeFileId = 1;
 unsigned long funCodeId = 1;
 unsigned long funCallId = 1;
+int curr_line_no = 0;
 
 // Stack
 FunCall *stack = NULL;
@@ -1353,11 +1355,7 @@ int processCallEnd(unsigned int i) {
     return 0;
 }
 
-int processVisit(unsigned int i) {
-    // parse a number
-    long num;
-    CALL(parseLongArg(&i, &num));
-
+int saveNewSnapshot() {
     unsigned long id = snapshotId++;
     SQLITE(bind_int(insertSnapshotStmt, 1, id));
     if (stack) {
@@ -1366,12 +1364,22 @@ int processVisit(unsigned int i) {
         SQLITE(bind_null(insertSnapshotStmt, 2));
     }
     SQLITE(bind_null(insertSnapshotStmt, 3));
-    SQLITE(bind_int(insertSnapshotStmt, 4, num));
+    SQLITE(bind_int(insertSnapshotStmt, 4, curr_line_no));
     SQLITE_STEP(insertSnapshotStmt);
     if (verbose) {
-        printf("Visiting line %ld succeeded!\n", num);
+        printf("Visiting line %ld succeeded!\n", curr_line_no);
     }
     SQLITE(reset(insertSnapshotStmt));
+
+    return 0;
+}
+
+int processVisit(unsigned int i) {
+    // parse a number
+    long num;
+    CALL(parseLongArg(&i, &num));
+    curr_line_no = num;
+    CALL(saveNewSnapshot());
     return 0;
 }
 
@@ -1386,6 +1394,7 @@ int processReturnValue(unsigned int i) {
         &value,
         snapshotId
     ));
+
     return 0;
 }
 

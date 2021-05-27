@@ -5,22 +5,21 @@ class LruCache:
         self.linkedList = LinkedList()
 
     # similar to the Map API, the key can be a value of any type
-    def set(self, key, value):
+    def __setitem__(self, key, value):
         currentNode = self.dict.get(key)
         newNode = Node(key, value)
         if currentNode:
             self.linkedList.remove(currentNode)
         else:
-            if self.size() == self.capacity:
+            if len(self) == self.capacity:
                 lruNode = self.linkedList.tail
                 self.linkedList.remove(lruNode)
                 del self.dict[lruNode.key]
         self.linkedList.add(newNode)
-        self.dict[key] = newNode
-        
+        self.dict[key] = newNode     
 
     # similar to the Map API
-    def get(self, key):
+    def __getitem__(self, key):
         node = self.dict.get(key)
         if node:
             self.linkedList.remove(node)
@@ -29,8 +28,11 @@ class LruCache:
         else:
             return None
 
+    def __contains__(self, key):
+        return key in self.dict
+
     # returns the current number of entries in the map    
-    def size(self):
+    def __len__(self):
         return len(self.dict)
 
 class Node:
@@ -54,7 +56,6 @@ class LinkedList:
             currentFirstNode.prev = node
         else:
             self.tail = node
-        
     
     # remove node
     def remove(self, node):
