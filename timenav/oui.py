@@ -52,22 +52,22 @@ def log(text):
 
 class Label:
     def __init__(self, text):
-        self._text = text
+        self.text = text
 
-    @property
-    def text(self):
-        return self._text
-    
-    @text.setter
-    def text(self, text):
-        self._text = text
-        if self.parent and hasattr(self.parent, "child_update"):
-            self.parent.child_update(self)
-        self.draw()
+    # @property
+    # def text(self):
+    #     return self._text
+    # 
+    # @text.setter
+    # def text(self, text):
+    #     self._text = text
+    #     if self.parent and hasattr(self.parent, "child_update"):
+    #         self.parent.child_update(self)
+    #     self.draw()
 
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
-        log(indent + "Label.place(%r, %d, %d, %d, %d, %s)" % (self.text, x, y, max_width, max_height, stretch))
+        # log(indent + "Label.place(%r, %d, %d, %d, %d, %s)" % (self.text, x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
         if stretch in ["x", "both"]:
@@ -78,11 +78,11 @@ class Label:
             self.height = max_height
         else:
             self.height = 1
-        log(indent + "Label.place done (%d, %d)" % (self.width, self.height))
+        # log(indent + "Label.place done (%d, %d)" % (self.width, self.height))
 
     def draw(self):
         display = self.text[0:self.width].ljust(self.width, " ")
-        log("Label.draw(%d, %d, %d, %s)" % (self.x, self.y, self.width, display))
+        # log("Label.draw(%d, %d, %d, %s)" % (self.x, self.y, self.width, display))
         print_at(self.x, self.y, display)
     
     def __repr__(self):
@@ -96,13 +96,13 @@ class Border:
 
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
-        log(indent + "Border.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
+        # log(indent + "Border.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
         self.content.place(x + 1, y + 1, max_width - 2, max_height - 2, stretch, level + 1)
         self.width = self.content.width + 2
         self.height = self.content.height + 2
-        log(indent + "Border.place done (%d, %d)" % (self.width, self.height))
+        # log(indent + "Border.place done (%d, %d)" % (self.width, self.height))
 
     def draw(self):
         if self.color:
@@ -127,13 +127,13 @@ class Button:
 
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
-        log(indent + "Button.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
+        # log(indent + "Button.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
         self.border.place(x, y, max_width, max_height, stretch, level + 1)
         self.x = x
         self.y = y
         self.width = self.border.width
         self.height = self.border.height
-        log(indent + "Button.place done (%d, %d)" % (self.width, self.height))
+        # log(indent + "Button.place done (%d, %d)" % (self.width, self.height))
     
     def __repr__(self):
         return "<Button %r>" % self.label
@@ -141,7 +141,7 @@ class Button:
 class VerticalPanel:
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
-        log(indent + "VerticalPanel.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
+        # log(indent + "VerticalPanel.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
 
@@ -185,7 +185,7 @@ class VerticalPanel:
         else:
             self.height = min(max_height, y_offset)
 
-        log(indent + "VerticalPanel.place done (%d, %d)" % (self.width, self.height))
+        # log(indent + "VerticalPanel.place done (%d, %d)" % (self.width, self.height))
 
     def child_update(self, child):
         assert child in self.children
@@ -218,7 +218,7 @@ class HorizontalPanel:
         #    B. if child is not stretched horizontally, call place as normal
 
         indent = level * "  "
-        log(indent + "HorizontalPanel.place(%d, %d, %d, %d, %r)" % (x, y, max_width, max_height, stretch))
+        # log(indent + "HorizontalPanel.place(%d, %d, %d, %d, %r)" % (x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
 
@@ -266,7 +266,7 @@ class HorizontalPanel:
         else:
             self.height = min(max_height, my_height)
 
-        log(indent + "HorizontalPanel.place done (%d, %d)" % (self.width, self.height))
+        # log(indent + "HorizontalPanel.place done (%d, %d)" % (self.width, self.height))
     
     def child_update(self, child):
         self.place(self.x, self.y, self.width, self.height)
@@ -293,7 +293,7 @@ class Tree:
     
     def place(self, x, y, max_width, max_height, stretch, level):
         logindent = level * "  "
-        log(logindent + "Tree.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
+        # log(logindent + "Tree.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
         self.height = max_height
@@ -315,21 +315,21 @@ class Tree:
             for child in self.child_nodes:
                 unplace(child)
             self.height = self.label.height
-        log(logindent + "Tree.place done (%d, %d)" % (self.width, self.height))
+        # log(logindent + "Tree.place done (%d, %d)" % (self.width, self.height))
 
     def mouseup(self, event):
         indent = 2
         if event.y == self.y and event.x >= self.x and event.x < self.x + indent:
             self.expanded = not self.expanded
-            clear_rect(self.x, self.y, self.width, self.height)
-            self.parent.child_update(self)
+            # clear_rect(self.x, self.y, self.width, self.height)
+            # self.parent.child_update(self)
     
     @property
     def child_nodes(self):
         return filter(lambda c: c != self.label, self.children)
     
-    def child_update(self, child):
-        self.parent.child_update(self)
+    # def child_update(self, child):
+    #     self.parent.child_update(self)
 
     def is_root(self):
         return not hasattr(self, "parent") or not isinstance(self.parent, Tree)
@@ -355,6 +355,10 @@ def add_child(parent, child, stretch=None):
         parent.children = []
     parent.children.append(child)
 
+def remove_child(parent, child):
+    assert child in parent.children
+    parent.children.remove(child)
+
 def num_children(element):
     if not hasattr(element, "children"):
         return 0
@@ -370,20 +374,23 @@ def draw(element, level=0):
     screen_width = termsize.columns
     screen_height = termsize.lines
     indent = "  " * level
-    log(indent + "draw(%r)" % element)
+    # log(indent + "draw(%r)" % element)
     if not is_placed(element):
         log(indent + "not placed")
+        pass
     elif element.x <= screen_width and element.y <= screen_height:
         if hasattr(element, "draw"):
-            log(indent + "actually drawing")
+            # log(indent + "actually drawing")
             element.draw()
         else:
-            log(indent + "not drawing")
+            # log(indent + "not drawing")
+            pass
         if hasattr(element, "children"):
             for child in element.children:
                 draw(child, level + 1)
     else:
-        log(indent + "out of screen (%d, %d)" % (element.x, element.y))
+        # log(indent + "out of screen (%d, %d)" % (element.x, element.y))
+        pass
 
 def has_stretch_x(element):
     return get_stretch(element) in ["x", "both"]
@@ -424,7 +431,7 @@ def fire(element, event, level=0):
         for child in element.children:
             fire(child, event, level + 1)
 
-def run(root_element):
+def run(root_element, handler = None):
     def clean_up():
         restore(original_settings)
         mouse_off()
@@ -457,6 +464,7 @@ def run(root_element):
                 screen_height = termsize.lines
                 log("screen_width = %d, screen_height = %d" % (screen_width, screen_height))
                 root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
+                clear_rect(1, 1, screen_width, screen_height)
                 draw(root_element)
             if inp == "q":
                 break
@@ -465,7 +473,11 @@ def run(root_element):
                 for event in events:
                     fire(root_element, event)
 
-            # draw(root_element)
+            if handler:
+                handler()
+            root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
+            clear_rect(1, 1, screen_width, screen_height)
+            draw(root_element)
 
     except Exception as e:
         clean_up()
