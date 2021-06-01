@@ -3,6 +3,7 @@
 TODO
 ====
 
+* exceptions
 * debug list_test.py last return value does not seem to add snapshot at top level frame
 * unique constraint for Member (container, key, key_type)
 * check valgrind
@@ -13,13 +14,13 @@ TODO
 * improve ergonomics of error handling code
 * test shortest_common_supersequence.py
 * test permutation_2.py
-* exceptions
-* generators
-    * yield_value
 * change store fast to use array instead of dict
 * test more real-world programs
 * object lifetime - implement destroy / dealloc
-* fix crash in pyrewind to enable proper Python install with libs
+
+* fix crash in pyrewind to enable proper Python install with libs (done)
+* generators
+    * yield_value (done)
 * solve keys are numbers problem (done)
 * set (done)
     * review existing tracking code (done)
@@ -145,7 +146,7 @@ unsigned long valueId = 1;
 unsigned long codeFileId = 1;
 unsigned long funCodeId = 1;
 unsigned long funCallId = 1;
-int curr_line_no = 0;
+int currLineNo = 0;
 
 // Stack
 FunCall *stack = NULL;
@@ -165,6 +166,7 @@ char noneTypeId;
 char refTypeId;
 char deletedTypeId;
 char cellTypeId;
+char funCodeTypeId;
 
 // Specific value ids
 unsigned long retvalId;
@@ -251,10 +253,7 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
         strncpy(code_file->filename, filename, filenameLen);
         code_file->filename[filenameLen] = '\0';
         HASH_ADD_KEYPTR(hh, code_files, code_file->filename, filenameLen, code_file);
-        if (verbose) {
-            printf("Added code file: %s with id %ld\n", code_file->filename, code_file->id);
-        }
-
+        
         char *fileContents;
         if (readFile(code_file->filename, &fileContents) != 0) {
             clear_error();
@@ -310,7 +309,7 @@ static inline int getValueIdSoft(unsigned long addr, unsigned long *id) {
     AddrRef *addrRef;
     HASH_FIND_INT(addrToId, &addr, addrRef);
     if (addrRef == NULL) {
-        set_error(1, "Failed to find ID for address %lu", addr);
+        set_error(1, "Failed to find ID for address %lu near line %d", addr, logLineNo);
         return 1;
     }
     *id = addrRef->id;
@@ -325,7 +324,7 @@ static inline int getKeyFromAny(AnyValue *value, long *key, char *keyType) {
         CALL(getValueIdSoft(value->addr, key));
         *keyType = KEY_TYPE_REF;
     } else {
-        set_error(1, "Invalid type for a key %d", value->type);
+        set_error(1, "Invalid type for a key %d near line %d", value->type, logLineNo);
         return 1;
     }
 
@@ -407,10 +406,10 @@ static inline int insertAnyValue(unsigned long id, char typeId,
     } else if (value->type == NONE_TYPE) {
         CALL(insertNullValue(id, typeId, versionId));
     } else if (value->type == STR_TYPE) {
-        set_error(1, "Inserting strings is not allow except for NEW_STRING events");
+        set_error(1, "Inserting strings is not allow except for NEW_STRING events near line %d", logLineNo);
         return 1;
     } else {
-        set_error(1, "Unknown value type for AnyValue: %d", value->type);
+        set_error(1, "Unknown value type for AnyValue: %d near line %d", value->type, logLineNo);
         return 1;
     }
     return 0;
@@ -462,7 +461,7 @@ static inline int getRefIdSoft(unsigned long containerId, unsigned long keyId, u
     if (entry != NULL) {
         *refId = entry->ref;
     } else {
-        set_error(1, "Cannot find Ref ID for container %lu and key %lu", containerId, keyId);
+        set_error(1, "Cannot find Ref ID for container %lu and key %lu near line %d", containerId, keyId, logLineNo);
         return 1;
     }
     return 0;
@@ -549,7 +548,7 @@ static inline int setLocal(int idx, AnyValue *value, unsigned long version) {
     }
     FunCode *funCode = stack->funCode;
     if (idx >= funCode->numLocals) {
-        set_error(1, "Local variable index out of bounds: %d of %d", idx, funCode->numLocals);
+        set_error(1, "Local variable index out of bounds: %d of %d near line %d", idx, funCode->numLocals, logLineNo);
         return 1;
     }
     char *varname = funCode->localVarnames[idx];
@@ -598,7 +597,7 @@ int copyContainer(unsigned long srcId, unsigned long dstId) {
                 CALL(insertNullValue(refId, type, snapshotId));
             }
         } else {
-            set_error(1, "Unexpected result from query %d", result);
+            set_error(1, "Unexpected result from query %d near line %d", result, logLineNo);
             return 1;
         }
     }
@@ -622,6 +621,7 @@ int seedData() {
     CALL(addType("<ref>", &refTypeId));
     CALL(addType("<deleted>", &deletedTypeId));
     CALL(addType("<cell>", &cellTypeId));
+    CALL(addType("<fun code>", &funCodeTypeId));
 
     retvalId = valueId++;
     CALL(addString(retvalId, "<ret val>", -1));
@@ -634,6 +634,7 @@ int processBasedir(unsigned int pos) {
 }
 
 int processNewCode(unsigned int i) {
+    
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     char *filename;
@@ -665,6 +666,12 @@ int processNewCode(unsigned int i) {
     CALL(parseVarStrArgs(&i, &freeVarnames, &numFreeVars, &freeVarsCSV));
 
     unsigned long id = funCodeId++;
+
+    // Make a Value whose id points to a FunCode, and type is <fun code>
+    unsigned long valueId = getNewValueId(addr);
+    CALL(insertULongValue(id, funCodeTypeId, snapshotId, id));
+
+
     SQLITE(bind_int64(insertFunCodeStmt, 1, id));
     SQLITE(bind_text(insertFunCodeStmt, 2, funName, funNameLen, SQLITE_STATIC));
     SQLITE(bind_int64(insertFunCodeStmt, 3, codeFileId));
@@ -725,7 +732,7 @@ int processPushFrame(unsigned int i) {
     FunCode *funCode;
     HASH_FIND_INT(funCodes, &codeHeapId, funCode);
     if (funCode == NULL) {
-        set_error(1, "Cannot found fun code for addr %lu", codeHeapId);
+        set_error(1, "Cannot found fun code for addr %lu near line %d", codeHeapId, logLineNo);
         return 1;
     }
 
@@ -826,7 +833,7 @@ int processPopFrame(unsigned int pos) {
         free(stack);
         stack = parent;
     } else {
-        set_error(1, "Tried to pop empty stack.");
+        set_error(1, "Tried to pop empty stack near line %d", logLineNo);
         return 1;
     }
     return 0;
@@ -909,7 +916,7 @@ int getContainerSize(unsigned long containerId, int *len) {
         return 0;
     } else {
         SQLITE(reset(getMemberCountStmt));
-        set_error(1, "Failed to get member count");
+        set_error(1, "Failed to get member count near line %d", logLineNo);
         return 1;
     }
 }
@@ -1007,7 +1014,7 @@ int processListResizeAndShiftLeft(unsigned int i) {
                 CALL(insertNullValue(destRefId, type, snapshotId));
             }
         } else {
-            set_error(1, "Unexpected result from query %d", result);
+            set_error(1, "Unexpected result from query %d near line %d", result, logLineNo);
             return 1;
         }
     }
@@ -1059,7 +1066,7 @@ int processListResizeAndShiftRight(unsigned int i) {
                 CALL(insertNullValue(destRefId, type, snapshotId));
             }
         } else {
-            set_error(1, "Unexpected result from query %d", result);
+            set_error(1, "Unexpected result from query %d near line %d", result, logLineNo);
             return 1;
         }
     }
@@ -1166,7 +1173,7 @@ int processDictSetAll(unsigned int i) {
     AnyValue value;
     CALL(parseAnyArg(&i, &value));
     if (value.type != ADDR_TYPE) {
-        set_error(1, "DICT_SET_ALL can only work with addresses");
+        set_error(1, "DICT_SET_ALL can only work with addresses near line %d", logLineNo);
         return 1;
     }
     unsigned long dictId;
@@ -1306,7 +1313,7 @@ int processNewFunction(unsigned int i) {
     HASH_FIND_INT(funCodes, &codeHeapId, funCode);
 
     if (funCode == NULL) {
-        set_error(1, "Fun code not found for %lu", codeHeapId);
+        set_error(1, "Fun code not found for %lu near line %d", codeHeapId, logLineNo);
         return 1;
     }
 
@@ -1364,11 +1371,8 @@ int saveNewSnapshot() {
         SQLITE(bind_null(insertSnapshotStmt, 2));
     }
     SQLITE(bind_null(insertSnapshotStmt, 3));
-    SQLITE(bind_int(insertSnapshotStmt, 4, curr_line_no));
+    SQLITE(bind_int(insertSnapshotStmt, 4, currLineNo));
     SQLITE_STEP(insertSnapshotStmt);
-    if (verbose) {
-        printf("Visiting line %ld succeeded!\n", curr_line_no);
-    }
     SQLITE(reset(insertSnapshotStmt));
 
     return 0;
@@ -1378,7 +1382,7 @@ int processVisit(unsigned int i) {
     // parse a number
     long num;
     CALL(parseLongArg(&i, &num));
-    curr_line_no = num;
+    currLineNo = num;
     CALL(saveNewSnapshot());
     return 0;
 }
@@ -1408,6 +1412,12 @@ int processStoreFast(unsigned int i) {
     return 0;
 }
 
+int processException(unsigned int i) {
+    
+
+    return 0;
+}
+
 int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
     FunHandler *handler;
     handler = (FunHandler *)malloc(sizeof(FunHandler));
@@ -1425,6 +1435,7 @@ void registerFuns() {
     registerFun("NEW_CODE", processNewCode);
     registerFun("PUSH_FRAME", processPushFrame);
     registerFun("RETURN_VALUE", processReturnValue);
+    registerFun("YIELD_VALUE", processReturnValue);
     registerFun("POP_FRAME", processPopFrame);
     registerFun("NEW_FUNCTION", processNewFunction);
     registerFun("CALL_START", processCallStart);
@@ -1665,10 +1676,10 @@ int main(int argc, char *argv[]) {
         if (verbose) {
             printf("\nLine: %s", line);
         }
-        if (processEvent(line, line_no) != 0) {
+        if (processEvent(line, logLineNo) != 0) {
             break;
         }
-        line_no++;
+        logLineNo++;
 
         // if (line_no % 600 == 0) {
         //     if (verbose) {
