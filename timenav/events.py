@@ -25,9 +25,6 @@ def decode_input(an_input):
                 y = codes[5] - 32
                 event = Event("mouseup", x = x, y = y)
                 events.append(event)
-                if len(events) == 2 and events[0].type == "mousedown":
-                    # generate a click event
-                    events.append(Event("click", x = x, y = y))
                 codes = codes[6:]
             elif codes[3] == 96:
                 event = Event("wheeldown", x = codes[4] - 32, y = codes[5] - 32)
@@ -37,6 +34,16 @@ def decode_input(an_input):
                 event = Event("wheelup", x = codes[4] - 32, y = codes[5] - 32)
                 events.append(event)
                 codes = codes[6:]
+            elif codes[3] == 67:
+                event = Event("mousemove", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+            elif codes[3] == 64:
+                event = Event("mousedrag", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+            else:
+                raise Exception("Unknown mouse control code %d" % codes[3])
         else:
             # don't understand
             break
