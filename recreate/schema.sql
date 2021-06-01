@@ -73,7 +73,7 @@ create table FunCall (
 
 create table Error (
     id integer primary key,
-    type text,
+    type integer,
     message text,
     snapshot_id integer,
 

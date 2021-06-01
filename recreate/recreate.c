@@ -144,6 +144,7 @@ unsigned long valueId = 1;
 unsigned long codeFileId = 1;
 unsigned long funCodeId = 1;
 unsigned long funCallId = 1;
+unsigned long errorId = 1;
 
 // Stack
 FunCall *stack = NULL;
@@ -183,6 +184,7 @@ sqlite3_stmt *updateSnapshotStartFunCallStmt = NULL;
 sqlite3_stmt *getMemberValuesStmt = NULL;
 sqlite3_stmt *getMemberCountStmt = NULL;
 sqlite3_stmt *clearContainerStmt = NULL;
+sqlite3_stmt *insertErrorStmt = NULL;
 
 // Hashtables
 CodeFile *code_files = NULL;
@@ -191,6 +193,11 @@ AddrRef *addrToId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL; // could remove this in favor of looking up Member table. Maybe slower
 StrToIdEntry *strToId = NULL; // only needed by setLocal. Can be removed once setLocal uses arrays instead of dicts
+
+// Pending error
+unsigned long pendingErrorType = 0;
+unsigned long pendingError = 0;
+char *pendingErrorMessage = NULL;
 
 // </Global State>
 
@@ -1399,6 +1406,51 @@ int processStoreFast(unsigned int i) {
     return 0;
 }
 
+int processException(unsigned int i) {
+    // unsigned long typeAddr;
+    // CALL(parseULongArg(&i, &typeAddr));
+    // unsigned long typeId;
+    // CALL(getValueIdSoft(typeAddr, &typeId));
+    // unsigned long addr;
+    // CALL(parseULongArg(&i, &addr));
+    // unsigned long errorId;
+    // CALL(getValueIdSoft(addr, &errorId));
+
+    return 0;
+}
+
+int processExceptionUncaught(unsigned int i) {
+    unsigned long typeAddr;
+    CALL(parseULongArg(&i, &typeAddr));
+    unsigned long typeId;
+    CALL(getValueIdSoft(typeAddr, &typeId));
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long errorValueId;
+    CALL(getValueIdSoft(addr, &errorValueId));
+
+    char *message;
+    int messageLen;
+    if (parseStringArg(&i, &message, &messageLen) != 0) {
+        // use pending error
+        message = pendingErrorMessage;
+        messageLen = strlen(pendingErrorMessage);
+    }
+
+    unsigned long id = errorId++;
+    // commit error
+    SQLITE(bind_int64(insertErrorStmt, 1, id));
+    SQLITE(bind_int64(insertErrorStmt, 2, typeId));
+    SQLITE(bind_text(insertErrorStmt, 3, message, messageLen, SQLITE_STATIC));
+    SQLITE(bind_int64(insertErrorStmt, 4, snapshotId - 1));
+
+    SQLITE_STEP(insertErrorStmt);
+
+    SQLITE(reset(insertErrorStmt));
+
+    return 0;
+}
+
 int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
     FunHandler *handler;
     handler = (FunHandler *)malloc(sizeof(FunHandler));
@@ -1456,6 +1508,10 @@ void registerFuns() {
     registerFun("LIST_RESIZE_AND_SHIFT_RIGHT", processListResizeAndShiftRight);
     
     registerFun("OBJECT_ASSOC_DICT", processObjectAssocDict);
+
+    registerFun("EXCEPTION", processException);
+    registerFun("EXCEPTION_UNCAUGHT", processExceptionUncaught);
+
 }
 
 int prepareStatements() {
@@ -1467,6 +1523,7 @@ int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Type values (?, ?)", -1, &insertTypeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Member values(?, ?, ?, ?)", -1, &insertMemberStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Error values(?, ?, ?, ?)", -1, &insertErrorStmt, NULL));
     SQLITE(prepare_v2(db, "update Snapshot set start_fun_call_id = ? where id = ?", -1, &updateSnapshotStartFunCallStmt, NULL));
     SQLITE(prepare_v2(db, 
         "with MemberValues as ("
