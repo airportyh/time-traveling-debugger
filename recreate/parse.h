@@ -11,11 +11,11 @@
 #define ADDR_TYPE 5
 
 #define RETURN_PARSE_ERROR(pos) \
-set_error(1, "Parse Error on line %d column %d (%s:%d).\n", line_no, pos + 1, __FILE__, __LINE__); \
+set_error(1, "Parse Error on line %d column %d (%s:%d).\n", logLineNo, pos + 1, __FILE__, __LINE__); \
 return 1;
 
 char *line = NULL;
-unsigned int line_no = 1;
+unsigned int logLineNo = 1;
 
 typedef struct _AnyValue {
     char type;
