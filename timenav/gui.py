@@ -152,11 +152,11 @@ class NavigatorGUI:
             return ["None"]
         tp = value["type_name"]
         if tp == "none":
-            return ["None"]
+            return ["(%d) None" % value["id"]]
         elif tp in ["str", "int", "float"]:
             return ["(%d) %s %s" % (value["id"], tp, value["value"])]
         else:
-            return ["%s %r" % (tp, value["value"])]
+            return ["(%d) %s %r" % (value["id"], tp, value["value"])]
     
     def update_stack_pane(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

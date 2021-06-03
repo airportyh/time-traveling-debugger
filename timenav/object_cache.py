@@ -16,6 +16,8 @@ class ObjectCache:
             inner join Type on Value.type = Type.id
         where Value.id = ?
             and version <= ?
+        order by version desc
+        limit 1
         """
         value = self.cursor.execute(sql, (id, version)).fetchone()
         self.cache[key] = value
