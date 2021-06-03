@@ -1,5 +1,7 @@
-# integrate navigator into here
-# test step methods
+# activate scroll panes
+# data fetching / display
+# integrate navigator into here (done)
+# test step methods (done)
 
 import termios
 import sys
@@ -15,6 +17,7 @@ from text_pane import *
 import random
 from object_cache import ObjectCache
 from navigator import Navigator
+from events import *
 
 # UI Element interface:
 # UIElement:
@@ -55,11 +58,12 @@ class NavigatorGUI:
     def restore_term_settings(self):
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.original_settings)
         print('\x1B[0m')
+        print()
         
     def clean_up(self):
         self.restore_term_settings()
         mouse_off()
-        mouse_motion_off()
+        # mouse_motion_off()
     
     def draw_divider(self):
         x = self.code_pane.box.width + 1
@@ -71,22 +75,11 @@ class NavigatorGUI:
         atexit.register(self.clean_up)
         tty.setraw(sys.stdin)
         clear_screen()
+        mouse_on()
         self.draw_divider()
         
-        snapshot = self.cache.get_snapshot(3)
         self.last_snapshot = self.nav.get_last_snapshot()
-        
-        fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
-        fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
-        code_file = self.cache.get_code_file(fun_code["code_file_id"])
-        
-        lines = []
-        if code_file["source"]:
-            lines = code_file["source"].split("\n")
-        self.display_source(lines, self.code_pane)
-        self.code_pane.set_highlight(snapshot["line_no"] - 1)
-        self.scroll_to_line_if_needed(snapshot["line_no"], lines)
-        self.update_status(snapshot)
+        self.goto_snapshot(self.cache.get_snapshot(3))
         
         while True:
             inp = get_input()
@@ -94,31 +87,50 @@ class NavigatorGUI:
                 break
             data = list(map(ord, inp))
             if data == RIGHT_ARROW:
-                next = self.cache.get_snapshot(snapshot["id"] + 1)
+                next = self.cache.get_snapshot(self.snapshot["id"] + 1)
+                self.goto_snapshot(next)
             elif data == LEFT_ARROW:
-                next = self.cache.get_snapshot(snapshot["id"] - 1)
+                next = self.cache.get_snapshot(self.snapshot["id"] - 1)
+                self.goto_snapshot(next)
             elif data == DOWN_ARROW:
-                next = self.nav.step_over(snapshot)
+                next = self.nav.step_over(self.snapshot)
+                self.goto_snapshot(next)
             elif data == UP_ARROW:
-                next = self.nav.step_over_backward(snapshot)
+                next = self.nav.step_over_backward(self.snapshot)
+                self.goto_snapshot(next)
             else:
-                continue
+                events = decode_input(inp)
+                for event in events:
+                    if event.type == "wheelup":
+                        if event.x > self.code_pane.box.width + 1:
+                            self.stack_pane.scroll_up()
+                        elif event.x < self.code_pane.box.width + 1:
+                            self.code_pane.scroll_up()
+                    elif event.type == "wheeldown":
+                        if event.x > self.code_pane.box.width + 1:
+                            self.stack_pane.scroll_down()
+                        elif event.x < self.code_pane.box.width + 1:
+                            self.code_pane.scroll_down()
 
-            if next:
-                snapshot = next
-            fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
-            fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
-            code_file = self.cache.get_code_file(fun_code["code_file_id"])
-            
-            lines = []
-            if code_file["source"]:
-                lines = code_file["source"].split("\n")
-            self.display_source(lines, self.code_pane)
-            self.update_stack_pane(snapshot)
-            self.code_pane.set_highlight(snapshot["line_no"] - 1)
-            self.scroll_to_line_if_needed(snapshot["line_no"], lines)
-            
-            self.update_status(snapshot)
+    def goto_snapshot(self, next):
+        if next is None:
+            return
+        
+        self.snapshot = next
+        fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
+        fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+        code_file = self.cache.get_code_file(fun_code["code_file_id"])
+        
+        lines = []
+        if code_file["source"]:
+            lines = code_file["source"].split("\n")
+        self.display_source(lines, self.code_pane)
+        self.update_stack_pane(self.snapshot)
+        self.code_pane.set_highlight(self.snapshot["line_no"] - 1)
+        self.scroll_to_line_if_needed(self.snapshot["line_no"], lines)
+        
+        self.update_status(self.snapshot)
+
 
     def display_source(self, file_lines, code_pane):
         gutter_width = len(str(len(file_lines) + 1))
