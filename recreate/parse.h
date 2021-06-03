@@ -138,6 +138,8 @@ static inline int parseStringArg(int *ii, char **string, int *strLength) {
             RETURN_PARSE_ERROR(i);
         }
         i++;
+    } else {
+        RETURN_PARSE_ERROR(i);
     }
 
     (*strLength) = i - string_start - 1;

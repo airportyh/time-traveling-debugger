@@ -3,12 +3,10 @@
 TODO
 ====
 
-* exceptions
 * debug list_test.py last return value does not seem to add snapshot at top level frame
 * unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)
-* review all uses of getValueId and maybe remove them
 * build out UI
     * consider indenting contents of for loops (if statements?)
 * improve ergonomics of error handling code
@@ -18,6 +16,8 @@ TODO
 * test more real-world programs
 * object lifetime - implement destroy / dealloc
 
+* review all uses of getValueId and maybe remove them (done)
+* exceptions (done)
 * fix crash in pyrewind to enable proper Python install with libs (done)
 * generators
     * yield_value (done)
@@ -123,7 +123,8 @@ typedef struct _FunCall {
 #define KEY_TYPE_REF  0
 #define KEY_TYPE_INT  1
 #define KEY_TYPE_REAL 2
-
+#define KEY_TYPE_NONE 3
+#define KEY_TYPE_BOOL 4
 
 // <Global State>
 
@@ -169,6 +170,7 @@ char refTypeId;
 char deletedTypeId;
 char cellTypeId;
 char funCodeTypeId;
+char typeTypeId;
 
 // Specific value ids
 unsigned long retvalId;
@@ -195,6 +197,7 @@ sqlite3_stmt *insertErrorStmt = NULL;
 CodeFile *code_files = NULL;
 FunCode *funCodes = NULL; // might be able to get rid of this with some work
 AddrRef *addrToId = NULL;
+AddrRef *addrToTypeId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL; // could remove this in favor of looking up Member table. Maybe slower
 StrToIdEntry *strToId = NULL; // only needed by setLocal. Can be removed once setLocal uses arrays instead of dicts
@@ -213,11 +216,11 @@ bool endsWith (char* base, char* str) {
     return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
 }
 
-int addType(char *typename, char *tid) {
+int addType(char *typename, int typenameLen, char *tid) {
     *tid = typeId++;
 
     SQLITE(bind_int(insertTypeStmt, 1, *tid));
-    SQLITE(bind_text(insertTypeStmt, 2, typename, -1, SQLITE_STATIC));
+    SQLITE(bind_text(insertTypeStmt, 2, typename, typenameLen, SQLITE_STATIC));
     SQLITE_STEP(insertTypeStmt);
     SQLITE(reset(insertTypeStmt));
 
@@ -285,19 +288,6 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
     return 0;
 }
 
-static inline unsigned long getValueId(unsigned long addr) {
-    AddrRef *addrRef;
-    HASH_FIND_INT(addrToId, &addr, addrRef);
-    if (addrRef == NULL) {
-        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
-        memset(addrRef, 0, sizeof(AddrRef));
-        addrRef->addr = addr;
-        addrRef->id = valueId++;
-        HASH_ADD_INT(addrToId, addr, addrRef);
-    }
-    return addrRef->id;
-}
-
 static inline unsigned long getNewValueId(unsigned long addr) {
     AddrRef *addrRef;
     HASH_FIND_INT(addrToId, &addr, addrRef);
@@ -324,6 +314,17 @@ static inline int getValueIdSoft(unsigned long addr, unsigned long *id) {
     return 0;
 }
 
+static inline int getTypeIdSoft(unsigned long addr, unsigned long *typeId) {
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToTypeId, &addr, addrRef);
+    if (addrRef == NULL) {
+        set_error(1, "Failed to find ID for address %lu near line %d", addr, logLineNo);
+        return 1;
+    }
+    *typeId = addrRef->id;
+    return 0;
+}
+
 static inline int getKeyFromAny(AnyValue *value, long *key, char *keyType) {
     if (value->type == INT_TYPE) {
         *key = value->number;
@@ -331,6 +332,10 @@ static inline int getKeyFromAny(AnyValue *value, long *key, char *keyType) {
     } else if (value->type == ADDR_TYPE) {
         CALL(getValueIdSoft(value->addr, key));
         *keyType = KEY_TYPE_REF;
+    } else if (value->type == NONE_TYPE) {
+        *keyType = KEY_TYPE_NONE;
+    } else if (value->type == BOOL_TYPE) {
+        *keyType == KEY_TYPE_BOOL;
     } else {
         set_error(1, "Invalid type for a key %d near line %d", value->type, logLineNo);
         return 1;
@@ -615,21 +620,22 @@ int copyContainer(unsigned long srcId, unsigned long dstId) {
 }
 
 int seedData() {
-    CALL(addType("int", &intTypeId));
-    CALL(addType("str", &strTypeId));
-    CALL(addType("bool", &boolTypeId));
-    CALL(addType("list", &listTypeId));
-    CALL(addType("tuple", &tupleTypeId));
-    CALL(addType("set", &setTypeId));
-    CALL(addType("dict", &dictTypeId));
-    CALL(addType("module", &moduleTypeId));
-    CALL(addType("object", &objectTypeId));
-    CALL(addType("function", &functionTypeId));
-    CALL(addType("none", &noneTypeId));
-    CALL(addType("<ref>", &refTypeId));
-    CALL(addType("<deleted>", &deletedTypeId));
-    CALL(addType("<cell>", &cellTypeId));
-    CALL(addType("<fun code>", &funCodeTypeId));
+    CALL(addType("int", -1, &intTypeId));
+    CALL(addType("str", -1, &strTypeId));
+    CALL(addType("bool", -1, &boolTypeId));
+    CALL(addType("list", -1, &listTypeId));
+    CALL(addType("tuple", -1, &tupleTypeId));
+    CALL(addType("set", -1, &setTypeId));
+    CALL(addType("dict", -1, &dictTypeId));
+    CALL(addType("module", -1, &moduleTypeId));
+    CALL(addType("object", -1, &objectTypeId));
+    CALL(addType("function", -1, &functionTypeId));
+    CALL(addType("none", -1, &noneTypeId));
+    CALL(addType("<ref>", -1, &refTypeId));
+    CALL(addType("<deleted>", -1, &deletedTypeId));
+    CALL(addType("<cell>", -1, &cellTypeId));
+    CALL(addType("<fun code>", -1, &funCodeTypeId));
+    CALL(addType("<type>", -1, &typeTypeId));
 
     retvalId = valueId++;
     CALL(addString(retvalId, "<ret val>", -1));
@@ -677,7 +683,7 @@ int processNewCode(unsigned int i) {
 
     // Make a Value whose id points to a FunCode, and type is <fun code>
     unsigned long valueId = getNewValueId(addr);
-    CALL(insertULongValue(id, funCodeTypeId, snapshotId, id));
+    CALL(insertULongValue(valueId, funCodeTypeId, snapshotId, id));
 
 
     SQLITE(bind_int64(insertFunCodeStmt, 1, id));
@@ -748,7 +754,8 @@ int processPushFrame(unsigned int i) {
     CALL(parseULongArg(&i, &globalVarsId));
     unsigned long localVarsId;
     CALL(parseULongArg(&i, &localVarsId));
-    unsigned long globalsId = getValueId(globalVarsId);
+    unsigned long globalsId;
+    CALL(getValueIdSoft(globalVarsId, &globalsId));
     unsigned long localsId = valueId++;
     unsigned long callId = funCallId++;
     
@@ -853,7 +860,7 @@ int processNewString(unsigned int i) {
     char *string;
     int strLength;
     CALL(parseStringArg(&i, &string, &strLength));
-    unsigned long id = getValueId(addr);
+    unsigned long id = getNewValueId(addr);
     CALL(addString(id, string, strLength));
     
     return 0;
@@ -932,7 +939,8 @@ int getContainerSize(unsigned long containerId, int *len) {
 int processListExtend(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
-    unsigned long listId = getValueId(addr);
+    unsigned long listId;
+    CALL(getValueIdSoft(addr, &listId));
 
     AnyValue item;
     int index;
@@ -1084,26 +1092,56 @@ int processListResizeAndShiftRight(unsigned int i) {
     return 0;
 }
 
-int processNewObject(unsigned int i) {
+int processNewType(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     char *typeName;
     int typeNameLen;
     CALL(parseStringArg(&i, &typeName, &typeNameLen));
+
+    char typeId;
+    CALL(addType(typeName, typeNameLen, &typeId));
+
+    AddrRef *addrRef;
+    HASH_FIND_INT(addrToTypeId, &addr, addrRef);
+    if (addrRef != NULL) {
+        set_error(1, "New type with address %lu already exists in dictionary", addr);
+        return 1;
+    }
+    addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+    memset(addrRef, 0, sizeof(AddrRef));
+    addrRef->addr = addr;
+    addrRef->id = typeId;
+    HASH_ADD_INT(addrToTypeId, addr, addrRef);
+
+    unsigned long typeValueId = getNewValueId(addr);
+    CALL(insertULongValue(typeValueId, typeTypeId, snapshotId, typeId));
+
+    return 0;
+}
+
+int processNewObject(unsigned int i) {
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
     unsigned long typeAddr;
-    CALL(parseAddrArg(&i, &typeAddr));
+    CALL(parseULongArg(&i, &typeAddr));
     unsigned long oid = getNewValueId(addr);
+    unsigned long typeId;
+
+    CALL(getTypeIdSoft(typeAddr, &typeId));
     unsigned long dictAddr = 0;
     // dictAddr is optional, so we can ignore failure
     // below
-    parseULongArg(&i, &dictAddr);
+    if (parseULongArg(&i, &dictAddr) != 0) {
+        clear_error();
+    }
     unsigned long dictId = 0;
     if (dictAddr) {
-        dictId = getValueId(dictAddr);
+        CALL(getValueIdSoft(dictAddr, &dictId));
     }
 
     unsigned long id = valueId++;
-    CALL(insertULongValue(id, objectTypeId, snapshotId, dictId));
+    CALL(insertULongValue(id, typeId, snapshotId, dictId));
     
     return 0;
 }
@@ -1113,6 +1151,34 @@ int processNewDict(unsigned int i) {
     CALL(parseULongArg(&i, &addr));
     unsigned long dictId = getNewValueId(addr);
     CALL(insertNullValue(dictId, dictTypeId, snapshotId));
+
+    AnyValue key;
+    AnyValue value;
+    while (true) {
+        if (parseAnyArg(&i, &key) == 0) {
+            CALL(parseAnyArg(&i, &value));
+            unsigned long keyId;
+            char keyType;
+            CALL(getKeyFromAny(&key, &keyId, &keyType));
+            CALL(setItem(dictId, keyId, keyType, &value, snapshotId));
+        } else {
+            clear_error();
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int processNewDerivedDict(unsigned int i) {
+    unsigned long typeAddr;
+    CALL(parseULongArg(&i, &typeAddr));
+    unsigned long typeId;
+    CALL(getTypeIdSoft(typeAddr, &typeId));
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+    unsigned long dictId = getNewValueId(addr);
+    CALL(insertNullValue(dictId, typeId, snapshotId));
 
     AnyValue key;
     AnyValue value;
@@ -1281,7 +1347,7 @@ int processSetCopy(unsigned int i) {
 int processNewModule(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
-    unsigned long id = getValueId(addr);
+    unsigned long id = getNewValueId(addr);
     CALL(insertNullValue(id, moduleTypeId, snapshotId));
     return 0;
 }
@@ -1325,7 +1391,7 @@ int processNewFunction(unsigned int i) {
         return 1;
     }
 
-    unsigned long id = getValueId(addr);
+    unsigned long id = getNewValueId(addr);
     CALL(insertULongValue(id, functionTypeId, snapshotId, funCode->id));
 
     return 0;
@@ -1421,14 +1487,29 @@ int processStoreFast(unsigned int i) {
 }
 
 int processException(unsigned int i) {
-    // unsigned long typeAddr;
-    // CALL(parseULongArg(&i, &typeAddr));
-    // unsigned long typeId;
-    // CALL(getValueIdSoft(typeAddr, &typeId));
-    // unsigned long addr;
-    // CALL(parseULongArg(&i, &addr));
-    // unsigned long errorId;
-    // CALL(getValueIdSoft(addr, &errorId));
+    unsigned long typeAddr;
+    CALL(parseULongArg(&i, &typeAddr));
+    unsigned long typeId;
+    CALL(getTypeIdSoft(typeAddr, &typeId));
+    unsigned long addr;
+    CALL(parseULongArg(&i, &addr));
+
+    unsigned long errorValueId;
+    if (addr == 0) {
+        errorValueId = 0;
+    } else {    
+        CALL(getValueIdSoft(addr, &errorValueId));
+    }
+
+    char *message;
+    int messageLen;
+    CALL(parseStringArg(&i, &message, &messageLen));
+
+    pendingErrorType = typeId;
+    pendingError = errorValueId;
+    pendingErrorMessage = (char *)malloc(sizeof(char) * (messageLen + 1));
+    strncpy(pendingErrorMessage, message, messageLen);
+    pendingErrorMessage[messageLen] = '\0';
 
     return 0;
 }
@@ -1437,7 +1518,7 @@ int processExceptionUncaught(unsigned int i) {
     unsigned long typeAddr;
     CALL(parseULongArg(&i, &typeAddr));
     unsigned long typeId;
-    CALL(getValueIdSoft(typeAddr, &typeId));
+    CALL(getTypeIdSoft(typeAddr, &typeId));
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long errorValueId;
@@ -1457,10 +1538,15 @@ int processExceptionUncaught(unsigned int i) {
     SQLITE(bind_int64(insertErrorStmt, 2, typeId));
     SQLITE(bind_text(insertErrorStmt, 3, message, messageLen, SQLITE_STATIC));
     SQLITE(bind_int64(insertErrorStmt, 4, snapshotId - 1));
-
     SQLITE_STEP(insertErrorStmt);
-
     SQLITE(reset(insertErrorStmt));
+
+    pendingErrorType = 0;
+    pendingError = 0;
+    if (pendingErrorMessage != NULL) {
+        free(pendingErrorMessage);
+        pendingErrorMessage = NULL;
+    }
 
     return 0;
 }
@@ -1492,6 +1578,7 @@ void registerFuns() {
     registerFun("NEW_STRING", processNewString);
     registerFun("STRING_UPDATE", processStringUpdate);
 
+    registerFun("NEW_TYPE", processNewType);
     registerFun("NEW_OBJECT", processNewObject);
     
     registerFun("NEW_DICT", processNewDict);
@@ -1499,6 +1586,8 @@ void registerFuns() {
     registerFun("DICT_DELETE_SUBSCRIPT", processDictDeleteSubscript);
     registerFun("DICT_CLEAR", processDictClear);
     registerFun("DICT_SET_ALL", processDictSetAll);
+
+    registerFun("NEW_DERIVED_DICT", processNewDerivedDict);
     
     registerFun("NEW_SET", processNewSet);
     registerFun("SET_ADD", processSetAdd);
@@ -1593,11 +1682,14 @@ int prepareStatements() {
         "insert into Value "
         "select "
             "value as id, "
-            "? as type, "
-            "? as version, "
+            "?1 as type, "
+            "?2 as version, "
             "NULL as value "
         "from Member "
-            "where container = ?",
+            "where container = ?3 "
+        "on conflict(id, version) do "
+            "update set type = ?1, value = NULL"
+        "",
         -1,
         &clearContainerStmt,
         NULL

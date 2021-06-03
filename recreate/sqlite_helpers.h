@@ -17,7 +17,7 @@
         int i;                                                   \
         i = sqlite3_step(stmt);                                  \
         if (i != SQLITE_DONE) {                                  \
-            set_error(i, "Step failed - %s", sqlite3_errmsg(db));\
+            set_error(i, "Step failed on line %d - %s", __LINE__, sqlite3_errmsg(db));\
             return 1;                                            \
         }                                                        \
     }                                                            \

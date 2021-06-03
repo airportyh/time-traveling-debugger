@@ -73,7 +73,7 @@ class NavigatorGUI:
         clear_screen()
         self.draw_divider()
         
-        snapshot = self.cache.get_snapshot(1)
+        snapshot = self.cache.get_snapshot(3)
         self.last_snapshot = self.nav.get_last_snapshot()
         
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

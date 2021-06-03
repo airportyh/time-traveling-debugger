@@ -14,7 +14,8 @@ class LruCache:
             if len(self) == self.capacity:
                 lruNode = self.linkedList.tail
                 self.linkedList.remove(lruNode)
-                del self.dict[lruNode.key]
+                if lruNode.key in self.dict:
+                    del self.dict[lruNode.key]
         self.linkedList.add(newNode)
         self.dict[key] = newNode     
 
