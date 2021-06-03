@@ -1,5 +1,5 @@
-# activate scroll panes
 # data fetching / display
+# activate scroll panes (done)
 # integrate navigator into here (done)
 # test step methods (done)
 
@@ -63,6 +63,7 @@ class NavigatorGUI:
     def clean_up(self):
         self.restore_term_settings()
         mouse_off()
+        cursor_on()
         # mouse_motion_off()
     
     def draw_divider(self):
@@ -76,6 +77,7 @@ class NavigatorGUI:
         tty.setraw(sys.stdin)
         clear_screen()
         mouse_on()
+        cursor_off()
         self.draw_divider()
         
         self.last_snapshot = self.nav.get_last_snapshot()
@@ -144,29 +146,54 @@ class NavigatorGUI:
             lines.append(line_display)
 
         code_pane.set_lines(lines)
+        
+    def render_value(self, value, level):
+        if value is None:
+            return ["None"]
+        tp = value["type_name"]
+        if tp == "none":
+            return ["None"]
+        elif tp in ["str", "int", "float"]:
+            return ["(%d) %s %s" % (value["id"], tp, value["value"])]
+        else:
+            return ["%s %r" % (tp, value["value"])]
     
     def update_stack_pane(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         version = snapshot["id"] + 1
         locals_id = fun_call["locals"]
-
         globals_id = fun_call["globals"]
+        lines = []
         
-        lines = [
-            "Snapshot %d" % snapshot["id"],
-            "Version %d" % version,
-            "Locals: %d" % locals_id,
-            "Globals: %d" % globals_id,
-        ]
-
-        global_members = self.cache.get_members(globals_id)
-        globals_dict = []
-        for mem in global_members:
+        local_members = self.cache.get_members(locals_id)
+        locals_dict = []
+        lines.append("Locals %d" % locals_id)
+        for mem in local_members:
             key_id = mem['key']
             value_id = mem['value']
             key = self.cache.get_value(key_id, version)
+            key_lines = self.render_value(key, 1)
             value = self.cache.get_value(value_id, version)
-            lines.append("(%d, %d) %s = %s" % (key_id, value_id, key and key["value"], value and value["value"]))
+            value_lines = self.render_value(value, 1)
+            if len(key_lines) == 1:
+                value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
+            else:
+                raise Exception("Not handled %r" % key_lines)
+            lines.extend(value_lines)
+            # lines.append("(%d, %d) %s = %s" % (key_id, value_id, key and key["value"], value and value["value"]))
+        # 
+        # lines.append("Globals %d" % globals_id)
+        # global_members = self.cache.get_members(globals_id)
+        # globals_dict = []
+        # for mem in global_members:
+        #     key_id = mem['key']
+        #     value_id = mem['value']
+        #     key = self.cache.get_value(key_id, version)
+        #     self.render_value(key, lines, 1)
+        #     lines.append(" = ")
+        #     value = self.cache.get_value(value_id, version)
+        #     self.render_value(value, lines, 1)
+        #     # lines.append("(%d, %d) %s = %s" % (key_id, value_id, key and key["value"], value and value["value"]))
 
         self.stack_pane.set_lines(lines)
             
