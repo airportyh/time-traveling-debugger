@@ -7,9 +7,6 @@ class ObjectCache:
         self.cursor = cursor
     
     def get_value(self, id, version):
-        key = "Value/%d/%d" % (id, version)
-        if key in self.cache:
-            return self.cache[key]
         sql = """
         select Value.*, Type.name as type_name
         from Value
@@ -20,7 +17,6 @@ class ObjectCache:
         limit 1
         """
         value = self.cursor.execute(sql, (id, version)).fetchone()
-        self.cache[key] = value
         return value
     
     def put_snapshot(self, snapshot):
@@ -66,6 +62,6 @@ class ObjectCache:
         key = "Member/%d" % container_id
         if key in self.cache:
             return self.cache[key]
-        members = self.cursor.execute("select * from Member where container = ?", (container_id,)).fetchall()
+        members = self.cursor.execute("select * from Member where container = ? order by key", (container_id,)).fetchall()
         self.cache[key] = members
         return members

@@ -127,7 +127,7 @@ class NavigatorGUI:
         if code_file["source"]:
             lines = code_file["source"].split("\n")
         self.display_source(lines, self.code_pane)
-        self.update_stack_pane(self.snapshot)
+        self.update_stack_pane()
         self.code_pane.set_highlight(self.snapshot["line_no"] - 1)
         self.scroll_to_line_if_needed(self.snapshot["line_no"], lines)
         
@@ -152,15 +152,38 @@ class NavigatorGUI:
             return ["None"]
         tp = value["type_name"]
         if tp == "none":
-            return ["(%d) None" % value["id"]]
+            return [ "(%d) None" % value["id"]]
+        elif tp == "<deleted>": # TODO: not working
+            return []
         elif tp in ["str", "int", "float"]:
             return ["(%d) %s %s" % (value["id"], tp, value["value"])]
+        elif tp == "<ref>":
+            ref_id = int(value["id"])
+            value_id = int(value["value"])
+            real_value = self.cache.get_value(value_id, self.snapshot["id"])
+            retval = self.render_value(real_value, level)
+            if retval and len(retval) > 0:
+                retval[0] = "ref<%d> %s" % (ref_id, retval[0])
+            return retval
+        elif tp == "list":
+            members = self.cache.get_members(value["id"])
+            lines = ["["]
+            for mem in members:
+                idx = mem['key']
+                value_id = mem['value']
+                value = self.cache.get_value(value_id, self.snapshot["id"])
+                if value is None:
+                    continue
+                lines.extend(add_indent(self.render_value(value, level + 1)))
+            lines.append("]")
+            return lines
         else:
             return ["(%d) %s %r" % (value["id"], tp, value["value"])]
     
-    def update_stack_pane(self, snapshot):
+    def update_stack_pane(self):
+        snapshot = self.snapshot
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
-        version = snapshot["id"] + 1
+        version = snapshot["id"]
         locals_id = fun_call["locals"]
         globals_id = fun_call["globals"]
         lines = []
@@ -174,26 +197,32 @@ class NavigatorGUI:
             key = self.cache.get_value(key_id, version)
             key_lines = self.render_value(key, 1)
             value = self.cache.get_value(value_id, version)
+            if value is None:
+                continue
             value_lines = self.render_value(value, 1)
             if len(key_lines) == 1:
                 value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
             else:
                 raise Exception("Not handled %r" % key_lines)
-            lines.extend(value_lines)
-            # lines.append("(%d, %d) %s = %s" % (key_id, value_id, key and key["value"], value and value["value"]))
-        # 
-        # lines.append("Globals %d" % globals_id)
-        # global_members = self.cache.get_members(globals_id)
-        # globals_dict = []
-        # for mem in global_members:
-        #     key_id = mem['key']
-        #     value_id = mem['value']
-        #     key = self.cache.get_value(key_id, version)
-        #     self.render_value(key, lines, 1)
-        #     lines.append(" = ")
-        #     value = self.cache.get_value(value_id, version)
-        #     self.render_value(value, lines, 1)
-        #     # lines.append("(%d, %d) %s = %s" % (key_id, value_id, key and key["value"], value and value["value"]))
+            lines.extend(add_indent(value_lines))
+            
+        
+        lines.append("Globals %d" % globals_id)
+        global_members = self.cache.get_members(globals_id)
+        for mem in global_members:
+            key_id = mem['key']
+            value_id = mem['value']
+            key = self.cache.get_value(key_id, version)
+            key_lines = self.render_value(key, 1)
+            value = self.cache.get_value(value_id, version)
+            if value is None:
+                continue
+            value_lines = self.render_value(value, 1)
+            if len(key_lines) == 1:
+                value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
+            else:
+                raise Exception("Not handled %r" % key_lines)
+            lines.extend(add_indent(value_lines))
 
         self.stack_pane.set_lines(lines)
             
@@ -224,6 +253,9 @@ class NavigatorGUI:
         if line < (offset + 1):
             offset = max(0, line - box.height // 2)
         self.code_pane.scroll_top_to(offset)
+
+def add_indent(lines):
+    return map(lambda line: "  " + line, lines)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
