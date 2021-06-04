@@ -7,8 +7,6 @@ import termios
 import sys
 import tty
 import os
-from urllib import request
-import json
 from functools import reduce
 import atexit
 import sqlite3
@@ -19,9 +17,11 @@ from object_cache import ObjectCache
 from navigator import Navigator
 from events import *
 
-# UI Element interface:
-# UIElement:
-#    def layout(bounding_box)
+KEY_TYPE_REF = 0
+KEY_TYPE_INT = 1
+KEY_TYPE_REAL = 2
+KEY_TYPE_NONE = 3
+KEY_TYPE_BOOL = 4
 
 class NavigatorGUI:
     def __init__(self, hist_filename):
@@ -81,7 +81,7 @@ class NavigatorGUI:
         self.draw_divider()
         
         self.last_snapshot = self.nav.get_last_snapshot()
-        self.goto_snapshot(self.cache.get_snapshot(3))
+        self.goto_snapshot(self.cache.get_snapshot(4))
         
         while True:
             inp = get_input()
@@ -133,7 +133,6 @@ class NavigatorGUI:
         
         self.update_status(self.snapshot)
 
-
     def display_source(self, file_lines, code_pane):
         gutter_width = len(str(len(file_lines) + 1))
 
@@ -154,8 +153,8 @@ class NavigatorGUI:
         if tp == "none":
             return [ "(%d) None" % value["id"]]
         elif tp == "<deleted>": # TODO: not working
-            return []
-        elif tp in ["str", "int", "float"]:
+            raise Exception("<deleted> value should have been handled")
+        elif tp in ["str", "int"]:
             return ["(%d) %s %s" % (value["id"], tp, value["value"])]
         elif tp == "<ref>":
             ref_id = int(value["id"])
@@ -165,21 +164,78 @@ class NavigatorGUI:
             if retval and len(retval) > 0:
                 retval[0] = "ref<%d> %s" % (ref_id, retval[0])
             return retval
+        elif tp == "float":
+            if value["value"] is None:
+                value["value"] = float("nan")
+            return ["(%d) float %r" % (value["id"], value["value"])]
+        elif tp == "tuple":
+            return self.render_tuple(value, level)
         elif tp == "list":
-            members = self.cache.get_members(value["id"])
-            lines = ["["]
-            for mem in members:
-                idx = mem['key']
-                value_id = mem['value']
-                value = self.cache.get_value(value_id, self.snapshot["id"])
-                if value is None:
-                    continue
-                lines.extend(add_indent(self.render_value(value, level + 1)))
-            lines.append("]")
-            return lines
+            return self.render_list(value, level)
+        elif tp == "dict":
+            return self.render_dict(value, level)
         else:
-            return ["(%d) %s %r" % (value["id"], tp, value["value"])]
+            return ["OTHER (%d) %s %r" % (value["id"], tp, value["value"])]
     
+    def render_tuple(self, value, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) (" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, self.snapshot["id"])
+            lines.extend(add_indent(self.render_value(value, level + 1)))
+        lines.append(")")
+        return lines
+
+    def render_list(self, value, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) [" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, self.snapshot["id"])
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            lines.extend(add_indent(self.render_value(value, level + 1)))
+        lines.append("]")
+        return lines
+
+    def render_dict(self, value, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) {" % value["id"]]
+        for mem in members:
+            key_type = mem["key_type"]
+            key = mem["key"]
+            value_id = mem["value"]
+            value = self.cache.get_value(value_id, self.snapshot["id"])
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            
+            if key_type == KEY_TYPE_REF:
+                key_value = self.cache.get_value(key, self.snapshot["id"])
+                key_lines = self.render_value(key_value, level + 1)
+            elif key_type == KEY_TYPE_INT:
+                key_lines = self.render_value(key, level + 1)
+            elif key_type == KEY_TYPE_NONE:
+                key_lines = self.render_value(None, level + 1)
+            elif key_type == KEY_TYPE_BOOL:
+                key = bool(key)
+                key_lines = self.render_value(key, level + 1)
+            elif key_type == KEY_TYPE_REAL:
+                raise Exception("Unsupported")
+            else:
+                raise Exception("Unknown key type %d" % key_type)
+            
+            value_lines = self.render_value(value, level + 1)
+            lines.extend(add_indent(key_lines[0:-1]))
+            if len(key_lines) == 0 or len(value_lines) == 0:
+                raise Exception("%r %r" % (key_lines, value_lines))
+            lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
+            lines.extend(add_indent(value_lines[1:]))
+        lines.append("}")
+        return lines
+
     def update_stack_pane(self):
         snapshot = self.snapshot
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

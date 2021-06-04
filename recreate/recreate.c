@@ -120,11 +120,11 @@ typedef struct _FunCall {
     struct _FunCall *parent;
 } FunCall;
 
-#define KEY_TYPE_REF  0
-#define KEY_TYPE_INT  1
-#define KEY_TYPE_REAL 2
-#define KEY_TYPE_NONE 3
-#define KEY_TYPE_BOOL 4
+#define KEY_TYPE_REF   0
+#define KEY_TYPE_INT   1
+#define KEY_TYPE_FLOAT 2
+#define KEY_TYPE_NONE  3
+#define KEY_TYPE_BOOL  4
 
 // <Global State>
 
@@ -156,6 +156,7 @@ FunCall *stack = NULL;
 
 // Specific type ids
 char intTypeId;
+char floatTypeId;
 char strTypeId;
 char boolTypeId;
 char listTypeId;
@@ -336,6 +337,8 @@ static inline int getKeyFromAny(AnyValue *value, long *key, char *keyType) {
         *keyType = KEY_TYPE_NONE;
     } else if (value->type == BOOL_TYPE) {
         *keyType == KEY_TYPE_BOOL;
+    } else if (value->type == FLOAT_TYPE) {
+        *keyType == KEY_TYPE_FLOAT;
     } else {
         set_error(1, "Invalid type for a key %d near line %d", value->type, logLineNo);
         return 1;
@@ -374,6 +377,18 @@ static inline int insertULongValue(unsigned long id, char typeId,
     SQLITE(bind_int(insertValueStmt, 2, typeId));
     SQLITE(bind_int64(insertValueStmt, 3, versionId));
     SQLITE(bind_int64(insertValueStmt, 4, value));
+    SQLITE_STEP(insertValueStmt);
+    SQLITE(reset(insertValueStmt));
+
+    return 0;
+}
+
+static inline int insertDoubleValue(unsigned long id, char typeId,
+    unsigned long versionId, double value) {
+    SQLITE(bind_int64(insertValueStmt, 1, id));
+    SQLITE(bind_int(insertValueStmt, 2, typeId));
+    SQLITE(bind_int64(insertValueStmt, 3, versionId));
+    SQLITE(bind_double(insertValueStmt, 4, value));
     SQLITE_STEP(insertValueStmt);
     SQLITE(reset(insertValueStmt));
 
@@ -505,6 +520,12 @@ static inline int setItem(unsigned long dictId, unsigned long keyId, char keyTyp
             CALL(getValueIdSoft(value->addr, &valueId));
             CALL(insertULongValue(refId, refTypeId, version, valueId));
             break;
+        case FLOAT_TYPE:
+            CALL(insertDoubleValue(refId, floatTypeId, version, value->doubleValue));
+            break;
+        default:
+            set_error(1, "Unhandled any value type %d", value->type);
+            return 1;
     }
 
     return 0;
@@ -621,6 +642,7 @@ int copyContainer(unsigned long srcId, unsigned long dstId) {
 
 int seedData() {
     CALL(addType("int", -1, &intTypeId));
+    CALL(addType("float", -1, &floatTypeId));
     CALL(addType("str", -1, &strTypeId));
     CALL(addType("bool", -1, &boolTypeId));
     CALL(addType("list", -1, &listTypeId));
@@ -1021,10 +1043,10 @@ int processListResizeAndShiftLeft(unsigned int i) {
             unsigned long destRefId;
             CALL(getRefId(containerId, destKey, KEY_TYPE_INT, &destRefId));
             if (type == intTypeId || type == refTypeId) {
-                long value = sqlite3_column_int64(getMemberValuesStmt, 3);
+                long value = sqlite3_column_int64(getMemberValuesStmt, 4);
                 CALL(insertLongValue(destRefId, type, snapshotId, value));
             } else if (type == boolTypeId) {
-                char value = sqlite3_column_int(getMemberValuesStmt, 3);
+                char value = sqlite3_column_int(getMemberValuesStmt, 4);
                 CALL(insertBoolValue(destRefId, type, snapshotId, value));
             } else {
                 CALL(insertNullValue(destRefId, type, snapshotId));
@@ -1073,10 +1095,10 @@ int processListResizeAndShiftRight(unsigned int i) {
             unsigned long destRefId;
             CALL(getRefId(containerId, destKey, KEY_TYPE_INT, &destRefId));
             if (type == intTypeId || type == refTypeId) {
-                long value = sqlite3_column_int64(getMemberValuesStmt, 3);
+                long value = sqlite3_column_int64(getMemberValuesStmt, 4);
                 CALL(insertLongValue(destRefId, type, snapshotId, value));
             } else if (type == boolTypeId) {
-                char value = sqlite3_column_int(getMemberValuesStmt, 3);
+                char value = sqlite3_column_int(getMemberValuesStmt, 4);
                 CALL(insertBoolValue(destRefId, type, snapshotId, value));
             } else {
                 CALL(insertNullValue(destRefId, type, snapshotId));
@@ -1104,15 +1126,15 @@ int processNewType(unsigned int i) {
 
     AddrRef *addrRef;
     HASH_FIND_INT(addrToTypeId, &addr, addrRef);
-    if (addrRef != NULL) {
-        set_error(1, "New type with address %lu already exists in dictionary", addr);
-        return 1;
+    if (addrRef == NULL) {
+        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+        memset(addrRef, 0, sizeof(AddrRef));
+        addrRef->addr = addr;
+        addrRef->id = typeId;
+        HASH_ADD_INT(addrToTypeId, addr, addrRef);
+    } else {
+        addrRef->id = typeId;
     }
-    addrRef = (AddrRef *)malloc(sizeof(AddrRef));
-    memset(addrRef, 0, sizeof(AddrRef));
-    addrRef->addr = addr;
-    addrRef->id = typeId;
-    HASH_ADD_INT(addrToTypeId, addr, addrRef);
 
     unsigned long typeValueId = getNewValueId(addr);
     CALL(insertULongValue(typeValueId, typeTypeId, snapshotId, typeId));
@@ -1472,6 +1494,8 @@ int processReturnValue(unsigned int i) {
         &value,
         snapshotId
     ));
+
+    CALL(saveNewSnapshot());
 
     return 0;
 }
