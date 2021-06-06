@@ -16,6 +16,8 @@ TODO
 * test more real-world programs
 * object lifetime - implement destroy / dealloc
 
+* change HASH_ADD_INT to HASH_ADD_ULONG (done)
+* fix all cases where explicit check for uniqueness was not done (done)
 * review all uses of getValueId and maybe remove them (done)
 * exceptions (done)
 * fix crash in pyrewind to enable proper Python install with libs (done)
@@ -58,11 +60,18 @@ TODO
 #include <sqlite3.h>
 #include <errno.h>
 #include <unistd.h>
+#include <assert.h>
 #include "errors.h"
 #include "uthash.h"
 #include "utstring.h"
 #include "sqlite_helpers.h"
 #include "parse.h"
+
+#define HASH_ADD_ULONG(head,intfield,add)                                          \
+    HASH_ADD(hh,head,intfield,sizeof(unsigned long),add)
+
+#define HASH_FIND_ULONG(head,findint,out)                                          \
+    HASH_FIND(hh,head,findint,sizeof(unsigned long),out)
 
 typedef struct _CodeFile {
     unsigned long id;
@@ -182,7 +191,7 @@ unsigned long callStartSeekSnapshotId = 0;
 // Prepared statements
 sqlite3_stmt *insertSnapshotStmt = NULL;
 sqlite3_stmt *insertValueStmt = NULL;
-sqlite3_stmt *updateValueStmt = NULL;
+sqlite3_stmt *updateObjectDictStmt = NULL;
 sqlite3_stmt *insertFunCodeStmt = NULL;
 sqlite3_stmt *insertFunCallStmt = NULL;
 sqlite3_stmt *insertCodeFileStmt = NULL;
@@ -198,7 +207,6 @@ sqlite3_stmt *insertErrorStmt = NULL;
 CodeFile *code_files = NULL;
 FunCode *funCodes = NULL; // might be able to get rid of this with some work
 AddrRef *addrToId = NULL;
-AddrRef *addrToTypeId = NULL;
 FunHandler *funLookup = NULL;
 MemberMapEntry *memberMap = NULL; // could remove this in favor of looking up Member table. Maybe slower
 StrToIdEntry *strToId = NULL; // only needed by setLocal. Can be removed once setLocal uses arrays instead of dicts
@@ -291,7 +299,7 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
 
 static inline unsigned long getNewValueId(unsigned long addr) {
     AddrRef *addrRef;
-    HASH_FIND_INT(addrToId, &addr, addrRef);
+    HASH_FIND_ULONG(addrToId, &addr, addrRef);
     if (addrRef != NULL) {
         HASH_DEL(addrToId, addrRef);
         free(addrRef);
@@ -300,29 +308,18 @@ static inline unsigned long getNewValueId(unsigned long addr) {
     memset(addrRef, 0, sizeof(AddrRef));
     addrRef->addr = addr;
     addrRef->id = valueId++;
-    HASH_ADD_INT(addrToId, addr, addrRef);
+    HASH_ADD_ULONG(addrToId, addr, addrRef);
     return addrRef->id;
 }
 
 static inline int getValueIdSoft(unsigned long addr, unsigned long *id) {
     AddrRef *addrRef;
-    HASH_FIND_INT(addrToId, &addr, addrRef);
+    HASH_FIND_ULONG(addrToId, &addr, addrRef);
     if (addrRef == NULL) {
         set_error(1, "Failed to find ID for address %lu near line %d", addr, logLineNo);
         return 1;
     }
     *id = addrRef->id;
-    return 0;
-}
-
-static inline int getTypeIdSoft(unsigned long addr, unsigned long *typeId) {
-    AddrRef *addrRef;
-    HASH_FIND_INT(addrToTypeId, &addr, addrRef);
-    if (addrRef == NULL) {
-        set_error(1, "Failed to find ID for address %lu near line %d", addr, logLineNo);
-        return 1;
-    }
-    *typeId = addrRef->id;
     return 0;
 }
 
@@ -744,18 +741,23 @@ int processNewCode(unsigned int i) {
         utstring_free(freeVarsCSV);
     }
 
-    FunCode *funCode = (FunCode *)malloc(sizeof(FunCode));
-    memset(funCode, 0, sizeof(FunCode));
+    FunCode *funCode = NULL;
+    HASH_FIND_ULONG(funCodes, &addr, funCode);
+
+    if (funCode == NULL) {
+        funCode = (FunCode *)malloc(sizeof(FunCode));
+        memset(funCode, 0, sizeof(FunCode));
+        funCode->addr = addr;
+        HASH_ADD_ULONG(funCodes, addr, funCode);
+    }
+
     funCode->id = id;
-    funCode->addr = addr;
     funCode->localVarnames = localVarnames;
     funCode->numLocals = numLocals;
     funCode->cellVarnames = cellVarnames;
     funCode->numCellVars = numCellVars;
     funCode->freeVarnames = freeVarnames;
-    funCode->numFreeVars = numFreeVars;
-
-    HASH_ADD_INT(funCodes, addr, funCode);
+    funCode->numFreeVars = numFreeVars;    
 
     return 0;
 }
@@ -766,7 +768,7 @@ int processPushFrame(unsigned int i) {
     CALL(parseULongArg(&i, &codeHeapId));
 
     FunCode *funCode;
-    HASH_FIND_INT(funCodes, &codeHeapId, funCode);
+    HASH_FIND_ULONG(funCodes, &codeHeapId, funCode);
     if (funCode == NULL) {
         set_error(1, "Cannot found fun code for addr %lu near line %d", codeHeapId, logLineNo);
         return 1;
@@ -1121,23 +1123,8 @@ int processNewType(unsigned int i) {
     int typeNameLen;
     CALL(parseStringArg(&i, &typeName, &typeNameLen));
 
-    char typeId;
-    CALL(addType(typeName, typeNameLen, &typeId));
-
-    AddrRef *addrRef;
-    HASH_FIND_INT(addrToTypeId, &addr, addrRef);
-    if (addrRef == NULL) {
-        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
-        memset(addrRef, 0, sizeof(AddrRef));
-        addrRef->addr = addr;
-        addrRef->id = typeId;
-        HASH_ADD_INT(addrToTypeId, addr, addrRef);
-    } else {
-        addrRef->id = typeId;
-    }
-
-    unsigned long typeValueId = getNewValueId(addr);
-    CALL(insertULongValue(typeValueId, typeTypeId, snapshotId, typeId));
+    unsigned long typeId = getNewValueId(addr);
+    CALL(insertStringValue(typeId, typeTypeId, snapshotId, typeName, typeNameLen));
 
     return 0;
 }
@@ -1150,7 +1137,7 @@ int processNewObject(unsigned int i) {
     unsigned long oid = getNewValueId(addr);
     unsigned long typeId;
 
-    CALL(getTypeIdSoft(typeAddr, &typeId));
+    CALL(getValueIdSoft(typeAddr, &typeId));
     unsigned long dictAddr = 0;
     // dictAddr is optional, so we can ignore failure
     // below
@@ -1162,8 +1149,19 @@ int processNewObject(unsigned int i) {
         CALL(getValueIdSoft(dictAddr, &dictId));
     }
 
-    unsigned long id = valueId++;
-    CALL(insertULongValue(id, typeId, snapshotId, dictId));
+    // we are going to store both the typeId and the dictId in the value
+    // field, separated by a space
+    UT_string *value = NULL;
+    utstring_new(value);
+    if (dictId == 0) {
+        utstring_printf(value, "%lu", typeId);
+    } else {
+        utstring_printf(value, "%lu %lu", typeId, dictId);
+    }
+
+    CALL(insertStringValue(oid, objectTypeId, snapshotId, utstring_body(value), -1));
+
+    utstring_free(value);
     
     return 0;
 }
@@ -1196,7 +1194,7 @@ int processNewDerivedDict(unsigned int i) {
     unsigned long typeAddr;
     CALL(parseULongArg(&i, &typeAddr));
     unsigned long typeId;
-    CALL(getTypeIdSoft(typeAddr, &typeId));
+    CALL(getValueIdSoft(typeAddr, &typeId));
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long dictId = getNewValueId(addr);
@@ -1381,11 +1379,18 @@ int processNewCell(unsigned int i) {
     CALL(parseAnyArg(&i, &value));
     unsigned long id = valueId++;
     CALL(insertAnyValue(id, cellTypeId, snapshotId, &value));
-    AddrRef *addrRef = (AddrRef *)malloc(sizeof(AddrRef));
-    memset(addrRef, 0, sizeof(AddrRef));
-    addrRef->addr = addr;
-    addrRef->id = id;
-    HASH_ADD_INT(addrToId, addr, addrRef);
+    AddrRef *addrRef = NULL;
+    HASH_FIND_ULONG(addrToId, &addr, addrRef);
+    if (addrRef == NULL) {
+        addrRef = (AddrRef *)malloc(sizeof(AddrRef));
+        memset(addrRef, 0, sizeof(AddrRef));
+        addrRef->addr = addr;
+        addrRef->id = id;
+        HASH_ADD_ULONG(addrToId, addr, addrRef);
+    } else {
+        addrRef->id = id;
+    }
+    
     return 0;
 }
 
@@ -1406,8 +1411,8 @@ int processNewFunction(unsigned int i) {
     unsigned long codeHeapId;
     CALL(parseULongArg(&i, &codeHeapId));
     FunCode *funCode;
-    HASH_FIND_INT(funCodes, &codeHeapId, funCode);
-
+    HASH_FIND_ULONG(funCodes, &codeHeapId, funCode);
+    
     if (funCode == NULL) {
         set_error(1, "Fun code not found for %lu near line %d", codeHeapId, logLineNo);
         return 1;
@@ -1430,12 +1435,18 @@ int processObjectAssocDict(unsigned int i) {
     unsigned long dictId;
     CALL(getValueIdSoft(dictAddr, &dictId));
 
-    SQLITE(bind_int64(updateValueStmt, 1, dictId));
-    SQLITE(bind_int64(updateValueStmt, 2, objId));
+    UT_string *dictIdStr = NULL;
+    utstring_new(dictIdStr);
+    utstring_printf(dictIdStr, "%lu", dictId);
 
-    SQLITE_STEP(updateValueStmt);
+    SQLITE(bind_text(updateObjectDictStmt, 1, utstring_body(dictIdStr), -1, SQLITE_STATIC));
+    SQLITE(bind_int64(updateObjectDictStmt, 2, objId));
 
-    SQLITE(reset(updateValueStmt));
+    SQLITE_STEP(updateObjectDictStmt);
+
+    SQLITE(reset(updateObjectDictStmt));
+
+    utstring_free(dictIdStr);
 
     return 0;
 }
@@ -1514,7 +1525,7 @@ int processException(unsigned int i) {
     unsigned long typeAddr;
     CALL(parseULongArg(&i, &typeAddr));
     unsigned long typeId;
-    CALL(getTypeIdSoft(typeAddr, &typeId));
+    CALL(getValueIdSoft(typeAddr, &typeId));
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
 
@@ -1542,7 +1553,7 @@ int processExceptionUncaught(unsigned int i) {
     unsigned long typeAddr;
     CALL(parseULongArg(&i, &typeAddr));
     unsigned long typeId;
-    CALL(getTypeIdSoft(typeAddr, &typeId));
+    CALL(getValueIdSoft(typeAddr, &typeId));
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long errorValueId;
@@ -1576,7 +1587,13 @@ int processExceptionUncaught(unsigned int i) {
 }
 
 int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
-    FunHandler *handler;
+    FunHandler *handler = NULL;
+    HASH_FIND(hh, funLookup, fun_name, strlen(fun_name), handler);
+    if (handler != NULL) {
+        set_error(1, "Duplicate registration of function %s", fun_name);
+        return 1;
+    }
+
     handler = (FunHandler *)malloc(sizeof(FunHandler));
     handler->funName = fun_name;
     handler->fun = fun;
@@ -1645,7 +1662,7 @@ void registerFuns() {
 int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into Snapshot values (?, ?, ?, ?)", -1, &insertSnapshotStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Value values (?1, ?2, ?3, ?4) on conflict(id, version) do update set type = ?2, value = ?4", -1, &insertValueStmt, NULL));
-    SQLITE(prepare_v2(db, "update Value set value = ? where id = ?", -1, &updateValueStmt, NULL));
+    SQLITE(prepare_v2(db, "update Value set value = value || ' ' || ? where id = ?", -1, &updateObjectDictStmt, NULL));
     SQLITE(prepare_v2(db, "insert into FunCode values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCodeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into FunCall values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCallStmt, NULL));
     SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
@@ -1724,7 +1741,7 @@ int prepareStatements() {
 int finalizeStatements() {
     CALL(sqlite3_finalize(insertSnapshotStmt));
     CALL(sqlite3_finalize(insertValueStmt));
-    CALL(sqlite3_finalize(updateValueStmt));
+    CALL(sqlite3_finalize(updateObjectDictStmt));
     CALL(sqlite3_finalize(insertFunCodeStmt));
     CALL(sqlite3_finalize(insertFunCallStmt));
     CALL(sqlite3_finalize(insertCodeFileStmt));

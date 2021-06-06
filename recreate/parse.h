@@ -13,7 +13,7 @@
 #define FLOAT_TYPE 6
 
 #define RETURN_PARSE_ERROR(pos) \
-set_error(1, "Parse Error on line %d column %lu (%s:%d).\n", logLineNo, pos + 1, __FILE__, __LINE__); \
+set_error(1, "Parse Error on line %d column %lu (%d).\n", logLineNo, pos + 1, __LINE__); \
 return 1;
 
 char *line = NULL;
