@@ -42,8 +42,16 @@ def decode_input(an_input):
                 event = Event("mousedrag", x = codes[4] - 32, y = codes[5] - 32)
                 events.append(event)
                 codes = codes[6:]
+            elif codes[3] == 104:
+                event = Event("ctrlwheeldown", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
+            elif codes[3] == 105:
+                event = Event("ctrlwheelup", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
             else:
-                raise Exception("Unknown mouse control code %d" % codes[3])
+                raise Exception("Unknown mouse control code %r" % codes)
         else:
             # don't understand
             break
