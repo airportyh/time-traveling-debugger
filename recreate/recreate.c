@@ -3,19 +3,19 @@
 TODO
 ====
 
-* debug list_test.py last return value does not seem to add snapshot at top level frame
 * unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)
 * build out UI
     * consider indenting contents of for loops (if statements?)
 * improve ergonomics of error handling code
-* test shortest_common_supersequence.py
-* test permutation_2.py
 * change store fast to use array instead of dict
 * test more real-world programs
 * object lifetime - implement destroy / dealloc
 
+* test shortest_common_supersequence.py (done)
+* test permutation_2.py (done)
+* debug list_test.py last return value does not seem to add snapshot at top level frame (done)
 * change HASH_ADD_INT to HASH_ADD_ULONG (done)
 * fix all cases where explicit check for uniqueness was not done (done)
 * review all uses of getValueId and maybe remove them (done)
@@ -202,6 +202,8 @@ sqlite3_stmt *getMemberValuesStmt = NULL;
 sqlite3_stmt *getMemberCountStmt = NULL;
 sqlite3_stmt *clearContainerStmt = NULL;
 sqlite3_stmt *insertErrorStmt = NULL;
+sqlite3_stmt *schemaStmt = NULL;
+char *schemaCode = NULL;
 
 // Hashtables
 CodeFile *code_files = NULL;
@@ -451,11 +453,137 @@ static inline int clearContainer(unsigned long containerId) {
 }
 
 static inline int getRefId(unsigned long containerId, unsigned long keyId, char keyType, unsigned long *refId) {
-    MemberMapEntry *entry;
+    MemberMapEntry *entry = NULL;
     MemberMapKey key;
     key.container = containerId;
     key.key = keyId;
-    HASH_FIND(hh, memberMap, &key, sizeof(MemberMapKey), entry);
+    // HASH_FIND(hh, memberMap, &key, sizeof(MemberMapKey), entry);
+
+    do {
+        (entry) = ((void *)0);
+        if (memberMap) {
+            unsigned _hf_hashv;
+            do {
+                do {
+                    unsigned _hj_i,_hj_j,_hj_k;
+                    unsigned const char *_hj_key=(unsigned const char*)(&key);
+                    _hf_hashv = 0xfeedbeefu;
+                    _hj_i = _hj_j = 0x9e3779b9u;
+                    _hj_k = (unsigned)(sizeof(MemberMapKey));
+                    while (_hj_k >= 12U) {
+                        _hj_i += (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 ) + ( (unsigned)_hj_key[2] << 16 ) + ( (unsigned)_hj_key[3] << 24 ) );
+                        _hj_j += (_hj_key[4] + ( (unsigned)_hj_key[5] << 8 ) + ( (unsigned)_hj_key[6] << 16 ) + ( (unsigned)_hj_key[7] << 24 ) );
+                        _hf_hashv += (_hj_key[8] + ( (unsigned)_hj_key[9] << 8 ) + ( (unsigned)_hj_key[10] << 16 ) + ( (unsigned)_hj_key[11] << 24 ) );
+                        do {
+                            _hj_i -= _hj_j;
+                            _hj_i -= _hf_hashv; _hj_i ^= ( _hf_hashv >> 13 );
+                            _hj_j -= _hf_hashv;
+                            _hj_j -= _hj_i; _hj_j ^= ( _hj_i << 8 );
+                            _hf_hashv -= _hj_i;
+                            _hf_hashv -= _hj_j;
+                            _hf_hashv ^= ( _hj_j >> 13 );
+                            _hj_i -= _hj_j;
+                            _hj_i -= _hf_hashv;
+                            _hj_i ^= ( _hf_hashv >> 12 );
+                            _hj_j -= _hf_hashv;
+                            _hj_j -= _hj_i;
+                            _hj_j ^= ( _hj_i << 16 );
+                            _hf_hashv -= _hj_i;
+                            _hf_hashv -= _hj_j;
+                            _hf_hashv ^= ( _hj_j >> 5 );
+                            _hj_i -= _hj_j;
+                            _hj_i -= _hf_hashv;
+                            _hj_i ^= ( _hf_hashv >> 3 );
+                            _hj_j -= _hf_hashv;
+                            _hj_j -= _hj_i;
+                            _hj_j ^= ( _hj_i << 10 );
+                            _hf_hashv -= _hj_i;
+                            _hf_hashv -= _hj_j;
+                            _hf_hashv ^= ( _hj_j >> 15 );
+                        } while (0);
+                        _hj_key += 12;
+                        _hj_k -= 12U;
+                    }
+                    _hf_hashv += (unsigned)(sizeof(MemberMapKey));
+                    switch ( _hj_k ) {
+                        case 11: _hf_hashv += ( (unsigned)_hj_key[10] << 24 );
+                        case 10: _hf_hashv += ( (unsigned)_hj_key[9] << 16 );
+                        case 9: _hf_hashv += ( (unsigned)_hj_key[8] << 8 );
+                        case 8: _hj_j += ( (unsigned)_hj_key[7] << 24 );
+                        case 7: _hj_j += ( (unsigned)_hj_key[6] << 16 );
+                        case 6: _hj_j += ( (unsigned)_hj_key[5] << 8 );
+                        case 5: _hj_j += _hj_key[4];
+                        case 4: _hj_i += ( (unsigned)_hj_key[3] << 24 );
+                        case 3: _hj_i += ( (unsigned)_hj_key[2] << 16 );
+                        case 2: _hj_i += ( (unsigned)_hj_key[1] << 8 );
+                        case 1: _hj_i += _hj_key[0]; default: ;
+                    } do {
+                        _hj_i -= _hj_j;
+                        _hj_i -= _hf_hashv;
+                        _hj_i ^= ( _hf_hashv >> 13 );
+                        _hj_j -= _hf_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 8 );
+                        _hf_hashv -= _hj_i;
+                        _hf_hashv -= _hj_j;
+                        _hf_hashv ^= ( _hj_j >> 13 );
+                        _hj_i -= _hj_j;
+                        _hj_i -= _hf_hashv;
+                        _hj_i ^= ( _hf_hashv >> 12 );
+                        _hj_j -= _hf_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 16 );
+                        _hf_hashv -= _hj_i;
+                        _hf_hashv -= _hj_j;
+                        _hf_hashv ^= ( _hj_j >> 5 );
+                        _hj_i -= _hj_j;
+                        _hj_i -= _hf_hashv;
+                        _hj_i ^= ( _hf_hashv >> 3 );
+                        _hj_j -= _hf_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 10 );
+                        _hf_hashv -= _hj_i;
+                        _hf_hashv -= _hj_j;
+                        _hf_hashv ^= ( _hj_j >> 15 );
+                    } while (0);
+                } while (0);
+            } while (0);
+            do {
+                (entry) = ((void *)0);
+                if (memberMap) {
+                    unsigned _hf_bkt; do {
+                        _hf_bkt = ((_hf_hashv) & (((memberMap)->hh.tbl->num_buckets) - 1U));
+                    } while (0);
+                    
+                    if ((1) != 0) {
+                        do {
+                            if (((memberMap)->hh.tbl->buckets[ _hf_bkt ]).hh_head != ((void *)0)) {
+                                do {
+                                    (entry) = (__typeof(entry))(((void*)(((char*)(((memberMap)->hh.tbl->buckets[ _hf_bkt ]).hh_head)) - (((memberMap)->hh.tbl)->hho))));
+                                } while (0);
+                            } else {
+                                (entry) = ((void *)0);
+                            }
+                            while ((entry) != ((void *)0)) {
+                                if ((entry)->hh.hashv == (_hf_hashv) && (entry)->hh.keylen == (sizeof(MemberMapKey))) {
+                                    if (memcmp((entry)->hh.key,&key,sizeof(MemberMapKey)) == 0) {
+                                        break;
+                                    }
+                                } if ((entry)->hh.hh_next != ((void *)0)) {
+                                    do {
+                                        (entry) = (__typeof(entry))(((void*)(((char*)((entry)->hh.hh_next)) - (((memberMap)->hh.tbl)->hho))));
+                                    } while (0);
+                                } else {
+                                    (entry) = ((void *)0);
+                                }
+                            }
+                        } while (0);
+                    }
+                }
+            } while (0);
+        }
+    } while (0);
+
     if (entry != NULL) {
         *refId = entry->ref;
     } else {
@@ -472,7 +600,207 @@ static inline int getRefId(unsigned long containerId, unsigned long keyId, char 
         entry->key.container = containerId;
         entry->key.key = keyId;
         entry->ref = *refId;
-        HASH_ADD(hh, memberMap, key, sizeof(MemberMapKey), entry);
+
+
+        // HASH_ADD(hh, memberMap, key, sizeof(MemberMapKey), entry);
+
+        do {
+            unsigned _ha_hashv;
+            do {
+                do {
+                    unsigned _hj_i,_hj_j,_hj_k;
+                    unsigned const char *_hj_key=(unsigned const char*)(&((entry)->key));
+                    _ha_hashv = 0xfeedbeefu;
+                    _hj_i = _hj_j = 0x9e3779b9u;
+                    _hj_k = (unsigned)(sizeof(MemberMapKey));
+                    while (_hj_k >= 12U) {
+                        _hj_i += (_hj_key[0] + ( (unsigned)_hj_key[1] << 8 ) + ( (unsigned)_hj_key[2] << 16 ) + ( (unsigned)_hj_key[3] << 24 ) );
+                        _hj_j += (_hj_key[4] + ( (unsigned)_hj_key[5] << 8 ) + ( (unsigned)_hj_key[6] << 16 ) + ( (unsigned)_hj_key[7] << 24 ) );
+                        _ha_hashv += (_hj_key[8] + ( (unsigned)_hj_key[9] << 8 ) + ( (unsigned)_hj_key[10] << 16 ) + ( (unsigned)_hj_key[11] << 24 ) );
+                        do {
+                            _hj_i -= _hj_j;
+                            _hj_i -= _ha_hashv;
+                            _hj_i ^= ( _ha_hashv >> 13 );
+                            _hj_j -= _ha_hashv;
+                            _hj_j -= _hj_i;
+                            _hj_j ^= ( _hj_i << 8 );
+                            _ha_hashv -= _hj_i;
+                            _ha_hashv -= _hj_j;
+                            _ha_hashv ^= ( _hj_j >> 13 );
+                            _hj_i -= _hj_j;
+                            _hj_i -= _ha_hashv;
+                            _hj_i ^= ( _ha_hashv >> 12 );
+                            _hj_j -= _ha_hashv;
+                            _hj_j -= _hj_i;
+                            _hj_j ^= ( _hj_i << 16 );
+                            _ha_hashv -= _hj_i;
+                            _ha_hashv -= _hj_j;
+                            _ha_hashv ^= ( _hj_j >> 5 );
+                            _hj_i -= _hj_j;
+                            _hj_i -= _ha_hashv;
+                            _hj_i ^= ( _ha_hashv >> 3 );
+                            _hj_j -= _ha_hashv;
+                            _hj_j -= _hj_i;
+                            _hj_j ^= ( _hj_i << 10 );
+                            _ha_hashv -= _hj_i;
+                            _ha_hashv -= _hj_j;
+                            _ha_hashv ^= ( _hj_j >> 15 );
+                        } while (0);
+                        _hj_key += 12;
+                        _hj_k -= 12U;
+                    }
+                    _ha_hashv += (unsigned)(sizeof(MemberMapKey));
+                    switch ( _hj_k ) {
+                        case 11: _ha_hashv += ( (unsigned)_hj_key[10] << 24 );
+                        case 10: _ha_hashv += ( (unsigned)_hj_key[9] << 16 );
+                        case 9: _ha_hashv += ( (unsigned)_hj_key[8] << 8 );
+                        case 8: _hj_j += ( (unsigned)_hj_key[7] << 24 );
+                        case 7: _hj_j += ( (unsigned)_hj_key[6] << 16 );
+                        case 6: _hj_j += ( (unsigned)_hj_key[5] << 8 );
+                        case 5: _hj_j += _hj_key[4];
+                        case 4: _hj_i += ( (unsigned)_hj_key[3] << 24 );
+                        case 3: _hj_i += ( (unsigned)_hj_key[2] << 16 );
+                        case 2: _hj_i += ( (unsigned)_hj_key[1] << 8 );
+                        case 1: _hj_i += _hj_key[0];
+                        default: ;
+                    } do {
+                        _hj_i -= _hj_j;
+                        _hj_i -= _ha_hashv;
+                        _hj_i ^= ( _ha_hashv >> 13 );
+                        _hj_j -= _ha_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 8 );
+                        _ha_hashv -= _hj_i;
+                        _ha_hashv -= _hj_j;
+                        _ha_hashv ^= ( _hj_j >> 13 );
+                        _hj_i -= _hj_j;
+                        _hj_i -= _ha_hashv;
+                        _hj_i ^= ( _ha_hashv >> 12 );
+                        _hj_j -= _ha_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 16 );
+                        _ha_hashv -= _hj_i;
+                        _ha_hashv -= _hj_j;
+                        _ha_hashv ^= ( _hj_j >> 5 );
+                        _hj_i -= _hj_j;
+                        _hj_i -= _ha_hashv;
+                        _hj_i ^= ( _ha_hashv >> 3 );
+                        _hj_j -= _ha_hashv;
+                        _hj_j -= _hj_i;
+                        _hj_j ^= ( _hj_i << 10 );
+                        _ha_hashv -= _hj_i;
+                        _ha_hashv -= _hj_j;
+                        _ha_hashv ^= ( _hj_j >> 15 );
+                    } while (0);
+                } while (0);
+            } while (0);
+            do {
+                (entry)->hh.hashv = (_ha_hashv);
+                (entry)->hh.key = (const void*) (&((entry)->key));
+                (entry)->hh.keylen = (unsigned) (sizeof(MemberMapKey));
+                if (!(memberMap)) {
+                    (entry)->hh.next = ((void *)0);
+                    (entry)->hh.prev = ((void *)0);
+                    do {
+                        (entry)->hh.tbl = (UT_hash_table*)malloc(sizeof(UT_hash_table));
+                        if (!(entry)->hh.tbl) {
+                            exit(-1);
+                        } else {
+                            memset((entry)->hh.tbl,'\0',sizeof(UT_hash_table));
+                            (entry)->hh.tbl->tail = &((entry)->hh);
+                            (entry)->hh.tbl->num_buckets = 32U;
+                            (entry)->hh.tbl->log2_num_buckets = 5U;
+                            (entry)->hh.tbl->hho = (char*)(&(entry)->hh) - (char*)(entry);
+                            (entry)->hh.tbl->buckets = (UT_hash_bucket*)malloc(32U * sizeof(struct UT_hash_bucket));
+                            (entry)->hh.tbl->signature = 0xa0111fe1u;
+                            if (!(entry)->hh.tbl->buckets) {
+                                exit(-1);
+                                free((entry)->hh.tbl);
+                            } else {
+                                memset((entry)->hh.tbl->buckets,'\0',32U * sizeof(struct UT_hash_bucket));
+                                // ;
+                            }
+                        }
+                    } while (0);
+                    (memberMap) = (entry);
+                } else {
+                    (entry)->hh.tbl = (memberMap)->hh.tbl;
+                    do {
+                        (entry)->hh.next = ((void *)0);
+                        (entry)->hh.prev = ((void*)(((char*)((memberMap)->hh.tbl->tail)) - (((memberMap)->hh.tbl)->hho)));
+                        (memberMap)->hh.tbl->tail->next = (entry);
+                        (memberMap)->hh.tbl->tail = &((entry)->hh);
+                    } while (0);
+                } do {
+                    unsigned _ha_bkt;
+                    (memberMap)->hh.tbl->num_items++;
+                    do {
+                        _ha_bkt = ((_ha_hashv) & (((memberMap)->hh.tbl->num_buckets) - 1U));
+                    } while (0);
+                    do {
+                        UT_hash_bucket *_ha_head = &((memberMap)->hh.tbl->buckets[_ha_bkt]);
+                        _ha_head->count++;
+                        (&(entry)->hh)->hh_next = _ha_head->hh_head;
+                        (&(entry)->hh)->hh_prev = ((void *)0);
+                        if (_ha_head->hh_head != ((void *)0)) {
+                            _ha_head->hh_head->hh_prev = (&(entry)->hh);
+                        }
+                        _ha_head->hh_head = (&(entry)->hh);
+                        if ((_ha_head->count >= ((_ha_head->expand_mult + 1U) * 10U)) && !(&(entry)->hh)->tbl->noexpand) {
+                            do {
+                                unsigned _he_bkt;
+                                unsigned _he_bkt_i;
+                                struct UT_hash_handle *_he_thh, *_he_hh_nxt;
+                                UT_hash_bucket *_he_new_buckets, *_he_newbkt;
+                                _he_new_buckets = (UT_hash_bucket*)malloc(sizeof(struct UT_hash_bucket) * ((&(entry)->hh)->tbl)->num_buckets * 2U);
+                                if (!_he_new_buckets) {
+                                    exit(-1);
+                                } else {
+                                    memset(_he_new_buckets,'\0',sizeof(struct UT_hash_bucket) * ((&(entry)->hh)->tbl)->num_buckets * 2U);
+                                    ((&(entry)->hh)->tbl)->ideal_chain_maxlen = (((&(entry)->hh)->tbl)->num_items >> (((&(entry)->hh)->tbl)->log2_num_buckets+1U)) + (((((&(entry)->hh)->tbl)->num_items & ((((&(entry)->hh)->tbl)->num_buckets*2U)-1U)) != 0U) ? 1U : 0U);
+                                    ((&(entry)->hh)->tbl)->nonideal_items = 0;
+                                    for (_he_bkt_i = 0; _he_bkt_i < ((&(entry)->hh)->tbl)->num_buckets; _he_bkt_i++) {
+                                        _he_thh = ((&(entry)->hh)->tbl)->buckets[ _he_bkt_i ].hh_head;
+                                        while (_he_thh != ((void *)0)) {
+                                            _he_hh_nxt = _he_thh->hh_next;
+                                            do {
+                                                _he_bkt = ((_he_thh->hashv) & ((((&(entry)->hh)->tbl)->num_buckets * 2U) - 1U));
+                                            } while (0);
+                                            _he_newbkt = &(_he_new_buckets[_he_bkt]);
+                                            if (++(_he_newbkt->count) > ((&(entry)->hh)->tbl)->ideal_chain_maxlen) {
+                                                ((&(entry)->hh)->tbl)->nonideal_items++;
+                                                if (_he_newbkt->count > _he_newbkt->expand_mult * ((&(entry)->hh)->tbl)->ideal_chain_maxlen) {
+                                                    _he_newbkt->expand_mult++;
+                                                }
+                                            }
+                                            _he_thh->hh_prev = ((void *)0);
+                                            _he_thh->hh_next = _he_newbkt->hh_head;
+                                            if (_he_newbkt->hh_head != ((void *)0)) {
+                                                _he_newbkt->hh_head->hh_prev = _he_thh;
+                                            }
+                                            _he_newbkt->hh_head = _he_thh;
+                                            _he_thh = _he_hh_nxt;
+                                        }
+                                    }
+                                    free(((&(entry)->hh)->tbl)->buckets);
+                                    ((&(entry)->hh)->tbl)->num_buckets *= 2U;
+                                    ((&(entry)->hh)->tbl)->log2_num_buckets++;
+                                    ((&(entry)->hh)->tbl)->buckets = _he_new_buckets;
+                                    ((&(entry)->hh)->tbl)->ineff_expands = (((&(entry)->hh)->tbl)->nonideal_items > (((&(entry)->hh)->tbl)->num_items >> 1)) ? (((&(entry)->hh)->tbl)->ineff_expands+1U) : 0U;
+                                    if (((&(entry)->hh)->tbl)->ineff_expands > 1U) {
+                                        ((&(entry)->hh)->tbl)->noexpand = 1;
+                                        ;
+                                    };
+                                }
+                            } while (0);
+                        }
+                    } while (0);
+                    ;
+                    ;
+                } while (0);
+                ;
+            } while (0);
+        } while (0);
     }
     return 0;
 }
@@ -1668,8 +1996,8 @@ int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Type values (?, ?)", -1, &insertTypeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Member values(?, ?, ?, ?)", -1, &insertMemberStmt, NULL));
-    SQLITE(prepare_v2(db, "insert into Error values(?, ?, ?, ?)", -1, &insertErrorStmt, NULL));
     SQLITE(prepare_v2(db, "update Snapshot set start_fun_call_id = ? where id = ?", -1, &updateSnapshotStartFunCallStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into Error values(?, ?, ?, ?)", -1, &insertErrorStmt, NULL));
     SQLITE(prepare_v2(db, 
         "with MemberValues as ("
             "select "
@@ -1739,18 +2067,20 @@ int prepareStatements() {
 }
 
 int finalizeStatements() {
-    CALL(sqlite3_finalize(insertSnapshotStmt));
-    CALL(sqlite3_finalize(insertValueStmt));
-    CALL(sqlite3_finalize(updateObjectDictStmt));
-    CALL(sqlite3_finalize(insertFunCodeStmt));
-    CALL(sqlite3_finalize(insertFunCallStmt));
-    CALL(sqlite3_finalize(insertCodeFileStmt));
-    CALL(sqlite3_finalize(insertTypeStmt));
-    CALL(sqlite3_finalize(insertMemberStmt));
-    CALL(sqlite3_finalize(updateSnapshotStartFunCallStmt));
-    CALL(sqlite3_finalize(getMemberValuesStmt));
-    CALL(sqlite3_finalize(getMemberCountStmt));
-    CALL(sqlite3_finalize(clearContainerStmt));
+    SQLITE(finalize(insertSnapshotStmt));
+    SQLITE(finalize(insertValueStmt));
+    SQLITE(finalize(updateObjectDictStmt));
+    SQLITE(finalize(insertFunCodeStmt));
+    SQLITE(finalize(insertFunCallStmt));
+    SQLITE(finalize(insertCodeFileStmt));
+    SQLITE(finalize(insertTypeStmt));
+    SQLITE(finalize(insertMemberStmt));
+    SQLITE(finalize(updateSnapshotStartFunCallStmt));
+    SQLITE(finalize(insertErrorStmt));
+    SQLITE(finalize(getMemberValuesStmt));
+    SQLITE(finalize(getMemberCountStmt));
+    SQLITE(finalize(clearContainerStmt));
+
     return 0;
 }
 
@@ -1883,6 +2213,6 @@ int main(int argc, char *argv[]) {
 
     free(sqlite_filename);
     CALL(finalizeStatements());
-    CALL(sqlite3_close(db));
+    SQLITE(close(db));
     CALL(fclose(file));
 }
