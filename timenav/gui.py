@@ -23,6 +23,241 @@ KEY_TYPE_REAL = 2
 KEY_TYPE_NONE = 3
 KEY_TYPE_BOOL = 4
 
+class ValueRender:
+    def __init__(self, cache):
+        self.cache = cache
+
+    def render_value(self, value, version, level):
+        if value is None:
+            return ["None"]
+        tp = value["type_name"]
+        if tp == "none":
+            return ["None"]
+        elif tp == "<deleted>": # TODO: not working
+            raise Exception("<deleted> value should have been handled")
+        elif tp in ["str", "int"]:
+            return ["%r" % value["value"]]
+        elif tp == "<ref>":
+            ref_id = int(value["id"])
+            value_id = int(value["value"])
+            real_value = self.cache.get_value(value_id, version)
+            retval = self.render_value(real_value, version, level)
+            return retval
+        elif tp == "float":
+            if value["value"] is None:
+                value["value"] = float("nan")
+            return [value["value"]]
+        elif tp == "tuple":
+            return self.render_tuple(value, version, level)
+        elif tp == "list":
+            return self.render_list(value, version, level)
+        elif tp == "dict":
+            return self.render_dict(value, version, level)
+        elif tp == "object":
+            return self.render_object(value, version, level)
+        else:
+            return ["(%d) %s %r" % (value["id"], tp, value["value"])]
+    
+    def render_tuple(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, version)
+            lines.extend(add_indent(self.render_value(value, version, level + 1)))
+        lines.append(")")
+        return lines
+
+    def render_list(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["[" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, version)
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            lines.extend(add_indent(self.render_value(value, version, level + 1)))
+        lines.append("]")
+        return lines
+
+    def render_dict(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["{"]
+        for mem in members:
+            key_type = mem["key_type"]
+            key = mem["key"]
+            value_id = mem["value"]
+            value = self.cache.get_value(value_id, version)
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            
+            if key_type == KEY_TYPE_REF:
+                key_value = self.cache.get_value(key, version)
+                key_lines = self.render_value(key_value, version, level + 1)
+            elif key_type == KEY_TYPE_INT:
+                key_lines = self.render_value(key, version, level + 1)
+            elif key_type == KEY_TYPE_NONE:
+                key_lines = self.render_value(None, version, level + 1)
+            elif key_type == KEY_TYPE_BOOL:
+                key = bool(key)
+                key_lines = self.render_value(key, version, level + 1)
+            elif key_type == KEY_TYPE_REAL:
+                raise Exception("Unsupported")
+            else:
+                raise Exception("Unknown key type %d" % key_type)
+            
+            value_lines = self.render_value(value, version, level + 1)
+            lines.extend(add_indent(key_lines[0:-1]))
+            if len(key_lines) == 0 or len(value_lines) == 0:
+                raise Exception("%r %r" % (key_lines, value_lines))
+            lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
+            lines.extend(add_indent(value_lines[1:]))
+        lines.append("}")
+        return lines
+    
+    def render_object(self, value, version, level):
+        data = value["value"].split(" ")
+        if len(data) == 1:
+            type_id = data[0]
+            dict_id = None
+        elif len(data) == 2:
+            type_id, dict_id = data
+        else:
+            raise Exception("Object value has more than 2 values")
+        type_name = self.get_custom_type_name(type_id, version)
+        if dict_id:
+            value = self.cache.get_value(dict_id, version)
+            dict_lines = self.render_dict(value, version, level)
+            dict_lines[0] = "<%s>%s" % (type_name, dict_lines[0])
+            return dict_lines
+        else:
+            return ["<%s>" % type_name]
+
+    def get_custom_type_name(self, type_id, version):
+        value = self.cache.get_value(type_id, version)
+        return value["value"]
+
+
+class DebugValueRender:
+    def __init__(self, cache):
+        self.cache = cache
+
+    def render_value(self, value, version, level):
+        if value is None:
+            return ["None"]
+        tp = value["type_name"]
+        if tp == "none":
+            return [ "(%d) None" % value["id"]]
+        elif tp == "<deleted>": # TODO: not working
+            raise Exception("<deleted> value should have been handled")
+        elif tp in ["str", "int"]:
+            return ["(%d) %s %s" % (value["id"], tp, value["value"])]
+        elif tp == "<ref>":
+            ref_id = int(value["id"])
+            value_id = int(value["value"])
+            real_value = self.cache.get_value(value_id, version)
+            retval = self.render_value(real_value, version, level)
+            if retval and len(retval) > 0:
+                retval[0] = "ref<%d> %s" % (ref_id, retval[0])
+            return retval
+        elif tp == "float":
+            if value["value"] is None:
+                value["value"] = float("nan")
+            return ["(%d) float %r" % (value["id"], value["value"])]
+        elif tp == "tuple":
+            return self.render_tuple(value, version, level)
+        elif tp == "list":
+            return self.render_list(value, version, level)
+        elif tp == "dict":
+            return self.render_dict(value, version, level)
+        elif tp == "object":
+            return self.render_object(value, version, level)
+        else:
+            return ["OTHER (%d) %s %r" % (value["id"], tp, value["value"])]
+    
+    def render_tuple(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) (" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, version)
+            lines.extend(add_indent(self.render_value(value, version, level + 1)))
+        lines.append(")")
+        return lines
+
+    def render_list(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) [" % value["id"]]
+        for mem in members:
+            idx = mem['key']
+            value_id = mem['value']
+            value = self.cache.get_value(value_id, version)
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            lines.extend(add_indent(self.render_value(value, version, level + 1)))
+        lines.append("]")
+        return lines
+
+    def render_dict(self, value, version, level):
+        members = self.cache.get_members(value["id"])
+        lines = ["(%d) {" % value["id"]]
+        for mem in members:
+            key_type = mem["key_type"]
+            key = mem["key"]
+            value_id = mem["value"]
+            value = self.cache.get_value(value_id, version)
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            
+            if key_type == KEY_TYPE_REF:
+                key_value = self.cache.get_value(key, version)
+                key_lines = self.render_value(key_value, version, level + 1)
+            elif key_type == KEY_TYPE_INT:
+                key_lines = self.render_value(key, version, level + 1)
+            elif key_type == KEY_TYPE_NONE:
+                key_lines = self.render_value(None, version, level + 1)
+            elif key_type == KEY_TYPE_BOOL:
+                key = bool(key)
+                key_lines = self.render_value(key, version, level + 1)
+            elif key_type == KEY_TYPE_REAL:
+                raise Exception("Unsupported")
+            else:
+                raise Exception("Unknown key type %d" % key_type)
+            
+            value_lines = self.render_value(value, version, level + 1)
+            lines.extend(add_indent(key_lines[0:-1]))
+            if len(key_lines) == 0 or len(value_lines) == 0:
+                raise Exception("%r %r" % (key_lines, value_lines))
+            lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
+            lines.extend(add_indent(value_lines[1:]))
+        lines.append("}")
+        return lines
+    
+    def render_object(self, value, version, level):
+        data = value["value"].split(" ")
+        if len(data) == 1:
+            type_id = data[0]
+            dict_id = None
+        elif len(data) == 2:
+            type_id, dict_id = data
+        else:
+            raise Exception("Object value has more than 2 values")
+        type_name = self.get_custom_type_name(type_id, version)
+        if dict_id:
+            value = self.cache.get_value(dict_id, version)
+            dict_lines = self.render_dict(value, version, level)
+            dict_lines[0] = "<(%s) %s>%s" % (type_id, type_name, dict_lines[0])
+            return dict_lines
+        else:
+            return ["<(%s) %s>" % (type_id, type_name)]
+
+    def get_custom_type_name(self, type_id, version):
+        value = self.cache.get_value(type_id, version)
+        return value["value"]
+
 class NavigatorGUI:
     def __init__(self, hist_filename):
         self.hist_filename = hist_filename
@@ -39,6 +274,7 @@ class NavigatorGUI:
         self.stack_pane = TextPane(Box(stack_pane_left, 1, stack_pane_width, stack_pane_height))
         self.status_pane = TextPane(Box(1, termsize.lines, termsize.columns, 1))
         self.draw_divider()
+        self.value_renderer = ValueRender(self.cache)
     
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
@@ -146,95 +382,119 @@ class NavigatorGUI:
 
         code_pane.set_lines(lines)
         
-    def render_value(self, value, level):
-        if value is None:
-            return ["None"]
-        tp = value["type_name"]
-        if tp == "none":
-            return [ "(%d) None" % value["id"]]
-        elif tp == "<deleted>": # TODO: not working
-            raise Exception("<deleted> value should have been handled")
-        elif tp in ["str", "int"]:
-            return ["(%d) %s %s" % (value["id"], tp, value["value"])]
-        elif tp == "<ref>":
-            ref_id = int(value["id"])
-            value_id = int(value["value"])
-            real_value = self.cache.get_value(value_id, self.snapshot["id"])
-            retval = self.render_value(real_value, level)
-            if retval and len(retval) > 0:
-                retval[0] = "ref<%d> %s" % (ref_id, retval[0])
-            return retval
-        elif tp == "float":
-            if value["value"] is None:
-                value["value"] = float("nan")
-            return ["(%d) float %r" % (value["id"], value["value"])]
-        elif tp == "tuple":
-            return self.render_tuple(value, level)
-        elif tp == "list":
-            return self.render_list(value, level)
-        elif tp == "dict":
-            return self.render_dict(value, level)
-        else:
-            return ["OTHER (%d) %s %r" % (value["id"], tp, value["value"])]
+    # def render_value(self, value, level):
+    #     if value is None:
+    #         return ["None"]
+    #     tp = value["type_name"]
+    #     if tp == "none":
+    #         return [ "(%d) None" % value["id"]]
+    #     elif tp == "<deleted>": # TODO: not working
+    #         raise Exception("<deleted> value should have been handled")
+    #     elif tp in ["str", "int"]:
+    #         return ["(%d) %s %s" % (value["id"], tp, value["value"])]
+    #     elif tp == "<ref>":
+    #         ref_id = int(value["id"])
+    #         value_id = int(value["value"])
+    #         real_value = self.cache.get_value(value_id, self.snapshot["id"])
+    #         retval = self.render_value(real_value, level)
+    #         if retval and len(retval) > 0:
+    #             retval[0] = "ref<%d> %s" % (ref_id, retval[0])
+    #         return retval
+    #     elif tp == "float":
+    #         if value["value"] is None:
+    #             value["value"] = float("nan")
+    #         return ["(%d) float %r" % (value["id"], value["value"])]
+    #     elif tp == "tuple":
+    #         return self.render_tuple(value, level)
+    #     elif tp == "list":
+    #         return self.render_list(value, level)
+    #     elif tp == "dict":
+    #         return self.render_dict(value, level)
+    #     elif tp == "object":
+    #         return self.render_object(value, level)
+    #     else:
+    #         return ["OTHER (%d) %s %r" % (value["id"], tp, value["value"])]
     
-    def render_tuple(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) (" % value["id"]]
-        for mem in members:
-            idx = mem['key']
-            value_id = mem['value']
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            lines.extend(add_indent(self.render_value(value, level + 1)))
-        lines.append(")")
-        return lines
+    # def render_tuple(self, value, level):
+    #     members = self.cache.get_members(value["id"])
+    #     lines = ["(%d) (" % value["id"]]
+    #     for mem in members:
+    #         idx = mem['key']
+    #         value_id = mem['value']
+    #         value = self.cache.get_value(value_id, self.snapshot["id"])
+    #         lines.extend(add_indent(self.render_value(value, level + 1)))
+    #     lines.append(")")
+    #     return lines
 
-    def render_list(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) [" % value["id"]]
-        for mem in members:
-            idx = mem['key']
-            value_id = mem['value']
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            if value is None or value["type_name"] == "<deleted>":
-                continue
-            lines.extend(add_indent(self.render_value(value, level + 1)))
-        lines.append("]")
-        return lines
+    # def render_list(self, value, level):
+    #     members = self.cache.get_members(value["id"])
+    #     lines = ["(%d) [" % value["id"]]
+    #     for mem in members:
+    #         idx = mem['key']
+    #         value_id = mem['value']
+    #         value = self.cache.get_value(value_id, self.snapshot["id"])
+    #         if value is None or value["type_name"] == "<deleted>":
+    #             continue
+    #         lines.extend(add_indent(self.render_value(value, level + 1)))
+    #     lines.append("]")
+    #     return lines
 
-    def render_dict(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) {" % value["id"]]
-        for mem in members:
-            key_type = mem["key_type"]
-            key = mem["key"]
-            value_id = mem["value"]
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            if value is None or value["type_name"] == "<deleted>":
-                continue
+    # def render_dict(self, value, level):
+    #     members = self.cache.get_members(value["id"])
+    #     lines = ["(%d) {" % value["id"]]
+    #     for mem in members:
+    #         key_type = mem["key_type"]
+    #         key = mem["key"]
+    #         value_id = mem["value"]
+    #         value = self.cache.get_value(value_id, self.snapshot["id"])
+    #         if value is None or value["type_name"] == "<deleted>":
+    #             continue
             
-            if key_type == KEY_TYPE_REF:
-                key_value = self.cache.get_value(key, self.snapshot["id"])
-                key_lines = self.render_value(key_value, level + 1)
-            elif key_type == KEY_TYPE_INT:
-                key_lines = self.render_value(key, level + 1)
-            elif key_type == KEY_TYPE_NONE:
-                key_lines = self.render_value(None, level + 1)
-            elif key_type == KEY_TYPE_BOOL:
-                key = bool(key)
-                key_lines = self.render_value(key, level + 1)
-            elif key_type == KEY_TYPE_REAL:
-                raise Exception("Unsupported")
-            else:
-                raise Exception("Unknown key type %d" % key_type)
+    #         if key_type == KEY_TYPE_REF:
+    #             key_value = self.cache.get_value(key, self.snapshot["id"])
+    #             key_lines = self.render_value(key_value, level + 1)
+    #         elif key_type == KEY_TYPE_INT:
+    #             key_lines = self.render_value(key, level + 1)
+    #         elif key_type == KEY_TYPE_NONE:
+    #             key_lines = self.render_value(None, level + 1)
+    #         elif key_type == KEY_TYPE_BOOL:
+    #             key = bool(key)
+    #             key_lines = self.render_value(key, level + 1)
+    #         elif key_type == KEY_TYPE_REAL:
+    #             raise Exception("Unsupported")
+    #         else:
+    #             raise Exception("Unknown key type %d" % key_type)
             
-            value_lines = self.render_value(value, level + 1)
-            lines.extend(add_indent(key_lines[0:-1]))
-            if len(key_lines) == 0 or len(value_lines) == 0:
-                raise Exception("%r %r" % (key_lines, value_lines))
-            lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
-            lines.extend(add_indent(value_lines[1:]))
-        lines.append("}")
-        return lines
+    #         value_lines = self.render_value(value, level + 1)
+    #         lines.extend(add_indent(key_lines[0:-1]))
+    #         if len(key_lines) == 0 or len(value_lines) == 0:
+    #             raise Exception("%r %r" % (key_lines, value_lines))
+    #         lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
+    #         lines.extend(add_indent(value_lines[1:]))
+    #     lines.append("}")
+    #     return lines
+    
+    # def render_object(self, value, level):
+    #     data = value["value"].split(" ")
+    #     if len(data) == 1:
+    #         type_id = data[0]
+    #         dict_id = None
+    #     elif len(data) == 2:
+    #         type_id, dict_id = data
+    #     else:
+    #         raise Exception("Object value has more than 2 values")
+    #     type_name = self.get_custom_type_name(type_id)
+    #     if dict_id:
+    #         value = self.cache.get_value(dict_id, self.snapshot["id"])
+    #         dict_lines = self.render_dict(value, level)
+    #         dict_lines[0] = "<(%s) %s>%s" % (type_id, type_name, dict_lines[0])
+    #         return dict_lines
+    #     else:
+    #         return ["<(%s) %s>" % (type_id, type_name)]
+
+    # def get_custom_type_name(self, type_id):
+    #     value = self.cache.get_value(type_id, self.snapshot["id"])
+    #     return value["value"]
 
     def update_stack_pane(self):
         snapshot = self.snapshot
@@ -251,11 +511,11 @@ class NavigatorGUI:
             key_id = mem['key']
             value_id = mem['value']
             key = self.cache.get_value(key_id, version)
-            key_lines = self.render_value(key, 1)
+            key_lines = self.value_renderer.render_value(key, version, 1)
             value = self.cache.get_value(value_id, version)
             if value is None:
                 continue
-            value_lines = self.render_value(value, 1)
+            value_lines = self.value_renderer.render_value(value, version, 1)
             if len(key_lines) == 1:
                 value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
             else:
@@ -269,11 +529,11 @@ class NavigatorGUI:
             key_id = mem['key']
             value_id = mem['value']
             key = self.cache.get_value(key_id, version)
-            key_lines = self.render_value(key, 1)
+            key_lines = self.value_renderer.render_value(key, version, 1)
             value = self.cache.get_value(value_id, version)
             if value is None:
                 continue
-            value_lines = self.render_value(value, 1)
+            value_lines = self.value_renderer.render_value(value, version, 1)
             if len(key_lines) == 1:
                 value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
             else:
