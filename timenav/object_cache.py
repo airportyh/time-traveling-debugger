@@ -65,3 +65,11 @@ class ObjectCache:
         members = self.cursor.execute("select * from Member where container = ? order by key", (container_id,)).fetchall()
         self.cache[key] = members
         return members
+        
+    def get_error_by_snapshot(self, snapshot_id):
+        key = "Error/snapshot/%d" % snapshot_id
+        if key in self.cache:
+            return self.cache[key]
+        error = self.cursor.execute("select * from Error where snapshot_id = ?", (snapshot_id,)).fetchone()
+        self.cache[key] = error
+        return error
