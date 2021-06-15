@@ -90,18 +90,6 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-    
-    def addTreeWidgetItems(self, dictionary, widgetKey, level, parentKey, items, path):
-        idx = 0
-        for key, value in dictionary.items():
-            parent = self[widgetKey] if level == 0 else items[parentKey]
-            currentPath = path + [idx]
-            selfKey = key + str(currentPath)
-            items[selfKey] = QtWidgets.QTreeWidgetItem(parent)
-            if isinstance(value, dict):
-                self.addTreeWidgetItems(value, widgetKey, level + 1, selfKey, items, currentPath)
-            idx += 1
-            
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -116,26 +104,6 @@ class Ui_MainWindow(object):
         for i, line in enumerate(self.codeArr):
             item = self.listWidget.item(i)
             item.setText(_translate("MainWindow", line))
-    
-    def addTreeWidgetText(self, dictionary, widgetKey, level, treeDict, path):
-        _translate = QtCore.QCoreApplication.translate
-        widget = self[widgetKey]
-        idx = 0
-        for key, value in dictionary.items():
-            currentPath = path + [idx]
-            selfKey = key + str(currentPath)
-            target = widget
-            for i, pathIndex in enumerate(currentPath):
-                if i == 0:
-                    target = target.topLevelItem(pathIndex)
-                else:
-                    target = target.child(pathIndex)
-            if isinstance(value, dict):
-                self.addTreeWidgetText(value, widgetKey, level + 1, treeDict, currentPath)
-                target.setText(0, _translate("MainWindow", key))
-            else:
-                target.setText(0, _translate("MainWindow", key + ": " + str(value)))
-            idx += 1
 
     def next(self):
         currentSnapshotId = self.codeSeer.current_snapshot["snapshot_id"]
