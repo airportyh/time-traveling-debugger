@@ -1,6 +1,13 @@
+# show function parameters
+# some bt frames not showing?
+# finish and finish reverse
+# bug with permutation_2.py rest has value of [1, 1], should be [2, 3]
 # test on current work (self, qt, oui, graphvis)
-# jump to line
 
+# unquote numbers (done)
+# implement caching scheme for values so that moving is fast (done)
+# unquote var names (done)
+# jump to line (done)
 # display backtrace (done)
 # leaner display for values (done)
 # exception (done)
@@ -20,6 +27,7 @@ from term_util import *
 from text_pane import *
 import random
 from object_cache import ObjectCache
+from value_cache import ValueCache
 from navigator import Navigator, log
 from events import *
 from debug_value_renderer import DebugValueRenderer
@@ -33,6 +41,7 @@ class NavigatorGUI:
         self.hist_filename = hist_filename
         self.init_db()
         self.cache = ObjectCache(self.conn, self.cursor)
+        self.value_cache = ValueCache(self.conn, self.cursor)
         self.nav = Navigator(self.conn, self.cursor, self.cache)
         termsize = os.get_terminal_size()
         code_pane_width = termsize.columns // 2
@@ -44,7 +53,7 @@ class NavigatorGUI:
         self.stack_pane = TextPane(Box(stack_pane_left, 1, stack_pane_width, stack_pane_height))
         self.status_pane = TextPane(Box(1, termsize.lines, termsize.columns, 1))
         self.draw_divider()
-        self.value_renderer = ValueRenderer(self.cache)
+        self.value_renderer = ValueRenderer(self.cache, self.value_cache)
     
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
@@ -133,6 +142,18 @@ class NavigatorGUI:
                             self.stack_pane.scroll_right()
                         elif event.x < self.code_pane.box.width + 1:
                             self.code_pane.scroll_right()
+                    elif event.type == "mousedown":
+                        if event.x < self.code_pane.box.width + 1:
+                            line_no = self.code_pane.get_line_no_for_y(event.y)
+                            next = self.nav.fast_forward(self.code_file["id"], line_no, self.snapshot["id"])
+                            self.goto_snapshot(next)
+                    elif event.type == "rightmousedown":
+                        if event.x < self.code_pane.box.width + 1:
+                            line_no = self.code_pane.get_line_no_for_y(event.y)
+                            next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
+                            self.goto_snapshot(next)
+                    
+                            
 
     def goto_snapshot(self, next):
         if next is None:
@@ -140,8 +161,11 @@ class NavigatorGUI:
         start = time.time()
         self.snapshot = next
         fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
+        self.fun_call = fun_call
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+        self.fun_code = fun_code
         code_file = self.cache.get_code_file(fun_code["code_file_id"])
+        self.code_file = code_file
         self.error = self.cache.get_error_by_snapshot(self.snapshot["id"])
         end1 = time.time()
         log("goto_snapshot db part took %f seconds" % (end1 - start))
@@ -162,7 +186,6 @@ class NavigatorGUI:
         end4 = time.time()
         log("goto_snapshot highlight and scroll part took %f seconds" % (end4 - start))
         self.update_status(self.snapshot)
-        
 
     def display_source(self, file_lines, code_pane):
         gutter_width = len(str(len(file_lines) + 1))
@@ -200,16 +223,12 @@ class NavigatorGUI:
         for mem in local_members:
             key_id = mem['key']
             value_id = mem['value']
-            key = self.cache.get_value(key_id, version)
-            key_lines = self.value_renderer.render_value(key, version, set(), 1)
-            value = self.cache.get_value(value_id, version)
+            key = self.value_cache.get_value(key_id, version)
+            value = self.value_cache.get_value(value_id, version)
             if value is None:
                 continue
             value_lines = self.value_renderer.render_value(value, version, set(), 1)
-            if len(key_lines) == 1:
-                value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
-            else:
-                raise Exception("Not handled %r" % key_lines)
+            value_lines[0] = "%s = %s" % (key["value"], value_lines[0])
             lines.extend(add_indent(value_lines))
             
         # lines.append("Globals %d" % globals_id)
@@ -217,16 +236,12 @@ class NavigatorGUI:
         for mem in global_members:
             key_id = mem['key']
             value_id = mem['value']
-            key = self.cache.get_value(key_id, version)
-            key_lines = self.value_renderer.render_value(key, version, set(), 1)
-            value = self.cache.get_value(value_id, version)
+            key = self.value_cache.get_value(key_id, version)
+            value = self.value_cache.get_value(value_id, version)
             if value is None:
                 continue
             value_lines = self.value_renderer.render_value(value, version, set(), 1)
-            if len(key_lines) == 1:
-                value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
-            else:
-                raise Exception("Not handled %r" % key_lines)
+            value_lines[0] = "%s = %s" % (key["value"], value_lines[0])
             lines.extend(add_indent(value_lines))
         
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

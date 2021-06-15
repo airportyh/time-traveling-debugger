@@ -6,19 +6,6 @@ class ObjectCache:
         self.conn = conn
         self.cursor = cursor
     
-    def get_value(self, id, version):
-        sql = """
-        select Value.*, Type.name as type_name
-        from Value
-            inner join Type on Value.type = Type.id
-        where Value.id = ?
-            and version <= ?
-        order by version desc
-        limit 1
-        """
-        value = self.cursor.execute(sql, (id, version)).fetchone()
-        return value
-    
     def put_snapshot(self, snapshot):
         key = "Snapshot/%d" % snapshot["id"]
         self.cache[key] = snapshot

@@ -61,3 +61,6 @@ class TextPane:
             y = self.box.top + i
             goto(x, y)
             write(line)
+    
+    def get_line_no_for_y(self, y):
+        return self.top_offset + (y - self.box.top) + 1

@@ -2,8 +2,9 @@ from debugger_consts import *
 from string_util import add_indent
 
 class ValueRenderer:
-    def __init__(self, cache):
+    def __init__(self, cache, value_cache):
         self.cache = cache
+        self.value_cache = value_cache
 
     def render_value(self, value, version, visited, level):
         if value is None:
@@ -15,14 +16,16 @@ class ValueRenderer:
             return ["None"]
         elif tp == "<deleted>":
             raise Exception("<deleted> value should have been handled")
-        elif tp in ["str", "int"]:
+        elif tp == "str":
             return ["%r" % value["value"]]
+        elif tp == "int":
+            return [value["value"]]
         elif tp == "<ref>":
             ref_id = int(value["id"])
             value_id = int(value["value"])
             if already_visited:
                 return ["*%d" % (ref_id, value_id)]
-            real_value = self.cache.get_value(value_id, version)
+            real_value = self.value_cache.get_value(value_id, version)
             retval = self.render_value(real_value, version, visited, level)
             return retval
         elif tp == "float":
@@ -54,7 +57,7 @@ class ValueRenderer:
         for mem in members:
             idx = mem['key']
             value_id = mem['value']
-            value = self.cache.get_value(value_id, version)
+            value = self.value_cache.get_value(value_id, version)
             lines.extend(add_indent(self.render_value(value, version, visited, level + 1)))
         lines.append(")")
         return lines
@@ -65,7 +68,7 @@ class ValueRenderer:
         for mem in members:
             idx = mem['key']
             value_id = mem['value']
-            value = self.cache.get_value(value_id, version)
+            value = self.value_cache.get_value(value_id, version)
             if value is None or value["type_name"] == "<deleted>":
                 continue
             lines.extend(add_indent(self.render_value(value, version, visited, level + 1)))
@@ -79,12 +82,12 @@ class ValueRenderer:
             key_type = mem["key_type"]
             key = mem["key"]
             value_id = mem["value"]
-            value = self.cache.get_value(value_id, version)
+            value = self.value_cache.get_value(value_id, version)
             if value is None or value["type_name"] == "<deleted>":
                 continue
             
             if key_type == KEY_TYPE_REF:
-                key_value = self.cache.get_value(key, version)
+                key_value = self.value_cache.get_value(key, version)
                 key_lines = self.render_value(key_value, version, visited, level + 1)
             elif key_type == KEY_TYPE_INT:
                 key_lines = [key]
@@ -118,7 +121,7 @@ class ValueRenderer:
             raise Exception("Object value has more than 2 values %r" % value)
         type_name = self.get_custom_type_name(type_id, version)
         if dict_id:
-            value = self.cache.get_value(dict_id, version)
+            value = self.value_cache.get_value(dict_id, version)
             if value:
                 dict_lines = self.render_dict(value, version, visited, level)
                 dict_lines[0] = "<%s>%s" % (type_name, dict_lines[0])
@@ -126,5 +129,5 @@ class ValueRenderer:
         return ["<%s>" % type_name]
 
     def get_custom_type_name(self, type_id, version):
-        value = self.cache.get_value(type_id, version)
+        value = self.value_cache.get_value(type_id, version)
         return value["value"]

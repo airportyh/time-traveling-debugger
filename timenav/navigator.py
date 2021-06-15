@@ -152,3 +152,31 @@ class Navigator:
     
     def get_snapshot_by_start_fun_call(self, id):
         return self.cursor.execute("select * from Snapshot where start_fun_call_id = ?", (id,)).fetchone()
+        
+    def fast_forward(self, code_file_id, line_no, snapshot_id):
+        sql = """
+            select Snapshot.*
+            from Snapshot 
+            inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
+            inner join FunCode on (FunCall.fun_code_id = FunCode.id)
+            where FunCode.code_file_id = ?
+                and Snapshot.line_no = ?
+                and Snapshot.id > ?
+            order by id
+            limit 1
+        """
+        return self.cursor.execute(sql, (code_file_id, line_no, snapshot_id)).fetchone()
+    
+    def rewind(self, code_file_id, line_no, snapshot_id):
+        sql = """
+            select Snapshot.*
+            from Snapshot 
+            inner join FunCall on (Snapshot.fun_call_id = FunCall.id)
+            inner join FunCode on (FunCall.fun_code_id = FunCode.id)
+            where FunCode.code_file_id = ?
+                and Snapshot.line_no = ?
+                and Snapshot.id < ?
+            order by id desc
+            limit 1
+        """
+        return self.cursor.execute(sql, (code_file_id, line_no, snapshot_id)).fetchone()

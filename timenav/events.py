@@ -26,6 +26,10 @@ def decode_input(an_input):
                 event = Event("mouseup", x = x, y = y)
                 events.append(event)
                 codes = codes[6:]
+            elif codes[3] == 34:
+                event = Event("rightmousedown", x = codes[4] - 32, y = codes[5] - 32)
+                events.append(event)
+                codes = codes[6:]
             elif codes[3] == 96:
                 event = Event("wheeldown", x = codes[4] - 32, y = codes[5] - 32)
                 events.append(event)
