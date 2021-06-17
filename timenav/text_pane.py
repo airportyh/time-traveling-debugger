@@ -40,7 +40,7 @@ class TextPane:
 
     def scroll_left_to(self, offset):
         longest_length = max(*map(len, self.lines))
-        self.left_offset = max(0, min(longest_length - box.width, offset))
+        self.left_offset = max(0, min(longest_length - self.box.width, offset))
         self.render()
 
     def render(self):
@@ -48,7 +48,7 @@ class TextPane:
         if self.top_offset > 0:
             display_lines = display_lines[self.top_offset:]
         if self.left_offset > 0:
-            display_lines = map(lambda line: line[self.left_offset:], display_lines)
+            display_lines = list(map(lambda line: line[self.left_offset:], display_lines))
         for i in range(self.box.height):
             if i < len(display_lines):
                 line = display_lines[i]

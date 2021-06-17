@@ -1,5 +1,13 @@
 import sqlite3
+import time
 from object_cache import ObjectCache
+
+log_file = open("navigator.log", "w")
+
+def log(message):
+    log_file.write(message)
+    log_file.write("\n")
+    log_file.flush()
 
 class Navigator:
     def __init__(self, conn, cursor, cache, verbose=False):
@@ -14,6 +22,8 @@ class Navigator:
         return snapshot
 
     def step_over(self, snapshot):
+        log("step_over")
+        
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         step1 = """
             select *
@@ -26,10 +36,11 @@ class Navigator:
             order by id limit 1
         """
         params1 = (snapshot["id"], fun_call["id"], snapshot["line_no"], fun_call["parent_id"])
+        start = time.time()
         result = self.cursor.execute(step1, params1).fetchone()
-        if self.verbose:
-            print(step1, params1)
-            print("Result:", result)
+        end = time.time()
+        log("step1 query took %f seconds" % (end - start))
+
         step2 = """
             select *
             from Snapshot
@@ -38,10 +49,10 @@ class Navigator:
             order by id desc limit 1
         """
         params2 = (snapshot["id"], snapshot["fun_call_id"])
+        start = time.time()
         last = self.cursor.execute(step2, params2).fetchone()
-        if self.verbose:
-            print(step2, params2)
-            print("Result:", last)
+        end = time.time()
+        log("step2 query took %f seconds" % (end - start))
         if last and result and last["id"] < result["id"]:
             result = last
         if result is None:
@@ -53,11 +64,10 @@ class Navigator:
                 order by id limit 1
             """
             params3 = (snapshot["id"], snapshot["fun_call_id"])
+            start = time.time()
             result = self.cursor.execute(step3, params3).fetchone()
-            if self.verbose:
-                print(step3, params3)
-                print("Result:", result)
-        
+            end = time.time()
+            log("step3 query took %f seconds" % (end - start))
         if result:
             self.cache.put_snapshot(result)
         return result
@@ -136,4 +146,9 @@ class Navigator:
         result = self.cursor.execute(sql, (container_id, version)).fetchall()
         return result
     
+    def get_first_error(self):
+        error = self.cursor.execute("select * from Error limit 1").fetchone()
+        return error
     
+    def get_snapshot_by_start_fun_call(self, id):
+        return self.cursor.execute("select * from Snapshot where start_fun_call_id = ?", (id,)).fetchone()

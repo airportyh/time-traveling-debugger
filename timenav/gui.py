@@ -1,4 +1,10 @@
-# data fetching / display
+# test on current work (self, qt, oui, graphvis)
+# jump to line
+
+# display backtrace (done)
+# leaner display for values (done)
+# exception (done)
+# data fetching / display (80% done)
 # activate scroll panes (done)
 # integrate navigator into here (done)
 # test step methods (done)
@@ -14,14 +20,13 @@ from term_util import *
 from text_pane import *
 import random
 from object_cache import ObjectCache
-from navigator import Navigator
+from navigator import Navigator, log
 from events import *
-
-KEY_TYPE_REF = 0
-KEY_TYPE_INT = 1
-KEY_TYPE_REAL = 2
-KEY_TYPE_NONE = 3
-KEY_TYPE_BOOL = 4
+from debug_value_renderer import DebugValueRenderer
+from value_renderer import ValueRenderer
+from debugger_consts import *
+from string_util import add_indent
+import time
 
 class NavigatorGUI:
     def __init__(self, hist_filename):
@@ -39,6 +44,7 @@ class NavigatorGUI:
         self.stack_pane = TextPane(Box(stack_pane_left, 1, stack_pane_width, stack_pane_height))
         self.status_pane = TextPane(Box(1, termsize.lines, termsize.columns, 1))
         self.draw_divider()
+        self.value_renderer = ValueRenderer(self.cache)
     
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
@@ -81,7 +87,11 @@ class NavigatorGUI:
         self.draw_divider()
         
         self.last_snapshot = self.nav.get_last_snapshot()
-        self.goto_snapshot(self.cache.get_snapshot(4))
+        error = self.nav.get_first_error()
+        begin_snapshot_id = 4
+        if error:
+            begin_snapshot_id = error["snapshot_id"]
+        self.goto_snapshot(self.cache.get_snapshot(begin_snapshot_id))
         
         while True:
             inp = get_input()
@@ -113,25 +123,46 @@ class NavigatorGUI:
                             self.stack_pane.scroll_down()
                         elif event.x < self.code_pane.box.width + 1:
                             self.code_pane.scroll_down()
+                    elif event.type == "ctrlwheelup":
+                        if event.x > self.code_pane.box.width + 1:
+                            self.stack_pane.scroll_left()
+                        elif event.x < self.code_pane.box.width + 1:
+                            self.code_pane.scroll_left()
+                    elif event.type == "ctrlwheeldown":
+                        if event.x > self.code_pane.box.width + 1:
+                            self.stack_pane.scroll_right()
+                        elif event.x < self.code_pane.box.width + 1:
+                            self.code_pane.scroll_right()
 
     def goto_snapshot(self, next):
         if next is None:
             return
-        
+        start = time.time()
         self.snapshot = next
         fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
         code_file = self.cache.get_code_file(fun_code["code_file_id"])
-        
+        self.error = self.cache.get_error_by_snapshot(self.snapshot["id"])
+        end1 = time.time()
+        log("goto_snapshot db part took %f seconds" % (end1 - start))
+        start = time.time()
         lines = []
         if code_file["source"]:
             lines = code_file["source"].split("\n")
         self.display_source(lines, self.code_pane)
+        end2 = time.time()
+        log("goto_snapshot display_source part took %f seconds" % (end2 - start))
+        start = time.time()
         self.update_stack_pane()
+        end3 = time.time()
+        log("goto_snapshot update_stack_pane part took %f seconds" % (end3 - start))
+        start = time.time()
         self.code_pane.set_highlight(self.snapshot["line_no"] - 1)
         self.scroll_to_line_if_needed(self.snapshot["line_no"], lines)
-        
+        end4 = time.time()
+        log("goto_snapshot highlight and scroll part took %f seconds" % (end4 - start))
         self.update_status(self.snapshot)
+        
 
     def display_source(self, file_lines, code_pane):
         gutter_width = len(str(len(file_lines) + 1))
@@ -145,100 +176,18 @@ class NavigatorGUI:
             lines.append(line_display)
 
         code_pane.set_lines(lines)
-        
-    def render_value(self, value, level):
-        if value is None:
-            return ["None"]
-        tp = value["type_name"]
-        if tp == "none":
-            return [ "(%d) None" % value["id"]]
-        elif tp == "<deleted>": # TODO: not working
-            raise Exception("<deleted> value should have been handled")
-        elif tp in ["str", "int"]:
-            return ["(%d) %s %s" % (value["id"], tp, value["value"])]
-        elif tp == "<ref>":
-            ref_id = int(value["id"])
-            value_id = int(value["value"])
-            real_value = self.cache.get_value(value_id, self.snapshot["id"])
-            retval = self.render_value(real_value, level)
-            if retval and len(retval) > 0:
-                retval[0] = "ref<%d> %s" % (ref_id, retval[0])
-            return retval
-        elif tp == "float":
-            if value["value"] is None:
-                value["value"] = float("nan")
-            return ["(%d) float %r" % (value["id"], value["value"])]
-        elif tp == "tuple":
-            return self.render_tuple(value, level)
-        elif tp == "list":
-            return self.render_list(value, level)
-        elif tp == "dict":
-            return self.render_dict(value, level)
-        else:
-            return ["OTHER (%d) %s %r" % (value["id"], tp, value["value"])]
     
-    def render_tuple(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) (" % value["id"]]
-        for mem in members:
-            idx = mem['key']
-            value_id = mem['value']
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            lines.extend(add_indent(self.render_value(value, level + 1)))
-        lines.append(")")
-        return lines
-
-    def render_list(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) [" % value["id"]]
-        for mem in members:
-            idx = mem['key']
-            value_id = mem['value']
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            if value is None or value["type_name"] == "<deleted>":
-                continue
-            lines.extend(add_indent(self.render_value(value, level + 1)))
-        lines.append("]")
-        return lines
-
-    def render_dict(self, value, level):
-        members = self.cache.get_members(value["id"])
-        lines = ["(%d) {" % value["id"]]
-        for mem in members:
-            key_type = mem["key_type"]
-            key = mem["key"]
-            value_id = mem["value"]
-            value = self.cache.get_value(value_id, self.snapshot["id"])
-            if value is None or value["type_name"] == "<deleted>":
-                continue
-            
-            if key_type == KEY_TYPE_REF:
-                key_value = self.cache.get_value(key, self.snapshot["id"])
-                key_lines = self.render_value(key_value, level + 1)
-            elif key_type == KEY_TYPE_INT:
-                key_lines = self.render_value(key, level + 1)
-            elif key_type == KEY_TYPE_NONE:
-                key_lines = self.render_value(None, level + 1)
-            elif key_type == KEY_TYPE_BOOL:
-                key = bool(key)
-                key_lines = self.render_value(key, level + 1)
-            elif key_type == KEY_TYPE_REAL:
-                raise Exception("Unsupported")
-            else:
-                raise Exception("Unknown key type %d" % key_type)
-            
-            value_lines = self.render_value(value, level + 1)
-            lines.extend(add_indent(key_lines[0:-1]))
-            if len(key_lines) == 0 or len(value_lines) == 0:
-                raise Exception("%r %r" % (key_lines, value_lines))
-            lines.append("  %s: %s" % (key_lines[-1], value_lines[0]))
-            lines.extend(add_indent(value_lines[1:]))
-        lines.append("}")
-        return lines
-
+    def filename(self, code_file):
+        parts = code_file["file_path"].split("/")
+        if len(parts) > 0:
+            return parts[-1]
+        return code_file["file_path"]
+        
     def update_stack_pane(self):
         snapshot = self.snapshot
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+        fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+        code_file = self.cache.get_code_file(fun_code["code_file_id"])
         version = snapshot["id"]
         locals_id = fun_call["locals"]
         globals_id = fun_call["globals"]
@@ -246,53 +195,65 @@ class NavigatorGUI:
         
         local_members = self.cache.get_members(locals_id)
         locals_dict = []
-        lines.append("Locals %d" % locals_id)
+        lines.append("%s() - %s: %d" % (fun_code["name"], self.filename(code_file), snapshot["line_no"]))
+        # lines.append("Locals %d" % locals_id)
         for mem in local_members:
             key_id = mem['key']
             value_id = mem['value']
             key = self.cache.get_value(key_id, version)
-            key_lines = self.render_value(key, 1)
+            key_lines = self.value_renderer.render_value(key, version, set(), 1)
             value = self.cache.get_value(value_id, version)
             if value is None:
                 continue
-            value_lines = self.render_value(value, 1)
+            value_lines = self.value_renderer.render_value(value, version, set(), 1)
             if len(key_lines) == 1:
                 value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
             else:
                 raise Exception("Not handled %r" % key_lines)
             lines.extend(add_indent(value_lines))
             
-        
-        lines.append("Globals %d" % globals_id)
+        # lines.append("Globals %d" % globals_id)
         global_members = self.cache.get_members(globals_id)
         for mem in global_members:
             key_id = mem['key']
             value_id = mem['value']
             key = self.cache.get_value(key_id, version)
-            key_lines = self.render_value(key, 1)
+            key_lines = self.value_renderer.render_value(key, version, set(), 1)
             value = self.cache.get_value(value_id, version)
             if value is None:
                 continue
-            value_lines = self.render_value(value, 1)
+            value_lines = self.value_renderer.render_value(value, version, set(), 1)
             if len(key_lines) == 1:
                 value_lines[0] = "%s = %s" % (key_lines[0], value_lines[0])
             else:
                 raise Exception("Not handled %r" % key_lines)
             lines.extend(add_indent(value_lines))
+        
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        while fun_call["parent_id"]:
+            fun_call = self.cache.get_fun_call(fun_call["parent_id"])
+            start_snapshot = self.nav.get_snapshot_by_start_fun_call(fun_call["id"])
+            fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+            code_file = self.cache.get_code_file(fun_code["code_file_id"])
+            
+            if start_snapshot:
+                lines.append("%s() - %s: %d" % (fun_code["name"], self.filename(code_file), start_snapshot["line_no"]))
+            else:
+                lines.append("%s() - %s" % (fun_code["name"], self.filename(code_file)))
 
         self.stack_pane.set_lines(lines)
             
     def update_status(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
-        message = "Step %d of %d: %s() line %d (cache %d/%d)" % (
+        message = "Step %d of %d: %s() line %d" % (
             snapshot["id"], 
             self.last_snapshot["id"],
             fun_code["name"],
             snapshot["line_no"],
-            len(self.cache.cache),
-            self.cache.cache.capacity
         )
+        if self.error:
+            message += ", Error: %s" % self.error["message"]
         termsize = os.get_terminal_size()
         message = message[0:termsize.columns].center(termsize.columns)
         self.status_pane.set_lines([message])
@@ -309,9 +270,6 @@ class NavigatorGUI:
         if line < (offset + 1):
             offset = max(0, line - box.height // 2)
         self.code_pane.scroll_top_to(offset)
-
-def add_indent(lines):
-    return map(lambda line: "  " + line, lines)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
