@@ -157,6 +157,7 @@ unsigned long codeFileId = 1;
 unsigned long funCodeId = 1;
 unsigned long funCallId = 1;
 unsigned long errorId = 1;
+unsigned long printOutputId = 1;
 
 int currLineNo = 0;
 
@@ -202,8 +203,7 @@ sqlite3_stmt *getMemberValuesStmt = NULL;
 sqlite3_stmt *getMemberCountStmt = NULL;
 sqlite3_stmt *clearContainerStmt = NULL;
 sqlite3_stmt *insertErrorStmt = NULL;
-sqlite3_stmt *schemaStmt = NULL;
-char *schemaCode = NULL;
+sqlite3_stmt *insertPrintOutputStmt = NULL;
 
 // Hashtables
 CodeFile *code_files = NULL;
@@ -1589,6 +1589,54 @@ int processExceptionUncaught(unsigned int i) {
     return 0;
 }
 
+int processPrint(unsigned int i) {
+    int length;
+    CALL(parseIntArg(&i, &length));
+    int restLength = strlen(line + i);
+    if (restLength < length) {
+        // multiple lines, have to gather them
+        UT_string *str;
+        utstring_new(str);
+        utstring_printf(str, "%s", line + i);
+        int charsLeft = length - restLength;
+        while (true) {
+            ssize_t read = getline(&line, &lineLen, file);
+            if (read == -1) {
+                break;
+            }
+            if (read > charsLeft) {
+                utstring_printf(str, "%.*s", charsLeft, line);
+                break;
+            } else {
+                utstring_printf(str, "%s", line);
+                charsLeft -= read;
+            }
+        }
+        char *output = utstring_body(str);
+        SQLITE(bind_int64(insertPrintOutputStmt, 1, printOutputId++));
+        SQLITE(bind_int64(insertPrintOutputStmt, 2, snapshotId));
+        assert(strlen(output) == length);
+        SQLITE(bind_text(insertPrintOutputStmt, 3, output, length, SQLITE_STATIC));
+        SQLITE_STEP(insertPrintOutputStmt);
+        SQLITE(reset(insertPrintOutputStmt));
+        utstring_free(str);
+    } else {
+        // input are on this line ready to insert
+        SQLITE(bind_int64(insertPrintOutputStmt, 1, printOutputId++));
+        SQLITE(bind_int64(insertPrintOutputStmt, 2, snapshotId));
+        SQLITE(bind_text(insertPrintOutputStmt, 3, line + i, length, SQLITE_STATIC));
+        SQLITE_STEP(insertPrintOutputStmt);
+        SQLITE(reset(insertPrintOutputStmt));
+        if (restLength == length) {
+            ssize_t read = getline(&line, &lineLen, file);
+            assert(read == 2);
+            assert(line[0] == ')');
+        }
+    }
+
+    return 0;
+}
+
 int registerFun(char *fun_name, int (*fun)(unsigned int pos)) {
     FunHandler *handler = NULL;
     HASH_FIND(hh, funLookup, fun_name, strlen(fun_name), handler);
@@ -1659,6 +1707,7 @@ void registerFuns() {
 
     registerFun("EXCEPTION", processException);
     registerFun("EXCEPTION_UNCAUGHT", processExceptionUncaught);
+    registerFun("PRINT", processPrint);
 
 }
 
@@ -1738,6 +1787,7 @@ int prepareStatements() {
         &clearContainerStmt,
         NULL
     ));
+    SQLITE(prepare_v2(db, "insert into PrintOutput values (?, ?, ?)", -1, &insertPrintOutputStmt, NULL));
     return 0;
 }
 
@@ -1755,6 +1805,7 @@ int finalizeStatements() {
     SQLITE(finalize(getMemberValuesStmt));
     SQLITE(finalize(getMemberCountStmt));
     SQLITE(finalize(clearContainerStmt));
+    SQLITE(finalize(insertPrintOutputStmt));
 
     return 0;
 }

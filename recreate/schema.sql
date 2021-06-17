@@ -80,3 +80,12 @@ create table Error (
     constraint Error_fk_snapshot_id foreign key (snapshot_id)
         references Snapshot(id)
 );
+
+create table PrintOutput (
+    id integer primary key,
+    snapshot_id integer,
+    data text,
+
+    constraint PrintOutput foreign key (snapshot_id)
+        references Snapshot(id)
+);
