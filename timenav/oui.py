@@ -392,12 +392,19 @@ class TextField:
                 self.cursor -= 1
                 if self.cursor < self.offset:
                     self.offset = self.cursor
+        elif evt.key == "\t":
+            yield_focus(self)
+        elif evt.key == "REVERSE_TAB":
+            yield_focus_reverse(self)
         else:
             self.text.insert(self.cursor, evt.key)
             self.cursor += 1
             if self.cursor - self.offset >= self.width:
                 self.offset = (self.cursor + 1) - self.width
         self.draw()
+    
+    def want_focus(self):
+        return True
         
     def __repr__(self):
         return "<TextField %d>" % id(self)
@@ -493,16 +500,65 @@ def fire_keypress(element, event):
         handler_fn = getattr(element, event.type)
         handler_fn(event)
 
+root = None
 focused_element = None
 
 def focus(element):
     global focused_element
     focused_element = element
+    if is_placed(element):
+        element.draw()
 
 def has_focus(element):
     return focused_element == element
+    
+def yield_focus(element):
+    if hasattr(element, "parent") and element.parent:
+        gave_focus = focus_next_element_from(element.parent, element)
+        if not gave_focus:
+            focus_next_element_from(root, None)
+
+def focus_next_element_from(container, from_child):
+    if not hasattr(container, "children"):
+        return False
+    if from_child:
+        start_idx = container.children.index(from_child) + 1
+    else:
+        start_idx = 0
+    for i in range(start_idx, len(container.children)):
+        child = container.children[i]
+        if hasattr(child, "want_focus") and child.want_focus():
+            focus(child)
+            return True
+        else:
+            if focus_next_element_from(child, None):
+                return True
+
+def yield_focus_reverse(element):
+    if hasattr(element, "parent") and element.parent:
+        gave_focus = focus_prev_element_from(element.parent, element)
+        if not gave_focus:
+            focus_prev_element_from(root, None)
+
+def focus_prev_element_from(container, from_child):
+    if not hasattr(container, "children"):
+        return False
+    if from_child:
+        start_idx = container.children.index(from_child) - 2
+    else:
+        start_idx = len(container.children) - 1
+    for i in range(start_idx, -1, -1):
+        child = container.children[i]
+        if hasattr(child, "want_focus") and child.want_focus():
+            focus(child)
+            return True
+        else:
+            if focus_prev_element_from(child, None):
+                return True
 
 def run(root_element):
+    global root
+    root = root_element
     def clean_up():
         restore(original_settings)
         mouse_off()
@@ -521,7 +577,8 @@ def run(root_element):
         termsize = os.get_terminal_size()
         screen_width = termsize.columns
         screen_height = termsize.lines
-    
+        
+        focus_next_element_from(root, None)
         root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
         draw(root_element)
         quit = False

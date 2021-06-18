@@ -51,6 +51,8 @@ def decode_input(an_input):
             return [Event("keypress", key="RIGHT_ARROW")]
         elif code == 68:
             return [Event("keypress", key="LEFT_ARROW")]
+        elif code == 90:
+            return [Event("keypress", key="REVERSE_TAB")]
         else:
             raise Exception("Input control sequence not understood %r" % an_input)
     
