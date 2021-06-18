@@ -13,6 +13,9 @@ def write(value):
     print(value, end = '')
     sys.stdout.flush()
 
+def style(text, code):
+    return "\x1B[%sm%s\x1B[0m" % (code, text)
+
 def clear_screen():
     write('\x1B[0m')
     write('\x1B[2J')
@@ -35,13 +38,17 @@ def clear_rect(x, y, width, height):
 
 def get_input():
     fl_state = fcntl.fcntl(sys.stdin.fileno(), fcntl.F_GETFL)
+    # in blocking mode, 
+    # this blocks until next input byte, which can be keyboard or mouse data
     data = sys.stdin.read(1)
-    if data == '\x1b':
-        # temporarily set stdin to non-blocking mode so I can fetch
-        # each character that's immediately available
+    if data == '\x1b':  # this control code marks start of a control
+                        # sequence with more bytes to follow
+        # temporarily set stdin to non-blocking mode so I can read
+        # all the characters that's immediately available
         fcntl.fcntl(sys.stdin.fileno(), fcntl.F_SETFL, fl_state | os.O_NONBLOCK)
         codes = ""
         while True:
+            # in non-blocking mode, this returns '' when no more bytes are available
             ch = sys.stdin.read(1)
             if ch == '':
                 # reset stdin back to blocking mode

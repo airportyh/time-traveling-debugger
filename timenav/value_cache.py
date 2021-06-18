@@ -3,7 +3,7 @@ import sqlite3
 
 class ValueCache:
     def __init__(self, conn, cursor):
-        self.cache = LruCache(1000)
+        self.cache = LruCache(100000)
         self.conn = conn
         self.cursor = cursor
     

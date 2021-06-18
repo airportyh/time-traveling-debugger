@@ -16,5 +16,5 @@ else
     fi
 fi
 
-echo "node $DIR/../term-debugger/term-debugger.mjs $ARG $2"
-node $DIR/../term-debugger/term-debugger.mjs $ARG $2
+echo "python3 $DIR/../timenav/gui.py $ARG $2"
+python3 $DIR/../timenav/gui.py $ARG $2

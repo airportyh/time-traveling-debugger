@@ -3,6 +3,7 @@
 TODO
 ====
 
+* intermittent error when run on gui.rewind
 * unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)

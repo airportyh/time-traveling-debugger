@@ -38,7 +38,7 @@ class CodeSeer:
                 join FunCall on Snapshot.fun_call_id = FunCall.id 
                 join FunCode on FunCall.fun_code_id = FunCode.id
                 join CodeFile on FunCode.code_file_id = CodeFile.id
-                where Snapshot.id = 3
+                where Snapshot.id = 4
         '''))[0]
         source = self.root_code_file['source']
         if source is None:
@@ -74,7 +74,7 @@ class CodeSeer:
     
     def getFetchValueSql(self, containerId, snapshotId):
         return list(self.cursor.execute('''
-                                        with MemberValues as (
+        with MemberValues as (
             select 
                 key, 
                 key_type, 
@@ -116,14 +116,14 @@ class CodeSeer:
             on (
                 case LatestMemberValues.key_type
                     when 0 then LatestMemberValues.key = RealKey.id
-                    else false
+                    else 0
                 end
             )
         left outer join Value as RealValue
             on (
                 case LatestMemberValues.type
                     when 12 then LatestMemberValues.value = RealValue.id
-                    else false
+                    else 0
                 end
             )
         ''', (containerId, snapshotId)))
@@ -141,7 +141,7 @@ def seeCode(filename):
     seer.fetch_snapshots()
     seer.fetch_root_code_file()
     seer.fetch_snapshot_count()
-    seer.fetch_current_snapshot(1)
+    seer.fetch_current_snapshot(4)
 
     return seer
     

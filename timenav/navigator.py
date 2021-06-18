@@ -52,7 +52,7 @@ class Navigator:
         start = time.time()
         last = self.cursor.execute(step2, params2).fetchone()
         end = time.time()
-        log("step2 query took %f seconds" % (end - start))
+        # log("step2 query took %f seconds" % (end - start))
         if last and result and last["id"] < result["id"]:
             result = last
         if result is None:
@@ -180,3 +180,7 @@ class Navigator:
             limit 1
         """
         return self.cursor.execute(sql, (code_file_id, line_no, snapshot_id)).fetchone()
+    
+    def get_print_output_up_to(self, snapshot_id):
+        sql = "select * from PrintOutput where snapshot_id <= ?"
+        return self.cursor.execute(sql, (snapshot_id,)).fetchall()

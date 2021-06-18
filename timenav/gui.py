@@ -1,9 +1,11 @@
+# finish and finish reverse
 # show function parameters
 # some bt frames not showing?
-# finish and finish reverse
 # bug with permutation_2.py rest has value of [1, 1], should be [2, 3]
 # test on current work (self, qt, oui, graphvis)
 
+# allow jumping to the end (done)
+# perf tuning: gui.py debugging itself is slow up to a point (done)
 # unquote numbers (done)
 # implement caching scheme for values so that moving is fast (done)
 # unquote var names (done)
@@ -54,6 +56,7 @@ class NavigatorGUI:
         self.status_pane = TextPane(Box(1, termsize.lines, termsize.columns, 1))
         self.draw_divider()
         self.value_renderer = ValueRenderer(self.cache, self.value_cache)
+        self.term_file = open("term.txt", "w")
     
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
@@ -107,7 +110,9 @@ class NavigatorGUI:
             if inp == "q":
                 break
             data = list(map(ord, inp))
-            if data == RIGHT_ARROW:
+            if inp == "e":
+                self.goto_snapshot(self.last_snapshot)
+            elif data == RIGHT_ARROW:
                 next = self.cache.get_snapshot(self.snapshot["id"] + 1)
                 self.goto_snapshot(next)
             elif data == LEFT_ARROW:
@@ -186,6 +191,7 @@ class NavigatorGUI:
         end4 = time.time()
         log("goto_snapshot highlight and scroll part took %f seconds" % (end4 - start))
         self.update_status(self.snapshot)
+        self.update_term_file()
 
     def display_source(self, file_lines, code_pane):
         gutter_width = len(str(len(file_lines) + 1))
@@ -273,6 +279,13 @@ class NavigatorGUI:
         message = message[0:termsize.columns].center(termsize.columns)
         self.status_pane.set_lines([message])
         self.status_pane.set_highlight(0)
+
+    def update_term_file(self):
+        outputs = self.nav.get_print_output_up_to(self.snapshot["id"])
+        self.term_file.write('\x1B[0m\x1B[2J\x1Bc')
+        for output in outputs:
+            self.term_file.write(output["data"])
+            self.term_file.flush()
             
     def scroll_to_line_if_needed(self, line, lines):
         offset = self.code_pane.top_offset

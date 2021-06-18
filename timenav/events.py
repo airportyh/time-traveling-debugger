@@ -7,56 +7,51 @@ class Event(object):
         parts = [self.type]
         for attr, value in self.__dict__.items():
             if attr != "type":
-                parts.append("%s=%s" % (attr, value))
+                parts.append("%s=%r" % (attr, value))
         return "Evt(%s)" % (" ".join(parts))
 
 def decode_input(an_input):
     events = []
-    codes = list(map(ord, an_input))
-    while len(codes) > 0:
-        if codes[0:3] == [27, 91, 77]:
-            # mouse event
-            if codes[3] == 32:
-                event = Event("mousedown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 35:
-                x = codes[4] - 32
-                y = codes[5] - 32
-                event = Event("mouseup", x = x, y = y)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 34:
-                event = Event("rightmousedown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 96:
-                event = Event("wheeldown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 97:
-                event = Event("wheelup", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 67:
-                event = Event("mousemove", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 64:
-                event = Event("mousedrag", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 104:
-                event = Event("ctrlwheeldown", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            elif codes[3] == 105:
-                event = Event("ctrlwheelup", x = codes[4] - 32, y = codes[5] - 32)
-                events.append(event)
-                codes = codes[6:]
-            else:
-                raise Exception("Unknown mouse control code %r" % codes)
+    if len(an_input) == 1:
+        if an_input == '\x7f':
+            return [Event("keypress", key = "DEL")]
+        elif an_input == '\x1b':
+            return [Event("keypress", key = "ESC")]
+        return [Event("keypress", key = an_input)]
+    # it's not a simple keypress, parse the control sequence
+    assert an_input[0:2] == '\x1b['
+    while len(an_input) > 0:
+        code = ord(an_input[2])
+        if code == 77:
+            # a mouse event
+            mouse_code = ord(an_input[3])
+            x = ord(an_input[4]) - 32
+            y = ord(an_input[5]) - 32
+            event_name = {
+                32: "mousedown",
+                34: "rightmousedown",
+                35: "mouseup",
+                96: "wheeldown",
+                97: "wheelup",
+                67: "mousemove",
+                64: "mousedrag",
+                104: "ctrlwheeldown",
+                105: "ctrlwheelup"
+            }[mouse_code]
+            event = Event(event_name, x = x, y = y)
+            events.append(event)
+            an_input = an_input[6:] # there may be multiple mouse events
+                                    # consume this one (6 bytes),
+                                    # loop back up to handle the rest
+        elif code == 65:
+            return [Event("keypress", key="UP_ARROW")]
+        elif code == 66:
+            return [Event("keypress", key="DOWN_ARROW")]
+        elif code == 67:
+            return [Event("keypress", key="RIGHT_ARROW")]
+        elif code == 68:
+            return [Event("keypress", key="LEFT_ARROW")]
         else:
-            # don't understand
-            break
+            raise Exception("Input control sequence not understood %r" % an_input)
+    
     return events

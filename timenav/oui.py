@@ -345,6 +345,63 @@ class Tree:
     def __repr__(self):
         return "<Tree %r>" % self.label
 
+class TextField:
+    def __init__(self, init_text=None, width=10):
+        self.text = list(init_text or "")
+        self.width = width
+        self.cursor = 0
+        self.offset = 0
+    
+    def place(self, x, y, max_width, max_height, stretch, level):
+        self.x = x
+        self.y = y
+        if stretch in ["x", "both"]:
+            self.width = max_width
+        else:
+            self.width = min(self.width, max_width)
+        self.height = min(max_height, 1)
+        
+    def draw(self):
+        display_text = "".join(self.text[self.offset:]).ljust(self.width)[0:self.width]
+        if has_focus(self):
+            cursor = self.cursor - self.offset
+            before_cursor = display_text[0:cursor]
+            cursor_char = display_text[cursor]
+            after_cursor = display_text[cursor + 1:]
+            print_at(self.x, self.y, style(before_cursor, "4"))
+            print_at(self.x + cursor, self.y, style(style(cursor_char, "30"), "47"))
+            print_at(self.x + cursor + 1, self.y, style(after_cursor, "4"))
+        else:
+            print_at(self.x, self.y, style(display_text, "4"))
+    
+    def keypress(self, evt):
+        if evt.key in ["UP_ARROW", "DOWN_ARROW"]:
+            return
+        elif evt.key == "LEFT_ARROW":
+            self.cursor = max(0, self.cursor - 1)
+            if self.offset > self.cursor:
+                self.offset = self.cursor
+        elif evt.key == "RIGHT_ARROW":
+            self.cursor = min(len(self.text), self.cursor + 1)
+            if self.cursor >= self.offset + self.width:
+                self.offset = self.cursor + 1 - self.width
+        elif evt.key == "DEL":
+            assert self.cursor >= 0 and self.cursor <= len(self.text)
+            if self.cursor >= 1:
+                del self.text[self.cursor - 1]
+                self.cursor -= 1
+                if self.cursor < self.offset:
+                    self.offset = self.cursor
+        else:
+            self.text.insert(self.cursor, evt.key)
+            self.cursor += 1
+            if self.cursor - self.offset >= self.width:
+                self.offset = (self.cursor + 1) - self.width
+        self.draw()
+        
+    def __repr__(self):
+        return "<TextField %d>" % id(self)
+
 # UI Core Engine
 
 def add_child(parent, child, stretch=None):
@@ -431,7 +488,21 @@ def fire(element, event, level=0):
         for child in element.children:
             fire(child, event, level + 1)
 
-def run(root_element, handler = None):
+def fire_keypress(element, event):
+    if hasattr(element, event.type):
+        handler_fn = getattr(element, event.type)
+        handler_fn(event)
+
+focused_element = None
+
+def focus(element):
+    global focused_element
+    focused_element = element
+
+def has_focus(element):
+    return focused_element == element
+
+def run(root_element):
     def clean_up():
         restore(original_settings)
         mouse_off()
@@ -450,34 +521,37 @@ def run(root_element, handler = None):
         termsize = os.get_terminal_size()
         screen_width = termsize.columns
         screen_height = termsize.lines
-        log("screen_width = %d, screen_height = %d" % (screen_width, screen_height))
     
         root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
         draw(root_element)
-        while True:
+        quit = False
+        while not quit:
             inp = get_input()
-            if inp == "\r":
-                # rerender
-                log("rerendering screen")
-                termsize = os.get_terminal_size()
-                screen_width = termsize.columns
-                screen_height = termsize.lines
-                log("screen_width = %d, screen_height = %d" % (screen_width, screen_height))
-                root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
-                clear_rect(1, 1, screen_width, screen_height)
-                draw(root_element)
-            if inp == "q":
-                break
-            else:
-                events = decode_input(inp)
-                for event in events:
+            events = decode_input(inp)
+            # codes = list(map(ord, inp))
+            # log("Input: %r, %r, %r" % (inp, codes, events))
+            for event in events:
+                if event.type == "keypress":
+                    if event.key == "\r":
+                        termsize = os.get_terminal_size()
+                        screen_width = termsize.columns
+                        screen_height = termsize.lines
+                        root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
+                        clear_rect(1, 1, screen_width, screen_height)
+                        draw(root_element)
+                    elif event.key == "q":
+                        quit = True
+                        break
+                    else:
+                        # dispatch to focused_element
+                        if focused_element:
+                            fire_keypress(focused_element, event)
+                else: # assume these are mouse/wheel events, dispatch it starting at root
                     fire(root_element, event)
 
-            if handler:
-                handler()
-            root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
-            clear_rect(1, 1, screen_width, screen_height)
-            draw(root_element)
+            # root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
+            # clear_rect(1, 1, screen_width, screen_height)
+            # draw(root_element)
 
     except Exception as e:
         clean_up()
