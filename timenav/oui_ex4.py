@@ -2,9 +2,9 @@ from oui import *
 
 def main():
     root = VerticalPanel()
-    label1 = Label("What to do?")
-    add_child(root, label1)
-    field1 = TextField("", width=20)
+    # label1 = Label(placeholder="What to do?")
+    # add_child(root, label1)
+    field1 = TextField("", width=20, placeholder="What to do?")
     add_child(root, field1)
     
     label2 = Label("How many times?")

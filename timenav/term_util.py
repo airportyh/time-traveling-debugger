@@ -16,6 +16,12 @@ def write(value):
 def style(text, code):
     return "\x1B[%sm%s\x1B[0m" % (code, text)
 
+def strike_through(s):
+    result = ""
+    for char in s:
+        result += char + "\u0336"
+    return result
+
 def clear_screen():
     write('\x1B[0m')
     write('\x1B[2J')

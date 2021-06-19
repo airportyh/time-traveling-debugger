@@ -40,9 +40,10 @@
 import termios
 import tty
 import os
-from events import decode_input
+from events import decode_input, Event
 from term_util import *
 import sys
+import time
 
 logfile = open("ui.log", "a")
 
@@ -51,19 +52,17 @@ def log(text):
     logfile.flush()
 
 class Label:
-    def __init__(self, text):
+    def __init__(self, text, strikethrough=False):
         self.text = text
+        self.strikethrough = strikethrough
 
-    # @property
-    # def text(self):
-    #     return self._text
-    # 
-    # @text.setter
-    # def text(self, text):
-    #     self._text = text
-    #     if self.parent and hasattr(self.parent, "child_update"):
-    #         self.parent.child_update(self)
-    #     self.draw()
+    def set_text(self, text):
+        self.text = text
+        self.draw()
+        
+    def set_strikethrough(self, value):
+        self.strikethrough = value
+        self.draw()
 
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
@@ -81,7 +80,10 @@ class Label:
         # log(indent + "Label.place done (%d, %d)" % (self.width, self.height))
 
     def draw(self):
-        display = self.text[0:self.width].ljust(self.width, " ")
+        text = self.text[0:self.width]
+        if self.strikethrough:
+            text = strike_through(text)
+        display = text + " " * (self.width - len(text))
         # log("Label.draw(%d, %d, %d, %s)" % (self.x, self.y, self.width, display))
         print_at(self.x, self.y, display)
     
@@ -144,6 +146,11 @@ class VerticalPanel:
         # log(indent + "VerticalPanel.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
         self.x = x
         self.y = y
+        
+        if not hasattr(self, "children"):
+            self.width = 0
+            self.height = 0
+            return
 
         non_stretched = filter(lambda c: not has_stretch_y(c), self.children)
         stretched = filter(has_stretch_y, self.children)
@@ -346,11 +353,13 @@ class Tree:
         return "<Tree %r>" % self.label
 
 class TextField:
-    def __init__(self, init_text=None, width=10):
+    def __init__(self, init_text=None, width=10, placeholder=None, on_keypress=None):
         self.text = list(init_text or "")
         self.width = width
+        self.placeholder = placeholder
         self.cursor = 0
         self.offset = 0
+        self.on_keypress = on_keypress
     
     def place(self, x, y, max_width, max_height, stretch, level):
         self.x = x
@@ -362,19 +371,41 @@ class TextField:
         self.height = min(max_height, 1)
         
     def draw(self):
-        display_text = "".join(self.text[self.offset:]).ljust(self.width)[0:self.width]
+        text = self.text
+        use_placeholder = self.placeholder and len(text) == 0
+        if use_placeholder:
+            text = self.placeholder
+        display_text = "".join(text[self.offset:]).ljust(self.width)[0:self.width]
+        
+        background = "48;5;242";
+        placeholder_color = "38;5;246"
+        cursor_background = "44"
+        
         if has_focus(self):
             cursor = self.cursor - self.offset
             before_cursor = display_text[0:cursor]
             cursor_char = display_text[cursor]
             after_cursor = display_text[cursor + 1:]
-            print_at(self.x, self.y, style(before_cursor, "4"))
-            print_at(self.x + cursor, self.y, style(style(cursor_char, "30"), "47"))
-            print_at(self.x + cursor + 1, self.y, style(after_cursor, "4"))
+            print_at(self.x, self.y, style(before_cursor, background))
+            if use_placeholder:
+                print_at(self.x + cursor, self.y, style(style(cursor_char, placeholder_color), cursor_background))
+            else:
+                print_at(self.x + cursor, self.y, style(cursor_char, cursor_background))
+            if use_placeholder:
+                print_at(self.x + cursor + 1, self.y, style(style(after_cursor, placeholder_color), background))
+            else:
+                print_at(self.x + cursor + 1, self.y, style(after_cursor, background))
         else:
-            print_at(self.x, self.y, style(display_text, "4"))
+            if use_placeholder:
+                print_at(self.x, self.y, style(style(display_text, placeholder_color), background))
+            else:
+                print_at(self.x, self.y, style(display_text, background))
     
     def keypress(self, evt):
+        if self.on_keypress:
+            if self.on_keypress(evt) == False: # prevent default in the style of JS
+                return
+                
         if evt.key in ["UP_ARROW", "DOWN_ARROW"]:
             return
         elif evt.key == "LEFT_ARROW":
@@ -396,32 +427,57 @@ class TextField:
             yield_focus(self)
         elif evt.key == "REVERSE_TAB":
             yield_focus_reverse(self)
+        elif evt.key == "\r": # don't put enters in a single-line
+                              # text field
+            pass
         else:
             self.text.insert(self.cursor, evt.key)
             self.cursor += 1
             if self.cursor - self.offset >= self.width:
                 self.offset = (self.cursor + 1) - self.width
         self.draw()
+        
+    def click(self, evt):
+        focus(self)
     
     def want_focus(self):
         return True
+        
+    def get_text(self):
+        return "".join(self.text)
+    
+    def set_text(self, text):
+        self.text = list(text)
+        if self.cursor > len(self.text):
+            self.cursor = len(self.text)
+        if self.offset > self.cursor:
+            self.offset = self.cursor
+        self.draw()
         
     def __repr__(self):
         return "<TextField %d>" % id(self)
 
 # UI Core Engine
 
-def add_child(parent, child, stretch=None):
+def add_child(parent, child, index=None, stretch=None):
     if stretch:
         child.stretch = stretch
     child.parent = parent
     if not hasattr(parent, "children"):
         parent.children = []
-    parent.children.append(child)
+    if index is None:
+        parent.children.append(child)
+    else:
+        parent.children.insert(index, child)
+    render_all()
 
 def remove_child(parent, child):
+    global focused_element
     assert child in parent.children
     parent.children.remove(child)
+    if child == focused_element:
+        focused_element = None
+    render_all()
 
 def num_children(element):
     if not hasattr(element, "children"):
@@ -505,7 +561,10 @@ focused_element = None
 
 def focus(element):
     global focused_element
+    prev = focused_element
     focused_element = element
+    if prev:
+        prev.draw()
     if is_placed(element):
         element.draw()
 
@@ -556,13 +615,24 @@ def focus_prev_element_from(container, from_child):
             if focus_prev_element_from(child, None):
                 return True
 
+def render_all():
+    termsize = os.get_terminal_size()
+    screen_width = termsize.columns
+    screen_height = termsize.lines
+    if root:
+        clear_rect(1, 1, screen_width, screen_height)
+        root.place(1, 1, screen_width, screen_height, get_stretch(root), 0)
+        draw(root)
+
+max_click_gap = 0.250
+max_dbl_click_gap = 0.5
+
 def run(root_element):
     global root
     root = root_element
     def clean_up():
         restore(original_settings)
         mouse_off()
-        # mouse_motion_off()
         cursor_on()
 
     original_settings = termios.tcgetattr(sys.stdin)
@@ -571,32 +641,39 @@ def run(root_element):
         tty.setraw(sys.stdin)
         clear_screen()
         mouse_on()
-        # mouse_motion_on()
         cursor_off()
         
-        termsize = os.get_terminal_size()
-        screen_width = termsize.columns
-        screen_height = termsize.lines
+        prev_mousedown = None
+        prev_mousedown_tick = None
+        prev_click = None
+        prev_click_tick = None
         
         focus_next_element_from(root, None)
-        root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
-        draw(root_element)
+        render_all()
         quit = False
         while not quit:
             inp = get_input()
             events = decode_input(inp)
+            more_events = []
+            even_more_events = []
             # codes = list(map(ord, inp))
             # log("Input: %r, %r, %r" % (inp, codes, events))
             for event in events:
+                if event.type == "mouseup":
+                    if prev_mousedown and (time.time() - prev_mousedown_tick < max_click_gap):
+                        if event.x == prev_mousedown.x and event.y == prev_mousedown.y:
+                            click_event = Event("click", x=event.x, y=event.y)
+                            more_events.append(click_event)
+                            prev_mousedown = None
+                            prev_mousedown_tick = None
+                            prev_click = click_event
+                            prev_click_tick = time.ime()
+                elif event.type == "mousedown":
+                    prev_mousedown = event
+                    prev_mousedown_tick = time.time()
+                
                 if event.type == "keypress":
-                    if event.key == "\r":
-                        termsize = os.get_terminal_size()
-                        screen_width = termsize.columns
-                        screen_height = termsize.lines
-                        root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
-                        clear_rect(1, 1, screen_width, screen_height)
-                        draw(root_element)
-                    elif event.key == "q":
+                    if event.key == "q":
                         quit = True
                         break
                     else:
@@ -606,9 +683,20 @@ def run(root_element):
                 else: # assume these are mouse/wheel events, dispatch it starting at root
                     fire(root_element, event)
 
-            # root_element.place(1, 1, screen_width, screen_height, get_stretch(root_element), 0)
-            # clear_rect(1, 1, screen_width, screen_height)
-            # draw(root_element)
+            for event in more_events:
+                if event.type == "click":
+                    if prev_click and (time.time() - prev_click_tick < max_dbl_click_gap):
+                        if event.x == prev_click.x and event.y == prev_click.y:
+                            dbl_click_event = Event("dblclick", x=event.x, y=event.y)
+                            even_more_events.append(dbl_click_event)
+                            prev_click = None
+                            prev_click_tick = None
+                    prev_click = event
+                    prev_click_tick = time.time()
+                fire(root_element, event)
+            
+            for event in even_more_events:
+                fire(root_element, event)
 
     except Exception as e:
         clean_up()
