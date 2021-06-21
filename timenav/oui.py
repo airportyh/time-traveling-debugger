@@ -1,35 +1,40 @@
 # Ideas
 #
+# have better handling for multiple event listeners
+# close menu when item is selected
+# how to exit properly?
+# nested menu items
+# handling element resizing
 # Relative coordinates (no)
-# layout phase vs render phase
 # child to parent communication when resizing of a child has to change
-
-# Uncertainties
-# When should a render occur?
-#   Whenever state changes
-#   things needed to render
-#   * size
-#   * content
-
-# Features
-
+# Search function within current file
 # scroll pane
 # text centering
-
-# focus
-# text fields
-# keyboard input
 # split (draggable) pane
 # button and other hovers
-# proper click event
-# popups / windows
+# windows
 # dragging / resizing
 # flow layout (box wrapping)
 # multi-line text
 # word wrap
-# tapping
 # relayout on enter
 
+
+# layout phase vs render phase (done)
+# tapping (done)
+# popups (done)
+# proper click event (done)
+# rename Label to Text (done)
+# focus (done)
+# text fields (done)
+# keyboard input (done)
+# keyboard navigation of menu items (done)
+#  * up and down to navigate items within menu (done)
+#  * left and right or tab and reverse tab to navigate menus (done)
+#  * global hot key to select first menu (done)
+#  * escape to close active menu (done)
+#  * type first char to jump to matching menu item (done)
+# add MenuItem class (done)
 # stretch (done)
 # collapsable tree (done)
 
@@ -45,16 +50,17 @@ from term_util import *
 import sys
 import time
 
-logfile = open("ui.log", "a")
+# logfile = open("ui.log", "a")
+# 
+# def log(text):
+#     logfile.write(text + "\n")
+#     logfile.flush()
 
-def log(text):
-    logfile.write(text + "\n")
-    logfile.flush()
-
-class Label:
+class Text:
     def __init__(self, text, strikethrough=False):
         self.text = text
         self.strikethrough = strikethrough
+        self.styles = []
 
     def set_text(self, text):
         self.text = text
@@ -83,12 +89,25 @@ class Label:
         text = self.text[0:self.width]
         if self.strikethrough:
             text = strike_through(text)
+        
         display = text + " " * (self.width - len(text))
+        if len(self.styles) > 0:
+            display = style(display, self.styles[0])
+        
         # log("Label.draw(%d, %d, %d, %s)" % (self.x, self.y, self.width, display))
         print_at(self.x, self.y, display)
     
+    def add_style(self, style):
+        self.styles.append(style)
+        self.draw()
+        
+    def remove_style(self, style):
+        if style in self.styles:
+            self.styles.remove(style)
+            self.draw()
+    
     def __repr__(self):
-        return "<Label %r>" % self.text
+        return "<Text %r>" % self.text
 
 class Border:
     def __init__(self, content, color=None):
@@ -194,21 +213,6 @@ class VerticalPanel:
 
         # log(indent + "VerticalPanel.place done (%d, %d)" % (self.width, self.height))
 
-    def child_update(self, child):
-        assert child in self.children
-        # This could be optimized by starting the placement process
-        # only starting at the updated child
-        # clear_rect(self.x, self.y, self.width, self.height)
-        old_width = self.width
-        old_height = self.height
-        self.place(self.x, self.y, self.width, self.height, get_stretch(self), 0)
-        if old_width != self.width or old_height != self.height:
-            child_update = getattr(self.parent, "child_update", None)
-            if child_update:
-                child_update(self)
-        else:
-            draw(self)
-
     def draw(self):
         # Clear rectangle. Not needed if we make all children stretch horizontally
         # and assume they repaint all horizontal space on draw()
@@ -247,12 +251,10 @@ class HorizontalPanel:
         my_height = 0
         for child in self.children:
             if has_stretch_x(child):
-                log(indent + "(A)")
                 child.place(self.x + x_offset, self.y, 
                     stretch_width_per, max_height, 
                     get_stretch(child), level + 1)
             else:
-                log(indent + "(B)")
                 child.place(self.x + x_offset, self.y, 
                     max_width - x_offset, max_height, 
                     get_stretch(child), level + 1)
@@ -274,10 +276,6 @@ class HorizontalPanel:
             self.height = min(max_height, my_height)
 
         # log(indent + "HorizontalPanel.place done (%d, %d)" % (self.width, self.height))
-    
-    def child_update(self, child):
-        self.place(self.x, self.y, self.width, self.height)
-        draw(self)
     
     def draw(self):
         clear_rect(self.x, self.y, self.width, self.height)
@@ -322,21 +320,15 @@ class Tree:
             for child in self.child_nodes:
                 unplace(child)
             self.height = self.label.height
-        # log(logindent + "Tree.place done (%d, %d)" % (self.width, self.height))
 
     def mouseup(self, event):
         indent = 2
         if event.y == self.y and event.x >= self.x and event.x < self.x + indent:
             self.expanded = not self.expanded
-            # clear_rect(self.x, self.y, self.width, self.height)
-            # self.parent.child_update(self)
     
     @property
     def child_nodes(self):
         return filter(lambda c: c != self.label, self.children)
-    
-    # def child_update(self, child):
-    #     self.parent.child_update(self)
 
     def is_root(self):
         return not hasattr(self, "parent") or not isinstance(self.parent, Tree)
@@ -457,6 +449,220 @@ class TextField:
     def __repr__(self):
         return "<TextField %d>" % id(self)
 
+class PopUp:
+    def __init__(self, content, x, y):
+        self.content = content
+        self.x = x
+        self.y = y
+        add_child(self, content)
+    
+    def place(self, x, y, max_width, max_height, stretch, level):
+        termsize = os.get_terminal_size()
+        screen_width = termsize.columns
+        screen_height = termsize.lines
+        self.x = x
+        self.y = y
+        self.content.place(
+            self.x, 
+            self.y, 
+            screen_width - self.x, 
+            screen_height  - self.y,
+            None,
+            level + 1
+        )
+        self.width = self.content.width
+        self.height = self.content.height
+
+class PopUpMenu:
+    def __init__(self):
+        self.box = VerticalPanel()
+        self.highlighted = 0
+        self.popup = PopUp(Border(self.box, color="36"), 1, 1)
+        add_child(self, self.popup)
+    
+    def place(self, x, y, max_width, max_height, stretch, level):
+        self.popup.place(self.x, self.y, max_width, max_height, stretch, level)
+        self.x = self.popup.x
+        self.y = self.popup.y
+        self.width = self.popup.width
+        self.height = self.popup.height
+    
+    def add_item(self, menu_item):
+        add_child(self.box, menu_item)
+        if self.highlighted == len(self.box.children) - 1:
+            menu_item.set_highlighted(True)
+    
+    def keypress(self, evt):
+        # we need focus...
+        if evt.key == "DOWN_ARROW":
+            self.set_highlighted(self.highlighted + 1)
+            if self.highlighted >= len(self.box.children):
+                self.set_highlighted(0)
+        elif evt.key == "UP_ARROW":
+            self.set_highlighted(self.highlighted - 1)
+            if self.highlighted < 0:
+                self.set_highlighted(len(self.box.children) - 1)
+            draw(self)
+        elif evt.key in ["RIGHT_ARROW", "\t"]:
+            if hasattr(self, "menu_button"):
+                menu_bar = self.menu_button.get_menu_bar()
+                menu_bar.activate_next_menu()
+        elif evt.key in ["LEFT_ARROW", "REVERSE_TAB"]:
+            if hasattr(self, "menu_button"):
+                menu_bar = self.menu_button.get_menu_bar()
+                menu_bar.activate_prev_menu()
+        elif evt.key in ["ESC"]:
+            if hasattr(self, "menu_button"):
+                self.menu_button.close()
+        elif evt.key == "\r":
+            item = self.box.children[self.highlighted]
+            item.select()
+        elif len(evt.key) == 1 and evt.key.isalpha():
+            self.highlight_next_starting_with(evt.key)
+    
+    def highlight_next_starting_with(self, char):
+        for i in range(self.highlighted + 1, len(self.box.children)):
+            item = self.box.children[i]
+            if item.label.text.lower().startswith(char.lower()):
+                self.set_highlighted(i)
+                return
+        for i in range(self.highlighted):
+            item = self.box.children[i]
+            if item.label.text.lower().startswith(char.lower()):
+                self.set_highlighted(i)
+    
+    def set_highlighted(self, value):
+        self.box.children[self.highlighted].set_highlighted(False)
+        self.highlighted = value
+        self.box.children[self.highlighted].set_highlighted(True)
+        
+    def want_focus(self):
+        return True
+
+class MenuItem:
+    def __init__(self, label, highlighted=False, on_select=None):
+        self.label = label
+        self.on_select = on_select
+        add_child(self, self.label)
+        self.highlighted = highlighted
+        self.update_highlighted_style()
+    
+    def update_highlighted_style(self):
+        highlighted_background = "46;1"
+        if self.highlighted:
+            self.label.styles.append(highlighted_background)
+        else:
+            if highlighted_background in self.label.styles:
+                self.label.styles.remove(highlighted_background)
+    
+    def set_highlighted(self, value):
+        self.highlighted = value
+        self.update_highlighted_style()
+        draw(self)
+        
+    def place(self, *args):
+        defer_place_to_child(self, self.label, *args)
+    
+    def click(self, evt):
+        self.select()
+    
+    def select(self):
+        if self.on_select:
+            self.on_select()
+
+class MenuButton:
+    def __init__(self, label, popup_menu, on_open=None, on_close=None):
+        self.label = label
+        add_child(self, self.label)
+        self.popup_menu = popup_menu
+        self.popup_menu.menu_button = self
+        self.is_open = False
+        self.on_open = on_open
+        self.on_close = on_close
+    
+    def place(self, *args):
+        defer_place_to_child(self, self.label, *args)
+    
+    def open(self):
+        self.popup_menu.x = self.x
+        self.popup_menu.y = self.y + 1
+        add_child(root, self.popup_menu)
+        focus(self.popup_menu)
+        self.is_open = True
+        selected_background = "46;1"
+        self.label.add_style(selected_background)
+        if self.on_open:
+            self.on_open()
+        
+    def close(self):
+        remove_child(root, self.popup_menu)
+        self.is_open = False
+        selected_background = "46;1"
+        self.label.remove_style(selected_background)
+        if self.on_close:
+            self.on_close()
+        
+    def click(self, evt):
+        if not self.is_open:
+            self.open()
+        else:
+            self.close()
+    
+    def get_menu_bar(self):
+        return self.parent.parent
+
+class MenuBar:
+    def __init__(self):
+        self.box = HorizontalPanel()
+        add_child(self, self.box)
+    
+    def add_menu(self, label, menu):
+        def on_open():
+            # close other open popup menus
+            for button in self.box.children:
+                if button != menu_button and button.is_open:
+                    button.close()
+        menu_button = MenuButton(label, menu, on_open)
+        add_child(self.box, menu_button)
+    
+    def place(self, *args):
+        defer_place_to_child(self, self.box, *args)
+    
+    def activate_next_menu(self):
+        if len(self.box.children) == 0:
+            return
+        idx = None
+        for i, button in enumerate(self.box.children):
+            if button.is_open:
+                idx = i
+                break
+        if idx is None:
+            idx = 0
+        else:
+            active = self.box.children[idx]
+            active.close()
+            idx += 1
+        if idx >= len(self.box.children):
+            idx = 0
+        new_active = self.box.children[idx]
+        new_active.open()
+
+    def activate_prev_menu(self):
+        idx = None
+        for i, button in enumerate(self.box.children):
+            if button.is_open:
+                idx = i
+                break
+        if idx is None:
+            return
+        active = self.box.children[idx]
+        active.close()
+        idx -= 1
+        if idx < 0:
+            idx = len(self.box.children) - 1
+        new_active = self.box.children[idx]
+        new_active.open()
+
 # UI Core Engine
 
 def add_child(parent, child, index=None, stretch=None):
@@ -489,6 +695,13 @@ def restore(settings):
     write('\x1B[0m')
     print("\n")
 
+def defer_place_to_child(parent, child, x, y, max_width, max_height, stretch, level):
+    child.place(x, y, max_width, max_height, stretch, level + 1)
+    parent.x = child.x
+    parent.y = child.y
+    parent.width = child.width
+    parent.height = child.height
+
 def draw(element, level=0):
     termsize = os.get_terminal_size()
     screen_width = termsize.columns
@@ -496,9 +709,9 @@ def draw(element, level=0):
     indent = "  " * level
     # log(indent + "draw(%r)" % element)
     if not is_placed(element):
-        log(indent + "not placed")
-        pass
-    elif element.x <= screen_width and element.y <= screen_height:
+        return
+    
+    if element.x <= screen_width and element.y <= screen_height:
         if hasattr(element, "draw"):
             # log(indent + "actually drawing")
             element.draw()
@@ -541,7 +754,6 @@ def fire(element, event, level=0):
     if hasattr(event, "x") and hasattr(event, "y"):
         if is_placed(element) and contains(element, event.x, event.y):
             if hasattr(element, event.type):
-                log(indent + "calling handler fn")
                 handler_fn = getattr(element, event.type)
                 handler_fn(event)
         else:
@@ -561,12 +773,14 @@ focused_element = None
 
 def focus(element):
     global focused_element
+    if not hasattr(element, "want_focus") or not element.want_focus():
+        return
     prev = focused_element
     focused_element = element
     if prev:
-        prev.draw()
+        draw(prev)
     if is_placed(element):
-        element.draw()
+        draw(element)
 
 def has_focus(element):
     return focused_element == element
@@ -627,7 +841,7 @@ def render_all():
 max_click_gap = 0.250
 max_dbl_click_gap = 0.5
 
-def run(root_element):
+def run(root_element, global_key_handler=None):
     global root
     root = root_element
     def clean_up():
@@ -638,6 +852,7 @@ def run(root_element):
     original_settings = termios.tcgetattr(sys.stdin)
 
     try:
+        
         tty.setraw(sys.stdin)
         clear_screen()
         mouse_on()
@@ -667,19 +882,25 @@ def run(root_element):
                             prev_mousedown = None
                             prev_mousedown_tick = None
                             prev_click = click_event
-                            prev_click_tick = time.ime()
+                            prev_click_tick = time.time()
                 elif event.type == "mousedown":
                     prev_mousedown = event
                     prev_mousedown_tick = time.time()
                 
                 if event.type == "keypress":
-                    if event.key == "q":
-                        quit = True
-                        break
-                    else:
-                        # dispatch to focused_element
-                        if focused_element:
-                            fire_keypress(focused_element, event)
+                    prevent_default = False
+                    if global_key_handler:
+                        result = global_key_handler(event)
+                        if result == False:
+                            prevent_default = True
+                    if not prevent_default:
+                        if event.key == "q":
+                            quit = True
+                            break
+                        else:
+                            # dispatch to focused_element
+                            if focused_element:
+                                fire_keypress(focused_element, event)
                 else: # assume these are mouse/wheel events, dispatch it starting at root
                     fire(root_element, event)
 
@@ -701,6 +922,6 @@ def run(root_element):
     except Exception as e:
         clean_up()
         raise e
-
+    
     clean_up()
 

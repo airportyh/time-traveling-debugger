@@ -17,6 +17,7 @@ def style(text, code):
     return "\x1B[%sm%s\x1B[0m" % (code, text)
 
 def strike_through(s):
+    # https://stackoverflow.com/a/53836006/5304
     result = ""
     for char in s:
         result += char + "\u0336"

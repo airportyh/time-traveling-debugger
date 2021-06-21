@@ -19,6 +19,9 @@ def decode_input(an_input):
             return [Event("keypress", key = "ESC")]
         return [Event("keypress", key = an_input)]
     # it's not a simple keypress, parse the control sequence
+    if an_input == "\x1bOQ":
+        return [Event("keypress", key = "F2")]
+        
     assert an_input[0:2] == '\x1b['
     while len(an_input) > 0:
         code = ord(an_input[2])

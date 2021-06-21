@@ -1,3 +1,5 @@
+# boolean rendering
+# Cmd-p to select file
 # display closures
 # finish and finish reverse
 # show function parameters

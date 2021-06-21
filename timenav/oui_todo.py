@@ -5,15 +5,15 @@ class TodoItem:
         self.list_ui = list_ui
         self.text = text
         self.panel = HorizontalPanel()
-        self.check_box = Label("☐ ")
+        self.check_box = Text("☐ ")
         self.checked = False
         self.check_box.mouseup = self.on_checkbox_clicked
         add_child(self.panel, self.check_box)
-        self.label = Label(text)
+        self.label = Text(text)
         self.label.dblclick = self.on_label_dblclicked
         add_child(self.panel, self.label)
         
-        self.del_button = Label(" ⌫ ")
+        self.del_button = Text(" ⌫ ")
         self.del_button.mouseup = self.on_delete_clicked
         add_child(self.panel, self.del_button)
         
@@ -38,7 +38,7 @@ class TodoItem:
         if evt.key == "\r":
             self.text = self.field.get_text()
             remove_child(self.panel, self.field)
-            self.label = Label(self.text)
+            self.label = Text(self.text)
             self.label.dblclick = self.on_label_dblclicked
             add_child(self.panel, self.label, index=1)
             return False
