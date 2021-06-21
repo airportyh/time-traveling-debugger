@@ -15,7 +15,6 @@ def main():
     
     def on_open_clicked(evt):
         nonlocal opened
-        
         opened = not opened
         if opened:
             popup.x = open.x
@@ -27,6 +26,7 @@ def main():
             open.set_text("▶ Open ")
         
     open = Text("▶ Open ")
+    # add_handler(open, "click", on_open_clicked)
     open.click = on_open_clicked
     add_child(ui, open)
     

@@ -1,7 +1,7 @@
 # Ideas
 #
-# have better handling for multiple event listeners
-# close menu when item is selected
+# make the tree work again
+# menu items should be stretched
 # how to exit properly?
 # nested menu items
 # handling element resizing
@@ -19,7 +19,8 @@
 # word wrap
 # relayout on enter
 
-
+# close menu when item is selected (done)
+# have better handling for multiple event listeners (done)
 # layout phase vs render phase (done)
 # tapping (done)
 # popups (done)
@@ -69,6 +70,9 @@ class Text:
     def set_strikethrough(self, value):
         self.strikethrough = value
         self.draw()
+        
+    # def preferred_size(self):
+    #     return (len(self.text), 1)
 
     def place(self, x, y, max_width, max_height, stretch, level):
         indent = level * "  "
@@ -480,17 +484,23 @@ class PopUpMenu:
         self.popup = PopUp(Border(self.box, color="36"), 1, 1)
         add_child(self, self.popup)
     
-    def place(self, x, y, max_width, max_height, stretch, level):
-        self.popup.place(self.x, self.y, max_width, max_height, stretch, level)
+    def place(self, x, y, *rest):
+        self.popup.place(self.x, self.y, *rest)
         self.x = self.popup.x
         self.y = self.popup.y
         self.width = self.popup.width
         self.height = self.popup.height
     
+    def close(self):
+        self.menu_button.close()
+    
     def add_item(self, menu_item):
         add_child(self.box, menu_item)
         if self.highlighted == len(self.box.children) - 1:
             menu_item.set_highlighted(True)
+            
+    def get_menu_bar(self):
+        return self.menu_button.get_menu_bar()
     
     def keypress(self, evt):
         # we need focus...
@@ -504,16 +514,11 @@ class PopUpMenu:
                 self.set_highlighted(len(self.box.children) - 1)
             draw(self)
         elif evt.key in ["RIGHT_ARROW", "\t"]:
-            if hasattr(self, "menu_button"):
-                menu_bar = self.menu_button.get_menu_bar()
-                menu_bar.activate_next_menu()
+            self.get_menu_bar().activate_next_menu()
         elif evt.key in ["LEFT_ARROW", "REVERSE_TAB"]:
-            if hasattr(self, "menu_button"):
-                menu_bar = self.menu_button.get_menu_bar()
-                menu_bar.activate_prev_menu()
+            self.get_menu_bar().activate_prev_menu()
         elif evt.key in ["ESC"]:
-            if hasattr(self, "menu_button"):
-                self.menu_button.close()
+            self.close()
         elif evt.key == "\r":
             item = self.box.children[self.highlighted]
             item.select()
@@ -532,6 +537,8 @@ class PopUpMenu:
                 self.set_highlighted(i)
     
     def set_highlighted(self, value):
+        if isinstance(value, MenuItem):
+            value = self.box.children.index(value)
         self.box.children[self.highlighted].set_highlighted(False)
         self.highlighted = value
         self.box.children[self.highlighted].set_highlighted(True)
@@ -540,12 +547,15 @@ class PopUpMenu:
         return True
 
 class MenuItem:
-    def __init__(self, label, highlighted=False, on_select=None):
+    def __init__(self, label, on_select=None, highlighted=False):
         self.label = label
         self.on_select = on_select
         add_child(self, self.label)
         self.highlighted = highlighted
         self.update_highlighted_style()
+    
+    def get_menu(self):
+        return self.parent.parent.parent.parent
     
     def update_highlighted_style(self):
         highlighted_background = "46;1"
@@ -567,6 +577,10 @@ class MenuItem:
         self.select()
     
     def select(self):
+        menu = self.get_menu()
+        menu.set_highlighted(self)
+        time.sleep(0.2)
+        self.get_menu().close()
         if self.on_select:
             self.on_select()
 
@@ -685,6 +699,21 @@ def remove_child(parent, child):
         focused_element = None
     render_all()
 
+def add_handler(element, event_name, handler, front=False):
+    if not hasattr(element, event_name):
+        handlers = []
+        setattr(element, event_name, handlers)
+    else:
+        handlers = getattr(element, event_name)
+        if not isinstance(handlers, list):
+            assert callable(handlers)
+            handlers = [handlers]
+            setattr(element, event_name, handlers)
+    if front:
+        handlers.insert(0, handler)
+    else:
+        handlers.append(handler)
+
 def num_children(element):
     if not hasattr(element, "children"):
         return 0
@@ -748,25 +777,31 @@ def contains(element, x, y):
     return element.x <= x and element.y <= y and element.x + element.width > x \
         and element.y + element.height > y
 
-def fire(element, event, level=0):
+def fire_mouse_event(element, event, level=0):
     indent = "  " * level
-    # log(indent + "fire(%r, %r)" % (element, event))
     if hasattr(event, "x") and hasattr(event, "y"):
         if is_placed(element) and contains(element, event.x, event.y):
-            if hasattr(element, event.type):
-                handler_fn = getattr(element, event.type)
-                handler_fn(event)
+            _fire_event(element, event)
         else:
             return
     
     if hasattr(element, "children"):
         for child in element.children:
-            fire(child, event, level + 1)
+            fire_mouse_event(child, event, level + 1)
 
 def fire_keypress(element, event):
     if hasattr(element, event.type):
-        handler_fn = getattr(element, event.type)
-        handler_fn(event)
+        _fire_event(element, event)
+
+def _fire_event(element, event):
+    if hasattr(element, event.type):
+        handler = getattr(element, event.type)
+        if callable(handler):
+            handler(event)
+        else:
+            for h in handler:
+                if h(event): # returning True disable rest of the handlers
+                    return
 
 root = None
 focused_element = None
@@ -902,7 +937,7 @@ def run(root_element, global_key_handler=None):
                             if focused_element:
                                 fire_keypress(focused_element, event)
                 else: # assume these are mouse/wheel events, dispatch it starting at root
-                    fire(root_element, event)
+                    fire_mouse_event(root_element, event)
 
             for event in more_events:
                 if event.type == "click":
@@ -914,10 +949,10 @@ def run(root_element, global_key_handler=None):
                             prev_click_tick = None
                     prev_click = event
                     prev_click_tick = time.time()
-                fire(root_element, event)
+                fire_mouse_event(root_element, event)
             
             for event in even_more_events:
-                fire(root_element, event)
+                fire_mouse_event(root_element, event)
 
     except Exception as e:
         clean_up()
