@@ -10,11 +10,13 @@ def main():
     def remove_f(evt):
         remove_child(d, f)
 
-    panel = VerticalPanel()
+    panel = VBox()
     label = Text("What would you like to do?")
-    button_panel = HorizontalPanel()
-    click_button = Button(Text("Click here!"), mouseup=click1)
-    dont_click_button = Button(Text("Don't click"), mouseup=remove_f)
+    button_panel = HBox()
+    click_button = Text("Click here!")
+    add_handler(click_button, "click", click1)
+    dont_click_button = Text("Don't click")
+    add_handler(dont_click_button, "click", click2)
     add_child(button_panel, click_button)
     add_child(button_panel, dont_click_button)
     # for i in range(10):
@@ -34,7 +36,7 @@ def main():
     add_child(tree_root, c)
     add_child(tree_root, d)
 
-    # tree_panel = VerticalPanel()
+    # tree_panel = VBox()
     # add_child(tree_panel, tree_root)
 
     # add_child(panel, tree_panel, stretch="both")

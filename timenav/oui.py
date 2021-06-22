@@ -1,24 +1,21 @@
 # Ideas
 #
-# make the tree work again
-# menu items should be stretched
-# how to exit properly?
-# nested menu items
-# handling element resizing
-# Relative coordinates (no)
 # child to parent communication when resizing of a child has to change
-# Search function within current file
+# windows/draggable/resizable
 # scroll pane
-# text centering
-# split (draggable) pane
+# centering
+# flow box
+# how to exit properly?
+# Search function within current file
 # button and other hovers
-# windows
 # dragging / resizing
-# flow layout (box wrapping)
+# text centering
 # multi-line text
 # word wrap
-# relayout on enter
 
+# make the tree work again (done)
+# try having content under the menu bar (done)
+# menu items should be stretched (done)
 # close menu when item is selected (done)
 # have better handling for multiple event listeners (done)
 # layout phase vs render phase (done)
@@ -51,11 +48,30 @@ from term_util import *
 import sys
 import time
 
-# logfile = open("ui.log", "a")
-# 
-# def log(text):
-#     logfile.write(text + "\n")
-#     logfile.flush()
+# Based on Flutter's layout algorithm
+# https://blog.nornagon.net/ui-layout-algorithms/
+# https://flutter.dev/docs/resources/architectural-overview#layout-and-rendering
+# https://www.youtube.com/watch?v=UUfXWzp0-DU
+class BoxConstraints:
+    def __init__(self, min_width=None, max_width=None, min_height=None, max_height=None):
+        self.min_width = min_width
+        self.max_width = max_width
+        self.min_height = min_height
+        self.max_height = max_height
+    
+    def constrain_width(self, width):
+        if self.min_width is not None and width < self.min_width:
+            width = self.min_width
+        if self.max_width is not None and width > self.max_width:
+            width = self.max_width
+        return width
+    
+    def constrain_height(self, height):
+        if self.min_height is not None and height < self.min_height:
+            height = self.min_height
+        if self.max_height is not None and height > self.max_height:
+            height = self.max_height
+        return height
 
 class Text:
     def __init__(self, text, strikethrough=False):
@@ -65,50 +81,39 @@ class Text:
 
     def set_text(self, text):
         self.text = text
-        self.draw()
+        repaint(self)
         
     def set_strikethrough(self, value):
         self.strikethrough = value
-        self.draw()
+        repaint(self)
         
-    # def preferred_size(self):
-    #     return (len(self.text), 1)
+    def layout(self, constraints):
+        width = constraints.constrain_width(len(self.text))
+        height = constraints.constrain_height(1)
+        self.size = (width, height)
 
-    def place(self, x, y, max_width, max_height, stretch, level):
-        indent = level * "  "
-        # log(indent + "Label.place(%r, %d, %d, %d, %d, %s)" % (self.text, x, y, max_width, max_height, stretch))
-        self.x = x
-        self.y = y
-        if stretch in ["x", "both"]:
-            self.width = max_width
-        else:
-            self.width = min(max_width, len(self.text))
-        if stretch in ["y", "both"]:
-            self.height = max_height
-        else:
-            self.height = 1
-        # log(indent + "Label.place done (%d, %d)" % (self.width, self.height))
-
-    def draw(self):
-        text = self.text[0:self.width]
+    def paint(self, pos):
+        self.pos = pos
+        x, y = pos
+        width, height = self.size
+        text = self.text[0:width]
         if self.strikethrough:
             text = strike_through(text)
         
-        display = text + " " * (self.width - len(text))
+        display = text + " " * (width - len(text))
         if len(self.styles) > 0:
             display = style(display, self.styles[0])
         
-        # log("Label.draw(%d, %d, %d, %s)" % (self.x, self.y, self.width, display))
-        print_at(self.x, self.y, display)
+        print_at(x, y, display)
     
     def add_style(self, style):
         self.styles.append(style)
-        self.draw()
+        repaint(self)
         
     def remove_style(self, style):
         if style in self.styles:
             self.styles.remove(style)
-            self.draw()
+            repaint(self)
     
     def __repr__(self):
         return "<Text %r>" % self.text
@@ -118,171 +123,225 @@ class Border:
         self.content = content
         self.color = color
         add_child(self, content)
-
-    def place(self, x, y, max_width, max_height, stretch, level):
-        indent = level * "  "
-        # log(indent + "Border.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
-        self.x = x
-        self.y = y
-        self.content.place(x + 1, y + 1, max_width - 2, max_height - 2, stretch, level + 1)
-        self.width = self.content.width + 2
-        self.height = self.content.height + 2
-        # log(indent + "Border.place done (%d, %d)" % (self.width, self.height))
-
-    def draw(self):
+        
+    def layout(self, constraints):
+        min_width = constraints.min_width
+        max_width = constraints.max_width
+        min_height = constraints.min_height
+        max_height = constraints.max_height
+        self.content.layout(BoxConstraints(
+            min_width and (min_width - 2),
+            max_width and (max_width - 2),
+            min_height and (min_height - 2),
+            max_height and (max_height - 2)
+        ))
+        cwidth, cheight = self.content.size
+        self.size = (cwidth + 2, cheight + 2)
+    
+    def paint(self, pos):
+        self.pos = pos
+        x, y = pos
+        width, height = self.size
         if self.color:
             write('\x1B[%sm' % self.color)
-        print_at(self.x, self.y, "┏" + ("━" * (self.width - 2)) + "┓")
-        for i in range(self.height - 2):
-            print_at(self.x, self.y + i + 1, "┃")
-            print_at(self.x + self.width - 1, self.y + i + 1, "┃")
-        print_at(self.x, self.y + self.height - 1, "┗" + ("━" * (self.width - 2)) + "┛")
+        print_at(x, y, "┏" + ("━" * (width - 2)) + "┓")
+        for i in range(height - 2):
+            print_at(x, y + i + 1, "┃")
+            print_at(x + width - 1, y + i + 1, "┃")
+        print_at(x, y + height - 1, "┗" + ("━" * (width - 2)) + "┛")
         if self.color:
             write('\x1B[0m')
+        self.content.paint((x + 1, y + 1))
     
     def __repr__(self):
         return "<Border %r>" % self.content
 
-class Button:
-    def __init__(self, label, **kwargs):
-        self.label = label
-        self.border = Border(label)
-        add_child(self, self.border)
-        self.__dict__.update(kwargs)
-
-    def place(self, x, y, max_width, max_height, stretch, level):
-        indent = level * "  "
-        # log(indent + "Button.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
-        self.border.place(x, y, max_width, max_height, stretch, level + 1)
-        self.x = x
-        self.y = y
-        self.width = self.border.width
-        self.height = self.border.height
-        # log(indent + "Button.place done (%d, %d)" % (self.width, self.height))
-    
-    def __repr__(self):
-        return "<Button %r>" % self.label
-
-class VerticalPanel:
-    def place(self, x, y, max_width, max_height, stretch, level):
-        indent = level * "  "
-        # log(indent + "VerticalPanel.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
-        self.x = x
-        self.y = y
+class VBox:
+    def __init__(self, same_item_width=False):
+        self.same_item_width = same_item_width
         
-        if not hasattr(self, "children"):
-            self.width = 0
-            self.height = 0
+    def layout(self, constraints):
+        if not has_children(self):
+            self.size = (0, 0)
             return
+        if constraints.max_height is not None:
+            self.layout_with_stretch(constraints)
+        else:
+            self.layout_without_stretch(constraints)
 
-        non_stretched = filter(lambda c: not has_stretch_y(c), self.children)
-        stretched = filter(has_stretch_y, self.children)
-        num_stretched = len(list(stretched))
-        non_stretched_height = 0
-
-        for child in non_stretched:
-            child.place(self.x, self.y, max_width, max_height, None, level + 1)
-            non_stretched_height += child.height
-
-        stretched_height = max_height - non_stretched_height
-        stretched_height_per = (stretched_height // num_stretched) if num_stretched > 0 else 0
-
-        y_offset = 0
-        my_width = 0
-        for child in self.children:
-            if has_stretch_y(child):
-                child.place(self.x, self.y + y_offset, 
-                    max_width, stretched_height_per,
-                    get_stretch(child), level + 1)
+    def layout_with_stretch(self, constraints):
+        width = 0
+        height = 0
+        available_height = constraints.max_height
+        non_stretch_height = 0
+        non_stretch_elements = filter(lambda c: not has_stretch_y(c), self.children)
+        stretch_elements = list(filter(has_stretch_y, self.children))
+        for element in non_stretch_elements:
+            if has_stretch_x(element):
+                min_width = constraints.max_width
             else:
-                child.place(self.x, self.y + y_offset, 
-                    max_width, max_height - y_offset, 
-                    get_stretch(child), level + 1)
-
-            y_offset += child.height
-            if child.width > my_width:
-                my_width = child.width
-            if y_offset >= max_height:
-                break
-
-        if stretch in ["x", "both"]:
-            self.width = max_width
-        else:
-            self.width = min(max_width, my_width)
-
-        if stretch in ["y", "both"]:
-            self.height = max_height
-        else:
-            self.height = min(max_height, y_offset)
-
-        # log(indent + "VerticalPanel.place done (%d, %d)" % (self.width, self.height))
-
-    def draw(self):
-        # Clear rectangle. Not needed if we make all children stretch horizontally
-        # and assume they repaint all horizontal space on draw()
-        clear_rect(self.x, self.y, self.width, self.height)
-
-class HorizontalPanel:
-    def place(self, x, y, max_width, max_height, stretch, level):
+                min_width = None
+            element.layout(BoxConstraints(
+                min_width=min_width,
+                max_width=constraints.max_width,
+                min_height=None,
+                max_height=available_height
+            ))
+            ewidth, eheight = element.size
+            available_height -= eheight
+            height += eheight
+            width = max(width, ewidth)
         
-        # Algorithm
-        # 1. Call place() on children who are not stretched horizontally; sum their widths (non_stretch_width)
-        # 2. Call place() on on each child (including the ones already processed)
-        #    A. if child is stretched horizontally, assign them a max_width of non_stretch_width // n
-        #           where n is the number of horizontally stretched elements
-        #    B. if child is not stretched horizontally, call place as normal
-
-        indent = level * "  "
-        # log(indent + "HorizontalPanel.place(%d, %d, %d, %d, %r)" % (x, y, max_width, max_height, stretch))
-        self.x = x
-        self.y = y
-
-        non_stretched = filter(lambda c: not has_stretch_x(c), self.children)
-        stretched = filter(has_stretch_x, self.children)
-        num_stretched = len(list(stretched))
-        non_stretch_width = 0
-
-        for child in non_stretched:
-            # disregard offsets, widths and heights. This is a phony call to
-            # place.
-            child.place(self.x, self.y, max_width, max_height, None, level + 1)
-            non_stretch_width += child.width
-
-        stretch_width = max_width - non_stretch_width
-        stretch_width_per = (stretch_width // num_stretched) if num_stretched > 0 else 0
-
-        x_offset = 0
-        my_height = 0
-        for child in self.children:
-            if has_stretch_x(child):
-                child.place(self.x + x_offset, self.y, 
-                    stretch_width_per, max_height, 
-                    get_stretch(child), level + 1)
-            else:
-                child.place(self.x + x_offset, self.y, 
-                    max_width - x_offset, max_height, 
-                    get_stretch(child), level + 1)
-            
-            x_offset += child.width
-            if child.height > my_height:
-                my_height = child.height
-            if x_offset >= max_width:
-                break
+        if len(stretch_elements) > 0:
+            stretch_height_per = available_height // len(stretch_elements)
+            for i, element in enumerate(stretch_elements):
+                if i == len(stretch_elements) - 1:
+                    use_height = available_height
+                else:
+                    use_height = stretch_height_per
+                if has_stretch_x(element):
+                    min_width = constraints.max_width
+                else:
+                    min_width = None
+                element.layout(BoxConstraints(
+                    min_width=min_width,
+                    max_width=constraints.max_width,
+                    min_height=use_height,
+                    max_height=use_height
+                ))
+                ewidth, eheight = element.size
+                available_height -= eheight
+                width = max(width, ewidth)
+                height += eheight
         
-        if stretch in ["x", "both"]:
-            self.width = max_width
-        else:
-            self.width = min(max_width, x_offset)
-        
-        if stretch in ["y", "both"]:
-            self.height = max_height
-        else:
-            self.height = min(max_height, my_height)
-
-        # log(indent + "HorizontalPanel.place done (%d, %d)" % (self.width, self.height))
+        if self.same_item_width:
+            for element in self.children:
+                ewidth, eheight = element.size
+                element.layout(BoxConstraints(
+                    min_width=width,
+                    max_width=width,
+                    min_height=eheight,
+                    max_height=eheight
+                ))
+        self.size = (width, height)
     
-    def draw(self):
-        clear_rect(self.x, self.y, self.width, self.height)
+    def layout_without_stretch(self, constraints):
+        # we have unlimited height, stretch is disabled
+        # because otherwise, we would stretch them to infinity
+        width = 0
+        height = 0
+        for element in self.children:
+            element.layout(BoxConstraints(
+                min_width=None,
+                max_width=constraints.max_width,
+                min_height=None,
+                max_height=None
+            ))
+            ewidth, eheight = element.size
+            height += eheight
+            width = max(width, ewidth)
+        self.size = (width, height)
+    
+    def paint(self, pos):
+        self.pos = pos
+        if not has_children(self):
+            return
+        x, y = self.pos
+        width, height = self.size
+        clear_rect(x, y, width, height)
+        
+        curr_x = x
+        curr_y = y
+        for element in self.children:
+            element.paint((curr_x, curr_y))
+            curr_y += element.size[1]
+
+class HBox:
+    def layout(self, constraints):
+        if not has_children(self):
+            self.size = (0, 0)
+            return
+        if constraints.max_width is not None:
+            self.layout_with_stretch(constraints)
+        else:
+            self.layout_without_stretch(constraints)
+
+    def layout_with_stretch(self, constraints):
+        height = 0
+        width = 0
+        available_width = constraints.max_width
+        non_stretch_width = 0
+        non_stretch_elements = filter(lambda c: not has_stretch_x(c), self.children)
+        stretch_elements = list(filter(has_stretch_x, self.children))
+        for element in non_stretch_elements:
+            if has_stretch_y(element):
+                min_height = constraints.max_height
+            else:
+                min_height = None
+            element.layout(BoxConstraints(
+                min_width=None,
+                max_width=available_width,
+                min_height=min_height,
+                max_height=constraints.max_height
+            ))
+            ewidth, eheight = element.size
+            available_width -= ewidth
+            width += ewidth
+            height = max(height, eheight)
+        
+        if len(stretch_elements) > 0:
+            stretch_width_per = available_width // len(stretch_elements)
+            for i, element in enumerate(stretch_elements):
+                if i == len(stretch_elements) - 1:
+                    use_width = available_width
+                else:
+                    use_width = stretch_width_per
+                if has_stretch_y(element):
+                    min_height = constraints.max_height
+                else:
+                    min_height = None
+                element.layout(BoxConstraints(
+                    min_width=use_width,
+                    max_width=use_width,
+                    min_height=min_height,
+                    max_height=constraints.max_height
+                ))
+                ewidth, eheight = element.size
+                available_width -= ewidth
+                width += ewidth
+                height = max(height, eheight)
+        self.size = (width, height)
+    
+    def layout_without_stretch(self, constraints):
+        # we have unlimited height, stretch is disabled
+        # because otherwise, we would stretch them to infinity
+        width = 0
+        height = 0
+        for element in self.children:
+            element.layout(BoxConstraints(
+                min_width=None,
+                max_width=None,
+                min_height=None,
+                max_height=constraints.max_height
+            ))
+            ewidth, eheight = element.size
+            width += ewidth
+            height = max(height, eheight)
+        self.size = (width, height)
+    
+    def paint(self, pos):
+        self.pos = pos
+        if not has_children(self):
+            return
+        x, y = self.pos
+        width, height = self.size
+        clear_rect(x, y, width, height)
+        
+        curr_x = x
+        curr_y = y
+        for element in self.children:
+            element.paint((curr_x, curr_y))
+            curr_x += element.size[0]
 
 # class ScrollPane:
 #     def __init__(self, content):
@@ -300,51 +359,74 @@ class Tree:
         add_child(self, label)
         self.expanded = False
     
-    def place(self, x, y, max_width, max_height, stretch, level):
-        logindent = level * "  "
-        # log(logindent + "Tree.place(%d, %d, %d, %d, %s)" % (x, y, max_width, max_height, stretch))
-        self.x = x
-        self.y = y
-        self.height = max_height
-        y_offset = 0
+    def layout(self, constraints):
+        max_width = constraints.max_width
+        max_height = constraints.max_height
         indent = 2
-        # make room for the handle
-        self.label.place(x + indent, self.y, max_width - indent, max_height, stretch, level + 1)
-        self.width = self.label.width + indent
-        y_offset += self.label.height
+        available_height = max_height
+        width = 0
+        height = 0
+        
+        self.label.layout(BoxConstraints(
+            max_height=available_height,
+            max_width=max_width and (max_width - indent)
+        ))
+        cwidth, cheight = self.label.size
+        width = max(width, cwidth + 2)
+        height += cheight
+        if available_height:
+            available_height -= self.label.size[1]
         if self.expanded:
             for child in self.child_nodes:
-                child.place(self.x + indent, self.y + y_offset, max_width - indent, max_height, stretch, level + 1)
-                y_offset += child.height
-                if child.width + indent > self.width:
-                    self.width = child.width + indent
-            self.height = y_offset
+                child.layout(BoxConstraints(
+                    max_height=available_height,
+                    max_width=max_width and (max_width - indent)
+                ))
+                cwidth, cheight = child.size
+                width = max(width, cwidth + 2)
+                height += cheight
+                if available_height:
+                    available_height -= self.label.size[1]
         else:
-            # revoke placement for all children because we are collapsed
             for child in self.child_nodes:
-                unplace(child)
-            self.height = self.label.height
+                child.layout(BoxConstraints(
+                    min_width=0,
+                    max_width=0,
+                    min_height=0,
+                    max_height=0
+                ))
+            
+        self.size = (width, height)
 
-    def mouseup(self, event):
+    def paint(self, pos):
+        self.pos = pos
+        x, y = pos
+        if len(list(self.child_nodes)) == 0:
+            print_at(x, y, "-")
+        elif self.expanded:
+            print_at(x, y, "▼")
+        else:
+            print_at(x, y, "▶")
+        curr_x = x + 2
+        curr_y = y
+        for child in self.children:
+            child.paint((curr_x, curr_y))
+            curr_y += child.size[1]
+
+    def click(self, event):
         indent = 2
-        if event.y == self.y and event.x >= self.x and event.x < self.x + indent:
+        x, y = self.pos
+        if event.y == y and event.x >= x and event.x < x + indent:
             self.expanded = not self.expanded
-    
+            render_all()
+
     @property
     def child_nodes(self):
         return filter(lambda c: c != self.label, self.children)
 
     def is_root(self):
-        return not hasattr(self, "parent") or not isinstance(self.parent, Tree)
+        return not hasattr(self, "parent") or not isinstance(self.parent, Tree)    
 
-    def draw(self):
-        if len(list(self.child_nodes)) == 0:
-            print_at(self.x, self.y, "-")
-        elif self.expanded:
-            print_at(self.x, self.y, "▼")
-        else:
-            print_at(self.x, self.y, "▶")
-    
     def __repr__(self):
         return "<Tree %r>" % self.label
 
@@ -357,21 +439,20 @@ class TextField:
         self.offset = 0
         self.on_keypress = on_keypress
     
-    def place(self, x, y, max_width, max_height, stretch, level):
-        self.x = x
-        self.y = y
-        if stretch in ["x", "both"]:
-            self.width = max_width
-        else:
-            self.width = min(self.width, max_width)
-        self.height = min(max_height, 1)
+    def layout(self, constraints):
+        width = constraints.constrain_width(self.width)
+        height = constraints.constrain_height(1)
+        self.size = (width, height)
         
-    def draw(self):
+    def paint(self, pos):
+        self.pos = pos
+        width, height = self.size
+        x, y = self.pos
         text = self.text
         use_placeholder = self.placeholder and len(text) == 0
         if use_placeholder:
             text = self.placeholder
-        display_text = "".join(text[self.offset:]).ljust(self.width)[0:self.width]
+        display_text = "".join(text[self.offset:]).ljust(width)[0:width]
         
         background = "48;5;242";
         placeholder_color = "38;5;246"
@@ -382,26 +463,26 @@ class TextField:
             before_cursor = display_text[0:cursor]
             cursor_char = display_text[cursor]
             after_cursor = display_text[cursor + 1:]
-            print_at(self.x, self.y, style(before_cursor, background))
+            print_at(x, y, style(before_cursor, background))
             if use_placeholder:
-                print_at(self.x + cursor, self.y, style(style(cursor_char, placeholder_color), cursor_background))
+                print_at(x + cursor, y, style(style(cursor_char, placeholder_color), cursor_background))
             else:
-                print_at(self.x + cursor, self.y, style(cursor_char, cursor_background))
+                print_at(x + cursor, y, style(cursor_char, cursor_background))
             if use_placeholder:
-                print_at(self.x + cursor + 1, self.y, style(style(after_cursor, placeholder_color), background))
+                print_at(x + cursor + 1, y, style(style(after_cursor, placeholder_color), background))
             else:
-                print_at(self.x + cursor + 1, self.y, style(after_cursor, background))
+                print_at(x + cursor + 1, y, style(after_cursor, background))
         else:
             if use_placeholder:
-                print_at(self.x, self.y, style(style(display_text, placeholder_color), background))
+                print_at(x, y, style(style(display_text, placeholder_color), background))
             else:
-                print_at(self.x, self.y, style(display_text, background))
+                print_at(x, y, style(display_text, background))
     
     def keypress(self, evt):
         if self.on_keypress:
             if self.on_keypress(evt) == False: # prevent default in the style of JS
                 return
-                
+        width, height = self.size
         if evt.key in ["UP_ARROW", "DOWN_ARROW"]:
             return
         elif evt.key == "LEFT_ARROW":
@@ -410,8 +491,8 @@ class TextField:
                 self.offset = self.cursor
         elif evt.key == "RIGHT_ARROW":
             self.cursor = min(len(self.text), self.cursor + 1)
-            if self.cursor >= self.offset + self.width:
-                self.offset = self.cursor + 1 - self.width
+            if self.cursor >= self.offset + width:
+                self.offset = self.cursor + 1 - width
         elif evt.key == "DEL":
             assert self.cursor >= 0 and self.cursor <= len(self.text)
             if self.cursor >= 1:
@@ -429,9 +510,9 @@ class TextField:
         else:
             self.text.insert(self.cursor, evt.key)
             self.cursor += 1
-            if self.cursor - self.offset >= self.width:
-                self.offset = (self.cursor + 1) - self.width
-        self.draw()
+            if self.cursor - self.offset >= width:
+                self.offset = (self.cursor + 1) - width
+        repaint(self)
         
     def click(self, evt):
         focus(self)
@@ -448,7 +529,7 @@ class TextField:
             self.cursor = len(self.text)
         if self.offset > self.cursor:
             self.offset = self.cursor
-        self.draw()
+        repaint(self)
         
     def __repr__(self):
         return "<TextField %d>" % id(self)
@@ -460,36 +541,42 @@ class PopUp:
         self.y = y
         add_child(self, content)
     
-    def place(self, x, y, max_width, max_height, stretch, level):
+    def layout(self, constraints):
         termsize = os.get_terminal_size()
         screen_width = termsize.columns
         screen_height = termsize.lines
-        self.x = x
-        self.y = y
-        self.content.place(
-            self.x, 
-            self.y, 
-            screen_width - self.x, 
-            screen_height  - self.y,
-            None,
-            level + 1
-        )
-        self.width = self.content.width
-        self.height = self.content.height
-
+        self.content.layout(BoxConstraints(
+            max_width=screen_width,
+            max_height=screen_height
+        ))
+        # I have no size, so that the parent
+        # doesn't count my size in their layout
+        self.size = self.content.size
+        
+    def paint(self, pos):
+        # ignore given position, use my own
+        self.pos = (self.x, self.y)
+        self.content.paint(self.pos)
+    
 class PopUpMenu:
     def __init__(self):
-        self.box = VerticalPanel()
+        self.box = VBox(same_item_width=True)
         self.highlighted = 0
         self.popup = PopUp(Border(self.box, color="36"), 1, 1)
         add_child(self, self.popup)
+        self.x = 1
+        self.y = 1
     
-    def place(self, x, y, *rest):
-        self.popup.place(self.x, self.y, *rest)
-        self.x = self.popup.x
-        self.y = self.popup.y
-        self.width = self.popup.width
-        self.height = self.popup.height
+    def layout(self, constraints):
+        self.popup.layout(constraints)
+        self.size = self.popup.size
+    
+    def paint(self, pos):
+        self.popup.x = self.x
+        self.popup.y = self.y
+        self.pos = (self.x, self.y)
+        self.popup.paint(pos)
+        self.size = self.popup.size
     
     def close(self):
         self.menu_button.close()
@@ -512,7 +599,7 @@ class PopUpMenu:
             self.set_highlighted(self.highlighted - 1)
             if self.highlighted < 0:
                 self.set_highlighted(len(self.box.children) - 1)
-            draw(self)
+            repaint(self)
         elif evt.key in ["RIGHT_ARROW", "\t"]:
             self.get_menu_bar().activate_next_menu()
         elif evt.key in ["LEFT_ARROW", "REVERSE_TAB"]:
@@ -568,10 +655,15 @@ class MenuItem:
     def set_highlighted(self, value):
         self.highlighted = value
         self.update_highlighted_style()
-        draw(self)
+        repaint(self)
         
-    def place(self, *args):
-        defer_place_to_child(self, self.label, *args)
+    def layout(self, constraints):
+        self.label.layout(constraints)
+        self.size = self.label.size
+    
+    def paint(self, pos):
+        self.pos = pos
+        self.label.paint(pos)
     
     def click(self, evt):
         self.select()
@@ -594,12 +686,18 @@ class MenuButton:
         self.on_open = on_open
         self.on_close = on_close
     
-    def place(self, *args):
-        defer_place_to_child(self, self.label, *args)
+    def layout(self, constraints):
+        self.label.layout(constraints)
+        self.size = self.label.size
+    
+    def paint(self, pos):
+        self.pos = pos
+        self.label.paint(pos)
     
     def open(self):
-        self.popup_menu.x = self.x
-        self.popup_menu.y = self.y + 1
+        x, y = self.pos
+        self.popup_menu.x = x
+        self.popup_menu.y = y + 1
         add_child(root, self.popup_menu)
         focus(self.popup_menu)
         self.is_open = True
@@ -627,7 +725,7 @@ class MenuButton:
 
 class MenuBar:
     def __init__(self):
-        self.box = HorizontalPanel()
+        self.box = HBox()
         add_child(self, self.box)
     
     def add_menu(self, label, menu):
@@ -639,8 +737,13 @@ class MenuBar:
         menu_button = MenuButton(label, menu, on_open)
         add_child(self.box, menu_button)
     
-    def place(self, *args):
-        defer_place_to_child(self, self.box, *args)
+    def layout(self, constraints):
+        self.box.layout(constraints)
+        self.size = self.box.size
+    
+    def paint(self, pos):
+        self.pos = pos
+        self.box.paint(pos)
     
     def activate_next_menu(self):
         if len(self.box.children) == 0:
@@ -731,28 +834,9 @@ def defer_place_to_child(parent, child, x, y, max_width, max_height, stretch, le
     parent.width = child.width
     parent.height = child.height
 
-def draw(element, level=0):
-    termsize = os.get_terminal_size()
-    screen_width = termsize.columns
-    screen_height = termsize.lines
-    indent = "  " * level
-    # log(indent + "draw(%r)" % element)
-    if not is_placed(element):
-        return
-    
-    if element.x <= screen_width and element.y <= screen_height:
-        if hasattr(element, "draw"):
-            # log(indent + "actually drawing")
-            element.draw()
-        else:
-            # log(indent + "not drawing")
-            pass
-        if hasattr(element, "children"):
-            for child in element.children:
-                draw(child, level + 1)
-    else:
-        # log(indent + "out of screen (%d, %d)" % (element.x, element.y))
-        pass
+def repaint(element):
+    if hasattr(element, "pos"):
+        element.paint(element.pos)
 
 def has_stretch_x(element):
     return get_stretch(element) in ["x", "both"]
@@ -763,9 +847,14 @@ def has_stretch_y(element):
 def get_stretch(element):
     return getattr(element, "stretch", None)
 
-def is_placed(element):
-    return hasattr(element, "x") and hasattr(element, "y") \
-            and hasattr(element, "width") and hasattr(element, "height")
+def is_laid_out(element):
+    return hasattr(element, "size")
+
+def has_pos(element):
+    return hasattr(element, "pos")
+
+def has_children(element):
+    return hasattr(element, "children") and len(element.children) > 0
 
 def unplace(element):
     attrs = ["width", "height", "x", "y"]
@@ -774,13 +863,15 @@ def unplace(element):
             delattr(element, attr)
 
 def contains(element, x, y):
-    return element.x <= x and element.y <= y and element.x + element.width > x \
-        and element.y + element.height > y
+    ex, ey = element.pos
+    width, height = element.size
+    return ex <= x and ey <= y and ex + width > x \
+        and ey + height > y
 
 def fire_mouse_event(element, event, level=0):
     indent = "  " * level
     if hasattr(event, "x") and hasattr(event, "y"):
-        if is_placed(element) and contains(element, event.x, event.y):
+        if has_pos(element) and contains(element, event.x, event.y):
             _fire_event(element, event)
         else:
             return
@@ -813,9 +904,9 @@ def focus(element):
     prev = focused_element
     focused_element = element
     if prev:
-        draw(prev)
-    if is_placed(element):
-        draw(element)
+        repaint(prev)
+    if has_pos(element):
+        repaint(element)
 
 def has_focus(element):
     return focused_element == element
@@ -870,8 +961,13 @@ def render_all():
     screen_height = termsize.lines
     if root:
         clear_rect(1, 1, screen_width, screen_height)
-        root.place(1, 1, screen_width, screen_height, get_stretch(root), 0)
-        draw(root)
+        root.layout(BoxConstraints(
+            min_width=None,
+            max_width=screen_width,
+            min_height=None,
+            max_height=screen_height
+        ))
+        root.paint((1, 1))
 
 max_click_gap = 0.250
 max_dbl_click_gap = 0.5

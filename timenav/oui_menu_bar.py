@@ -6,7 +6,7 @@ def main():
             # focus activate first menu
             menu_bar.activate_next_menu()
     
-    ui = VerticalPanel()
+    ui = VBox()
     
     menu_bar = MenuBar()
     
@@ -29,6 +29,11 @@ def main():
     menu_bar.add_menu(Text(" Edit "), edit_menu)
     
     add_child(ui, menu_bar)
+    
+    content = VBox()
+    for i in range(40):
+        add_child(content, Text("How are you?"))
+    add_child(ui, content)
     
     run(ui, global_key_handler)
     

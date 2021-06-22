@@ -4,7 +4,7 @@ class TodoItem:
     def __init__(self, text, list_ui):
         self.list_ui = list_ui
         self.text = text
-        self.panel = HorizontalPanel()
+        self.panel = HBox()
         self.check_box = Text("☐ ")
         self.checked = False
         self.check_box.mouseup = self.on_checkbox_clicked
@@ -18,6 +18,14 @@ class TodoItem:
         add_child(self.panel, self.del_button)
         
         add_child(self, self.panel)
+    
+    def layout(self, constraints):
+        self.panel.layout(constraints)
+        self.size = self.panel.size
+    
+    def paint(self, pos):
+        self.pos = pos
+        self.panel.paint(pos)
     
     def on_checkbox_clicked(self, evt):
         self.checked = not self.checked
@@ -43,13 +51,6 @@ class TodoItem:
             add_child(self.panel, self.label, index=1)
             return False
 
-    def place(self, x, y, max_width, max_height, stretch, level):
-        self.panel.place(x, y, max_width, max_height, stretch, level)
-        self.x = self.panel.x
-        self.y = self.panel.y
-        self.width = self.panel.width
-        self.height = self.panel.height
-
 def main():
     def on_keypress(evt):
         if evt.key == "\r":
@@ -58,12 +59,12 @@ def main():
             add_child(list_ui, item)
             field.set_text("")
         
-    ui = VerticalPanel()
+    ui = VBox()
     
     field = TextField(placeholder="What to do?", width=20, on_keypress=on_keypress)
     add_child(ui, Border(field, "36"))
     
-    list_ui = VerticalPanel()
+    list_ui = VBox()
     add_child(ui, Border(list_ui, color="33"))
     
     run(ui)

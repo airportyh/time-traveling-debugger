@@ -1,12 +1,12 @@
 from oui import *
 
 def main():
-    outer_panel = VerticalPanel()
+    outer_panel = VBox()
     root = Border(outer_panel, "32;1")
     root.stretch = "x"
-    split_panel = HorizontalPanel()
-    code_pane = VerticalPanel()
-    stack_pane = VerticalPanel()
+    split_panel = HBox()
+    code_pane = VBox()
+    stack_pane = VBox()
     add_child(stack_pane, Text("n = 6"))
     add_child(stack_pane, Text("a = 3"))
     add_child(stack_pane, Text("b = 5"))
