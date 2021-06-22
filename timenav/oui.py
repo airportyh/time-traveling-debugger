@@ -827,13 +827,6 @@ def restore(settings):
     write('\x1B[0m')
     print("\n")
 
-def defer_place_to_child(parent, child, x, y, max_width, max_height, stretch, level):
-    child.place(x, y, max_width, max_height, stretch, level + 1)
-    parent.x = child.x
-    parent.y = child.y
-    parent.width = child.width
-    parent.height = child.height
-
 def repaint(element):
     if hasattr(element, "pos"):
         element.paint(element.pos)
@@ -847,7 +840,7 @@ def has_stretch_y(element):
 def get_stretch(element):
     return getattr(element, "stretch", None)
 
-def is_laid_out(element):
+def has_size(element):
     return hasattr(element, "size")
 
 def has_pos(element):
@@ -855,12 +848,6 @@ def has_pos(element):
 
 def has_children(element):
     return hasattr(element, "children") and len(element.children) > 0
-
-def unplace(element):
-    attrs = ["width", "height", "x", "y"]
-    for attr in attrs:
-        if hasattr(element, attr):
-            delattr(element, attr)
 
 def contains(element, x, y):
     ex, ey = element.pos

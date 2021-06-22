@@ -2,13 +2,10 @@ from oui import *
 
 def main():
     def click1(evt):
-        label.text = "Nice! You clicked!"
+        label.set_text("Nice! You clicked!")
 
     def click2(evt):
-        label.text = "You still clicked! MUAHAHAH!"
-    
-    def remove_f(evt):
-        remove_child(d, f)
+        label.set_text("You still clicked! MUAHAHAH!")
 
     panel = VBox()
     label = Text("What would you like to do?")
@@ -19,8 +16,6 @@ def main():
     add_handler(dont_click_button, "click", click2)
     add_child(button_panel, click_button)
     add_child(button_panel, dont_click_button)
-    # for i in range(10):
-    #     add_child(button_panel, Button(Text("Button %d" % i)))
     add_child(panel, label)
     add_child(panel, button_panel)
     
