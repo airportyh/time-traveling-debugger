@@ -1,6 +1,7 @@
 # Ideas
 #
 # child to parent communication when resizing of a child has to change
+# implement canvas that does clipping to boundaries
 # windows/draggable/resizable
 # scroll pane
 # centering
@@ -13,6 +14,8 @@
 # multi-line text
 # word wrap
 
+# implement (peg/cork) board (done)
+# resurrect sstring (done)
 # make the tree work again (done)
 # try having content under the menu bar (done)
 # menu items should be stretched (done)
@@ -223,6 +226,8 @@ class VBox:
                     min_height=eheight,
                     max_height=eheight
                 ))
+        width = constraints.constrain_width(width)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
     
     def layout_without_stretch(self, constraints):
@@ -240,6 +245,9 @@ class VBox:
             ewidth, eheight = element.size
             height += eheight
             width = max(width, ewidth)
+        
+        width = constraints.constrain_width(width)
+        height = constraints.contrain_height(height)
         self.size = (width, height)
     
     def paint(self, pos):
@@ -310,6 +318,10 @@ class HBox:
                 available_width -= ewidth
                 width += ewidth
                 height = max(height, eheight)
+        
+        width = constraints.constrain_width(width)
+        height = constraints.constrain_height(height)
+        
         self.size = (width, height)
     
     def layout_without_stretch(self, constraints):
@@ -327,6 +339,9 @@ class HBox:
             ewidth, eheight = element.size
             width += ewidth
             height = max(height, eheight)
+        
+        width = constraints.constrain_width(width)
+        height = constraints.contrain_height(height)
         self.size = (width, height)
     
     def paint(self, pos):
@@ -779,6 +794,34 @@ class MenuBar:
             idx = len(self.box.children) - 1
         new_active = self.box.children[idx]
         new_active.open()
+
+class Board:
+    def layout(self, constraints):
+        width = constraints.max_width
+        height = constraints.max_height
+        if width is None or height is None:
+            termsize = os.get_terminal_size()
+            width = width or termsize.columns
+            height = height or termsize.lines
+        if has_children(self):
+            for child in self.children:
+                if not hasattr(child, "pos"):
+                    child.pos = (1, 1)
+                cx, cy = child.pos
+                constraints = BoxConstraints()
+                if has_stretch_x(child):
+                    constraints.min_width = width - cx + 1
+                    constraints.max_width = width - cx + 1
+                if has_stretch_y(child):
+                    constraints.min_height = height - cy + 1
+                    constraints.max_height = height - cy + 1
+                child.layout(constraints)
+        self.size = (width, height)
+    
+    def paint(self, pos):
+        if has_children(self):
+            for child in self.children:
+                child.paint(child.pos)
 
 # UI Core Engine
 

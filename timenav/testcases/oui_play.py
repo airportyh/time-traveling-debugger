@@ -1,15 +1,20 @@
+import sys
+import os.path
+parent_dir = os.path.abspath(os.path.dirname(__file__) + "/..")
+sys.path.append(parent_dir)
 from oui import *
 
 def main():
-    root = VerticalPanel()
-    split_panel = HorizontalPanel()
-    code_pane = VerticalPanel()
-    stack_pane = VerticalPanel()
+    outer_panel = VBox()
+    root = Border(outer_panel, "32;1")
+    root.stretch = "x"
+    split_panel = HBox()
+    code_pane = VBox()
+    stack_pane = VBox()
     add_child(stack_pane, Text("n = 6"))
     add_child(stack_pane, Text("a = 3"))
     add_child(stack_pane, Text("b = 5"))
-    title = Text("TTD")
-    status_bar = Text("Step 123 of 738")
+    status_bar = Text("Status Bar")
 
     add_child(code_pane, Text("def fib(n):"))
     add_child(code_pane, Text("    if n == 1 or n == 2:"))
@@ -21,9 +26,8 @@ def main():
     add_child(split_panel, Border(code_pane, "33;1"), stretch="both")
     add_child(split_panel, Border(stack_pane, "36;1"), stretch="both")
 
-    add_child(root, title)
-    add_child(root, split_panel, stretch="both")
-    add_child(root, status_bar)
+    add_child(outer_panel, split_panel, stretch="both")
+    add_child(outer_panel, status_bar)
 
     run(root)
 

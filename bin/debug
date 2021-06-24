@@ -1,6 +1,8 @@
 set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+echo "cd $DIR/../timenav"
+cd $DIR/../timenav
 if [[ ${1: -7} == ".sqlite" || ${1: -8} == ".history" || $1 == http://* ]]
 then
     ARG=$1
@@ -16,5 +18,6 @@ else
     fi
 fi
 
-echo "python3 $DIR/../timenav/gui.py $ARG $2"
-python3 $DIR/../timenav/gui.py $ARG $2
+echo "python3 -m termdb.gui $ARG $2"
+python3 -m termdb.gui $ARG $2
+cd ..

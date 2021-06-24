@@ -28,18 +28,21 @@ import os
 from functools import reduce
 import atexit
 import sqlite3
-from term_util import *
-from text_pane import *
 import random
-from object_cache import ObjectCache
-from value_cache import ValueCache
-from navigator import Navigator, log
-from events import *
-from debug_value_renderer import DebugValueRenderer
-from value_renderer import ValueRenderer
-from debugger_consts import *
-from string_util import add_indent
 import time
+
+from term_util import *
+from events import *
+from .text_pane import *
+from .object_cache import ObjectCache
+from .value_cache import ValueCache
+from .navigator import Navigator, log
+from .debug_value_renderer import DebugValueRenderer
+from .value_renderer import ValueRenderer
+from .debugger_consts import *
+from string_util import add_indent
+
+# sys.paths.append(os.path.dirname(__FILE__))
 
 class NavigatorGUI:
     def __init__(self, hist_filename):
@@ -60,7 +63,7 @@ class NavigatorGUI:
         self.draw_divider()
         self.value_renderer = ValueRenderer(self.cache, self.value_cache)
         self.term_file = open("term.txt", "w")
-    
+
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
         def dict_factory(cursor, row):
@@ -68,30 +71,30 @@ class NavigatorGUI:
             for idx, col in enumerate(cursor.description):
                 d[col[0]] = row[idx]
             return d
-        
+
         self.conn = sqlite3.connect(self.hist_filename)
         self.conn.row_factory = dict_factory
         self.cursor = self.conn.cursor()
-    
+
     def save_term_settings(self):
         self.original_settings = termios.tcgetattr(sys.stdin)
-    
+
     def restore_term_settings(self):
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.original_settings)
         print('\x1B[0m')
         print()
-        
+
     def clean_up(self):
         self.restore_term_settings()
         mouse_off()
         cursor_on()
         # mouse_motion_off()
-    
+
     def draw_divider(self):
         x = self.code_pane.box.width + 1
         for i in range(self.code_pane.box.height):
             print_at(x, i + 1, "┃")
-    
+
     def run(self):
         self.save_term_settings()
         atexit.register(self.clean_up)
@@ -100,14 +103,14 @@ class NavigatorGUI:
         mouse_on()
         cursor_off()
         self.draw_divider()
-        
+
         self.last_snapshot = self.nav.get_last_snapshot()
         error = self.nav.get_first_error()
         begin_snapshot_id = 4
         if error:
             begin_snapshot_id = error["snapshot_id"]
         self.goto_snapshot(self.cache.get_snapshot(begin_snapshot_id))
-        
+
         while True:
             inp = get_input()
             if inp == "q":
@@ -160,8 +163,8 @@ class NavigatorGUI:
                             line_no = self.code_pane.get_line_no_for_y(event.y)
                             next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
                             self.goto_snapshot(next)
-                    
-                            
+
+
 
     def goto_snapshot(self, next):
         if next is None:
@@ -208,13 +211,13 @@ class NavigatorGUI:
             lines.append(line_display)
 
         code_pane.set_lines(lines)
-    
+
     def filename(self, code_file):
         parts = code_file["file_path"].split("/")
         if len(parts) > 0:
             return parts[-1]
         return code_file["file_path"]
-        
+
     def update_stack_pane(self):
         snapshot = self.snapshot
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
@@ -224,7 +227,7 @@ class NavigatorGUI:
         locals_id = fun_call["locals"]
         globals_id = fun_call["globals"]
         lines = []
-        
+
         local_members = self.cache.get_members(locals_id)
         locals_dict = []
         lines.append("%s() - %s: %d" % (fun_code["name"], self.filename(code_file), snapshot["line_no"]))
@@ -239,7 +242,7 @@ class NavigatorGUI:
             value_lines = self.value_renderer.render_value(value, version, set(), 1)
             value_lines[0] = "%s = %s" % (key["value"], value_lines[0])
             lines.extend(add_indent(value_lines))
-            
+
         # lines.append("Globals %d" % globals_id)
         global_members = self.cache.get_members(globals_id)
         for mem in global_members:
@@ -252,21 +255,21 @@ class NavigatorGUI:
             value_lines = self.value_renderer.render_value(value, version, set(), 1)
             value_lines[0] = "%s = %s" % (key["value"], value_lines[0])
             lines.extend(add_indent(value_lines))
-        
+
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         while fun_call["parent_id"]:
             fun_call = self.cache.get_fun_call(fun_call["parent_id"])
             start_snapshot = self.nav.get_snapshot_by_start_fun_call(fun_call["id"])
             fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
             code_file = self.cache.get_code_file(fun_code["code_file_id"])
-            
+
             if start_snapshot:
                 lines.append("%s() - %s: %d" % (fun_code["name"], self.filename(code_file), start_snapshot["line_no"]))
             else:
                 lines.append("%s() - %s" % (fun_code["name"], self.filename(code_file)))
 
         self.stack_pane.set_lines(lines)
-            
+
     def update_status(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
@@ -289,7 +292,7 @@ class NavigatorGUI:
         for output in outputs:
             self.term_file.write(output["data"])
             self.term_file.flush()
-            
+
     def scroll_to_line_if_needed(self, line, lines):
         offset = self.code_pane.top_offset
         box = self.code_pane.box

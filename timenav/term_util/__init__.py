@@ -47,7 +47,10 @@ def get_input():
     fl_state = fcntl.fcntl(sys.stdin.fileno(), fcntl.F_GETFL)
     # in blocking mode, 
     # this blocks until next input byte, which can be keyboard or mouse data
-    data = sys.stdin.read(1)
+    try:
+        data = sys.stdin.read(1)
+    except UnicodeDecodeError as e:
+        data = sys.stdin.read(1)
     if data == '\x1b':  # this control code marks start of a control
                         # sequence with more bytes to follow
         # temporarily set stdin to non-blocking mode so I can read

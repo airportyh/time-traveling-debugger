@@ -1,6 +1,6 @@
 import sqlite3
 import time
-from object_cache import ObjectCache
+from .object_cache import ObjectCache
 
 log_file = open("navigator.log", "w")
 
