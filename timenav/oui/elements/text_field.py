@@ -1,3 +1,4 @@
+from oui import has_focus, repaint, focus
 from term_util import *
 
 class TextField:
