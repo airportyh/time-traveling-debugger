@@ -1,88 +1,259 @@
+# TODO
+
+# * maybe more styles from yaytext.com
+
+# * style constants (done)
+# * equality (ok if slow) (done)
+# * center (done)
+# * ljust (done)
+# * rjust (done)
+# * strikethrough (done)
+# * multiple control codes (done)
+# * bug with nesting (done)
+# * nesting (done)
+# * convert to string (done)
+# * len (done)
+# * indexing (done)
+# * slicing (done)
+# * concatenation (done)
+
 # Resource: https://www.lihaoyi.com/post/BuildyourownCommandLinewithANSIescapecodes.html
 from functools import reduce
 import math
 
 CTRL_CODE = "\u001b["
 
-def sstring(string, control_seq):
-    return StyledStringGroup([StyledString(string, control_seq)])
+BLACK = "30m"
+RED = "31m"
+GREEN = "32m"
+YELLOW = "33m"
+BLUE = "34m"
+MAGENTA = "35m"
+CYAN = "36m"
+WHITE = "37m"
+BRIGHT_BLACK = "30;1m"
+BRIGHT_RED = "31;1m"
+BRIGHT_GREEN = "32;1m"
+BRIGHT_YELLOW = "33;1m"
+BRIGHT_BLUE = "34;1m"
+BRIGHT_MAGENTA = "35;1m"
+BRIGHT_CYAN = "36;1m"
+BRIGHT_WHITE = "37;1m"
+BG_BLACK = "40m"
+BG_RED = "41m"
+BG_GREEN = "42m"
+BG_YELLOW = "43m"
+BG_BLUE = "44m"
+BG_MAGENTA = "45m"
+BG_CYAN = "46m"
+BG_WHITE = "47m"
+BG_BRIGHT_BLACK = "40;1m"
+BG_BRIGHT_RED = "41;1m"
+BG_BRIGHT_GREEN = "42;1m"
+BG_BRIGHT_YELLOW = "43;1m"
+BG_BRIGHT_BLUE = "44;1m"
+BG_BRIGHT_MAGENTA = "45;1m"
+BG_BRIGHT_CYAN = "46;1m"
+BG_BRIGHT_WHITE = "47;1m"
+BOLD = "1m"
+UNDERLINE = "4m"
+REVERSED = "7m"
 
-class StyledString(object):
-    def __init__(self, string, control_seq):
+def color256(color_code):
+    return "38;5;%dm" % color_code
+
+def sstring(string, codes=[], strike_through=False):
+    if isinstance(string, SStringSingle):
+        return SStringGroup([string], codes, strike_through)
+    elif isinstance(string, SStringGroup):
+        if string.codes and not string.strike_through:
+            return SStringGroup([string], codes, strike_through)
+        else:
+            # save a level of nesting if the input doesn't have a code
+            return SStringGroup(string.children, codes, strike_through)
+    elif isinstance(string, str):
+        return SStringSingle(string, codes, strike_through)
+    else:
+        raise Exception("Invalid arguments for sstring")
+
+class SStringSingle:
+    def __init__(self, string, codes=[], strike_through=False):
         self.string = string
-        self.control_seq = control_seq
+        self.codes = codes
+        if isinstance(self.codes, str):
+            self.codes = [self.codes]
+        self.strike_through=strike_through
     
     def __repr__(self):
-        return "<%s>%s</%s>" % (self.control_seq, self.string, self.control_seq)
+        return _render_repr(self, self.string)
     
     def __str__(self):
-        return CTRL_CODE + self.control_seq + self.string + CTRL_CODE + "0m"
+        return self.render([], False)
+            
+    def render(self, parent_codes, parent_strike_through):
+        codes = parent_codes + self.codes
+        st = parent_strike_through or self.strike_through
+        if len(codes) > 0 or st:
+            code_seqs = "".join(map(lambda code: CTRL_CODE + code, codes))
+            string = self.string
+            if st:
+                string = _strike_through(string)
+            return code_seqs + string + CTRL_CODE + "0m"
+        else:
+            return self.string
+        
+    def __add__(self, other):
+        assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
+        return SStringGroup([self, other])
     
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.step is not None:
-                raise Exception("Not supported slices with step")
+                raise Exception("Slices with step is not supported")
             else:
-                return StyledString(self.string[key.start: key.stop], self.control_seq)
+                return SStringSingle(self.string[key.start:key.stop], self.codes, self.strike_through)
         else:
-            raise Exception('not implemented yet')
+            return SStringSingle(self.string[key], self.codes, self.strike_through)
+
+    def ljust(self, width, fillchar=' '):
+        return SStringSingle(self.string.ljust(width, fillchar), self.codes, self.strike_through)
+    
+    def rjust(self, width, fillchar=' '):
+        return SStringSingle(self.string.rjust(width, fillchar), self.codes, self.strike_through)
+    
+    def center(self, width, fillchar=' '):
+        return SStringSingle(self.string.center(width, fillchar), self.codes, self.strike_through)
+
+    def __eq__(self, other):
+        return repr(self) == repr(other)
 
     def __len__(self):
         return len(self.string)
 
-class StyledStringGroup(object):
-    def __init__(self, children):
+class SStringGroup:
+    def __init__(self, children, codes=[], strike_through=False):
         self.children = children
-    
-    def __str__(self):
-        return "".join(map(str, self.children))
-    
-    def __add__(self, other):
-        return StyledStringGroup(self.children + other.children)
-    
-    def __len__(self):
-        return reduce(lambda a, b: a + len(b.string), self.children, 0)
+        self.codes = codes
+        if isinstance(self.codes, str):
+            self.codes = [self.codes]
+        self.strike_through = strike_through
     
     def __repr__(self):
-        return "".join(map(repr, self.children))
+        content = "".join(map(repr, self.children))
+        return _render_repr(self, content)
     
-    def rjust(self, width):
-        return " " * self.getPadding(width) + str(self)
+    def __str__(self):
+        return self.render([], False)
+    
+    def render(self, parent_codes, parent_strike_through):
+        codes = parent_codes + self.codes
+        st = parent_strike_through or self.strike_through
+        return "".join(map(lambda child: child.render(codes, st), self.children))
+    
+    def __add__(self, other):
+        assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
+        return SStringGroup([self, other])
+    
+    def __len__(self):
+        return reduce(lambda a, b: a + len(b), self.children, 0)
+    
+    def ljust(self, width, fillchar=' '):
+        padding = self.getPadding(width)
+        if padding <= 0:
+            return self
+        last_child = self.children[-1]
+        return SStringGroup(self.children + [
+            SStringSingle(fillchar * padding, 
+                last_child.codes, 
+                last_child.strike_through
+            )
+        ], self.codes, self.strike_through)
 
-    def ljust(self, width):
-        return str(self) + " " * self.getPadding(width)
+    def rjust(self, width, fillchar=' '):
+        padding = self.getPadding(width)
+        if padding <= 0:
+            return self
+        first_child = self.children[0]
+        return SStringGroup([
+            SStringSingle(fillchar * padding, 
+                first_child.codes, 
+                first_child.strike_through
+            )
+        ] + self.children, self.codes, self.strike_through)
 
-    def center(self, width):
-        return " " * (int(math.floor(self.getPadding(width) / 2))) + str(self) + " " * (int(math.ceil(self.getPadding(width) / 2)))
+    def center(self, width, fillchar=' '):
+        padding = self.getPadding(width);
+        if padding <= 0:
+            return self
+        first_child = self.children[0]
+        front_padding = padding // 2
+        last_child = self.children[1]
+        back_padding = padding - front_padding
+        return SStringGroup([
+            SStringSingle(fillchar * front_padding,
+                first_child.codes,
+                first_child.strike_through
+            )
+        ] + self.children + [
+            SStringSingle(fillchar * back_padding,
+                last_child.codes,
+                last_child.strike_through
+            )
+        ], self.codes, self.strike_through)
+        
+        return " " * (
+            int(math.floor(self.getPadding(width) / 2))) + str(self) + \
+            " " * (int(math.ceil(self.getPadding(width) / 2))
+        )
     
     def getPadding(self, width):
         return width - len(self)
     
+    def __eq__(self, other):
+        return repr(self) == repr(other)
+    
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.step is not None:
-                raise Exception("Not supported slices with step")
+                raise Exception("Slices with step is not supported")
             else:
                 i = 0
-                totalLength = 0
                 results = []
                 start = key.start
                 stop = key.stop
+                if stop is None:
+                    stop = len(self)
                 while True:
+                    if i >= len(self.children):
+                        break
                     current = self.children[i]
-                    currentLength = len(current)
-                    if totalLength + currentLength >= key.start:
-                        results.append(current[start:stop])
-                    start = max(0, start - currentLength)
-                    stop = max(0, stop - currentLength)
-                    totalLength += currentLength
+                    if start < len(current):
+                        result = current[start:stop]
+                        results.append(result)
+                    start = max(0, start - len(current))
+                    stop = max(0, stop - len(current))
                     if start == 0 and stop == 0:
                         break
                     i += 1
-                return StyledStringGroup(results)
+                return SStringGroup(results)
 
         elif isinstance(key, int):
             return self[key:key + 1]
         else:
             raise Exception("Invalid argument type.")
-    
+
+def _render_repr(ss, content):
+    if len(ss.codes) > 0 or ss.strike_through:
+        code_list = ",".join(ss.codes)
+        if ss.strike_through:
+            code_list += "-"
+        return "<%s>%s</%s>" % (code_list, content, code_list)
+    else:
+        return content
+
+def _strike_through(s):
+    # https://stackoverflow.com/a/53836006/5304
+    result = ""
+    for char in s:
+        result += char + "\u0336"
+    return result
