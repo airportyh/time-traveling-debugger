@@ -1,9 +1,9 @@
 # Ideas
 #
-# child to parent communication when resizing of a child has to change
-# implement canvas that does clipping to boundaries
-# windows/draggable/resizable
+# integrate region into paint process
 # scroll pane
+# child to parent communication when resizing of a child has to change
+# windows/draggable/resizable
 # centering
 # flow box
 # how to exit properly?
@@ -14,6 +14,7 @@
 # multi-line text
 # word wrap
 
+# implement region that does clipping to boundaries (done)
 # implement (peg/cork) board (done)
 # resurrect sstring (done)
 # make the tree work again (done)
@@ -51,6 +52,7 @@ from term_util import *
 import sys
 import time
 from .box_constraints import BoxConstraints
+from .region import Region
 
 # UI Core Engine
 
