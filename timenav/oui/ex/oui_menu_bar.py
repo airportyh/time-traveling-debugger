@@ -1,4 +1,5 @@
 from oui import *
+from oui.elements import *
 
 def main():
     def global_key_handler(evt):

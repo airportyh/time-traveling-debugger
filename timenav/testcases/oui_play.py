@@ -3,6 +3,7 @@ import os.path
 parent_dir = os.path.abspath(os.path.dirname(__file__) + "/..")
 sys.path.append(parent_dir)
 from oui import *
+from oui.elements import *
 
 def main():
     outer_panel = VBox()
