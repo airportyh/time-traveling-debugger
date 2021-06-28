@@ -1,0 +1,115 @@
+from oui import add_child, BoxConstraints, repaint
+from ..region import Region
+from sstring import *
+
+class ScrollView:
+    def __init__(self, content):
+        self.content = content
+        self.offset = (0, 0)
+        add_child(self, self.content)
+    
+    def layout(self, constraints):
+        # provide no constraints
+        self.content.layout(BoxConstraints())
+        cwidth, cheight = self.content.size
+        width = constraints.constrain_width(cwidth)
+        height = constraints.constrain_height(cheight)
+        hscroll = width < cwidth
+        vscroll = height < cheight
+        if hscroll:
+            # we need one more column for the horizontal scroll bar
+            height = constraints.constrain_height(cheight + 1)
+        if vscroll:
+            width = constraints.constrain_width(width + 1)
+        self.size = (width, height)
+    
+    def paint(self, region, pos):
+        self.pos = pos
+        width, height = self.size
+        viewport_width, viewport_height = self.size
+        content_width, content_height = self.content.size
+        offsetx, offsety = self.offset
+        hscroll = False
+        vscroll = False
+        if viewport_width < content_width:
+            hscroll = True
+            # save one row for the horizontal scroll bar
+            viewport_height -= 1
+        if viewport_height < content_height:
+            vscroll = True
+            # save one column for the vertical scroll bar
+            viewport_width -= 1
+        region.clear_rect(0, 0, width, height)
+        
+        self.draw_scroll_bars(region)
+        
+        x, y = self.pos
+        content_origin = (x - offsetx, y - offsety)
+        content_offset = (x, y)
+        content_size = (viewport_width, viewport_height)
+        region = Region(content_origin, content_size, content_offset)
+        self.content.paint(region, content_origin)
+    
+    def draw_scroll_bars(self, region):
+        width, height = self.size
+        content_width, content_height = self.content.size
+        offsetx, offsety = self.offset
+        
+        if height < content_height:
+            vscroll_offset_percent = offsety / content_height
+            vscroll_visible_percent = height / content_height
+            vscroll_knob_offset = vscroll_offset_percent * height
+            vscroll_scroll_knob_height = vscroll_visible_percent * height
+            for i in range(height):
+                if i < vscroll_knob_offset:
+                    region.draw(width - 1, i, "┃")
+                elif i >= vscroll_knob_offset + vscroll_scroll_knob_height:
+                    region.draw(width - 1, i, "┃")
+                else:
+                    region.draw(width - 1, i, sstring(" ", REVERSED))
+        
+        if width < content_width:
+            hscroll_offset_percent = offsetx / content_width
+            hscroll_visible_percent = width / content_width
+            hscroll_knob_offset = hscroll_offset_percent * width
+            hscroll_scroll_knob_height = hscroll_visible_percent * width
+            for i in range(width):
+                if i < hscroll_knob_offset:
+                    region.draw(i, height - 1, "━")
+                elif i >= hscroll_knob_offset + hscroll_scroll_knob_height:
+                    region.draw(i, height - 1, "━")
+                else:
+                    region.draw(i, height - 1, sstring(" ", REVERSED))
+    
+    def wheelup(self, evt):
+        offsetx, offsety = self.offset
+        content_width, content_height = self.content.size
+        width, height = self.size
+        new_offsety = min(content_height - height, offsety + evt.amount)
+        if new_offsety != offsety:
+            self.offset = (offsetx, new_offsety)
+            repaint(self)
+    
+    def wheeldown(self, evt):
+        offsetx, offsety = self.offset
+        new_offsety = max(0, offsety - evt.amount)
+        if new_offsety != offsety:
+            self.offset = (offsetx, new_offsety)
+            repaint(self)
+    
+    def altwheelup(self, evt):
+        offsetx, offsety = self.offset
+        content_width, content_height = self.content.size
+        width, height = self.size
+        new_offsetx = min(content_width - width, offsetx + evt.amount)
+        if new_offsetx != offsetx:
+            self.offset = (new_offsetx, offsety)
+            repaint(self)
+    
+    def altwheeldown(self, evt):
+        offsetx, offsety = self.offset
+        new_offsetx = max(0, offsetx - evt.amount)
+        if new_offsetx != offsetx:
+            self.offset = (new_offsetx, offsety)
+            repaint(self)
+        

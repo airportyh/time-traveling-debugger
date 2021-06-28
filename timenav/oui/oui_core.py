@@ -8,9 +8,7 @@
 # flow box
 # how to exit properly?
 # Search function within current file
-# button and other hovers
-# dragging / resizing
-# text centering
+# hover effects
 # multi-line text
 # word wrap
 
@@ -103,7 +101,8 @@ def restore(settings):
 
 def repaint(element):
     if hasattr(element, "pos"):
-        element.paint(element.pos)
+        region = Region(element.pos, element.size)
+        element.paint(region, element.pos)
 
 def has_stretch_x(element):
     return get_stretch(element) in ["x", "both"]
@@ -224,6 +223,7 @@ def render_all():
     screen_width = termsize.columns
     screen_height = termsize.lines
     if root:
+        # TODO, switch to using region for clear_rect
         clear_rect(1, 1, screen_width, screen_height)
         root.layout(BoxConstraints(
             min_width=None,
@@ -231,7 +231,8 @@ def render_all():
             min_height=None,
             max_height=screen_height
         ))
-        root.paint((1, 1))
+        region = Region((0, 0), (screen_width, screen_height))
+        root.paint(region, (0, 0))
 
 max_click_gap = 0.250
 max_dbl_click_gap = 0.5
@@ -264,6 +265,10 @@ def run(root_element, global_key_handler=None):
         while not quit:
             inp = get_input()
             events = decode_input(inp)
+            for event in events:
+                if hasattr(event, "x") and hasattr(event, "y"):
+                    event.x -= 1
+                    event.y -= 1
             more_events = []
             even_more_events = []
             # codes = list(map(ord, inp))

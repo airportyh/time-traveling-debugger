@@ -1,5 +1,5 @@
 import os
-from oui import has_children, has_stretch_x, has_stretch_y, BoxConstraints
+from oui import has_children, has_stretch_x, has_stretch_y, BoxConstraints, Region
 
 class Board:
     def layout(self, constraints):
@@ -16,15 +16,17 @@ class Board:
                 cx, cy = child.pos
                 constraints = BoxConstraints()
                 if has_stretch_x(child):
-                    constraints.min_width = width - cx + 1
-                    constraints.max_width = width - cx + 1
+                    constraints.min_width = width - cx
+                    constraints.max_width = width - cx
                 if has_stretch_y(child):
-                    constraints.min_height = height - cy + 1
-                    constraints.max_height = height - cy + 1
+                    constraints.min_height = height - cy
+                    constraints.max_height = height - cy
                 child.layout(constraints)
         self.size = (width, height)
     
-    def paint(self, pos):
+    def paint(self, region, pos):
+        self.pos = pos
         if has_children(self):
             for child in self.children:
-                child.paint(child.pos)
+                child_region = Region(child.pos, child.size)
+                child.paint(child_region, child.pos)

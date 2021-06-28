@@ -1,4 +1,4 @@
-from oui import add_child, BoxConstraints
+from oui import add_child, BoxConstraints, Region
 from term_util import *
 
 class Border:
@@ -21,20 +21,22 @@ class Border:
         cwidth, cheight = self.content.size
         self.size = (cwidth + 2, cheight + 2)
     
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
         x, y = pos
         width, height = self.size
         if self.color:
             write('\x1B[%sm' % self.color)
-        print_at(x, y, "┏" + ("━" * (width - 2)) + "┓")
+        region.draw(0, 0, "┏" + ("━" * (width - 2)) + "┓")
         for i in range(height - 2):
-            print_at(x, y + i + 1, "┃")
-            print_at(x + width - 1, y + i + 1, "┃")
-        print_at(x, y + height - 1, "┗" + ("━" * (width - 2)) + "┛")
+            region.draw(0, 1 + i, "┃")
+            region.draw(width - 1, 1 + i, "┃")
+        region.draw(0, height - 1, "┗" + ("━" * (width - 2)) + "┛")
         if self.color:
             write('\x1B[0m')
-        self.content.paint((x + 1, y + 1))
+        child_pos = (x + 1, y + 1)
+        child_region = Region(child_pos, self.content.size)
+        self.content.paint(child_region, child_pos)
     
     def __repr__(self):
         return "<Border %r>" % self.content

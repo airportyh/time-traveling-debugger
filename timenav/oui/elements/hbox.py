@@ -1,5 +1,6 @@
-from oui import has_children, has_stretch_y, has_stretch_x, BoxConstraints
+from oui import has_children, has_stretch_y, has_stretch_x, BoxConstraints, Region
 from term_util import *
+# TODO: bring over logic from vbox
 
 class HBox:
     def layout(self, constraints):
@@ -81,16 +82,18 @@ class HBox:
         height = constraints.contrain_height(height)
         self.size = (width, height)
     
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
         if not has_children(self):
             return
         x, y = self.pos
         width, height = self.size
-        clear_rect(x, y, width, height)
+        region.clear_rect(0, 0, width, height)
         
         curr_x = x
         curr_y = y
         for element in self.children:
-            element.paint((curr_x, curr_y))
+            child_pos = (curr_x, curr_y)
+            child_region = Region(child_pos, element.size)
+            element.paint(child_region, child_pos)
             curr_x += element.size[0]

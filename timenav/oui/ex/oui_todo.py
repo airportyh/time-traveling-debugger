@@ -1,3 +1,4 @@
+from sstring import *
 from oui import *
 from oui.elements import *
 
@@ -24,15 +25,15 @@ class TodoItem:
         self.panel.layout(constraints)
         self.size = self.panel.size
     
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
-        self.panel.paint(pos)
+        self.panel.paint(region, pos)
     
     def on_checkbox_clicked(self, evt):
         self.checked = not self.checked
         display = "☐ " if not self.checked else "☑ "
         self.check_box.set_text(display)
-        self.label.set_strikethrough(self.checked)
+        self.label.set_text(sstring(self.text, strike_through=self.checked))
     
     def on_delete_clicked(self, evt):
         remove_child(self.list_ui, self)

@@ -1,5 +1,6 @@
 from oui import has_focus, repaint, focus
 from term_util import *
+from sstring import *
 
 class TextField:
     def __init__(self, init_text=None, width=10, placeholder=None, on_keypress=None):
@@ -15,7 +16,7 @@ class TextField:
         height = constraints.constrain_height(1)
         self.size = (width, height)
         
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
         width, height = self.size
         x, y = self.pos
@@ -25,29 +26,29 @@ class TextField:
             text = self.placeholder
         display_text = "".join(text[self.offset:]).ljust(width)[0:width]
         
-        background = "48;5;242";
-        placeholder_color = "38;5;246"
-        cursor_background = "44"
+        background = "48;5;242m";
+        placeholder_color = "38;5;246m"
+        cursor_background = "44m"
         
         if has_focus(self):
             cursor = self.cursor - self.offset
             before_cursor = display_text[0:cursor]
             cursor_char = display_text[cursor]
             after_cursor = display_text[cursor + 1:]
-            print_at(x, y, style(before_cursor, background))
+            region.draw(0, 0, sstring(before_cursor, background))
             if use_placeholder:
-                print_at(x + cursor, y, style(style(cursor_char, placeholder_color), cursor_background))
+                region.draw(cursor, 0, sstring(cursor_char, [placeholder_color, cursor_background]))
             else:
-                print_at(x + cursor, y, style(cursor_char, cursor_background))
+                region.draw(cursor, 0, sstring(cursor_char, cursor_background))
             if use_placeholder:
-                print_at(x + cursor + 1, y, style(style(after_cursor, placeholder_color), background))
+                region.draw(cursor + 1, 0, sstring(after_cursor, [placeholder_color, background]))
             else:
-                print_at(x + cursor + 1, y, style(after_cursor, background))
+                region.draw(cursor + 1, 0, sstring(after_cursor, background))
         else:
             if use_placeholder:
-                print_at(x, y, style(style(display_text, placeholder_color), background))
+                region.draw(0, 0, sstring(display_text, [placeholder_color, background]))
             else:
-                print_at(x, y, style(display_text, background))
+                region.draw(0, 0, sstring(display_text, background))
     
     def keypress(self, evt):
         if self.on_keypress:

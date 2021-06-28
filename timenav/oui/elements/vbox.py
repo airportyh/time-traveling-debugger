@@ -1,4 +1,4 @@
-from oui import has_children, has_stretch_y, has_stretch_x, BoxConstraints
+from oui import has_children, has_stretch_y, has_stretch_x, BoxConstraints, Region
 from term_util import *
 
 class VBox:
@@ -89,19 +89,33 @@ class VBox:
             width = max(width, ewidth)
         
         width = constraints.constrain_width(width)
-        height = constraints.contrain_height(height)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
     
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
         if not has_children(self):
             return
         x, y = self.pos
         width, height = self.size
-        clear_rect(x, y, width, height)
+        region.clear_rect(0, 0, width, height)
         
         curr_x = x
         curr_y = y
-        for element in self.children:
-            element.paint((curr_x, curr_y))
-            curr_y += element.size[1]
+        offsetx, offsety = region.offset
+        rwidth, rheight = region.size
+        for child in self.children:
+            child_origin = (curr_x, curr_y)
+            child_offsety = curr_y
+            if curr_y < offsety:
+                child_offsety = offsety
+            else:
+                child_offsety = curr_y
+            child_offset = (offsetx, child_offsety)
+            child_width, child_height = child.size
+            child_width = min(rwidth, child_width)
+            highest_y = min(curr_y + child_height, offsety + rheight)
+            child_height = highest_y - curr_y
+            child_region = Region(child_origin, (child_width, child_height), child_offset)
+            child.paint(child_region, (curr_x, curr_y))
+            curr_y += child.size[1]

@@ -7,19 +7,18 @@ class MyCanvas:
         width = constraints.constrain_width(10)
         height = constraints.constrain_height(10)
         self.size = (width, height)
-    
-    def paint(self, pos):
+
+    def paint(self, region, pos):
         self.pos = pos
-        region = Region(pos, self.size)
         for i in range(0, 10):
             for j in range(0, 12):
-                region.draw(i, j, sstring("%d" % i, color256(i )))
+                region.draw(i, j, sstring("%d" % i, color256(i)))
 
 def main():
     ui = Board()
     
     canvas = MyCanvas()
-    add_child(ui, Border(canvas, YELLOW))
+    add_child(ui, Border(canvas, "33"))
     
     run(ui)
     
