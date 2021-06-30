@@ -1,4 +1,4 @@
-from oui import add_child, BoxConstraints, render_all
+from oui import add_child, BoxConstraints, render_all, Region
 from term_util import *
 
 class Tree:
@@ -46,19 +46,21 @@ class Tree:
             
         self.size = (width, height)
 
-    def paint(self, pos):
+    def paint(self, region, pos):
         self.pos = pos
         x, y = pos
         if len(list(self.child_nodes)) == 0:
-            print_at(x, y, "-")
+            region.draw(0, 0, "-")
         elif self.expanded:
-            print_at(x, y, "▼")
+            region.draw(0, 0, "▼")
         else:
-            print_at(x, y, "▶")
-        curr_x = x + 2
-        curr_y = y
+            region.draw(0, 0, "▶")
+        curr_x = 2
+        curr_y = 0
         for child in self.children:
-            child.paint((curr_x, curr_y))
+            child_origin = (curr_x, curr_y)
+            child_region = region.child_region(child_origin, child.size)
+            child.paint(child_region, child_origin)
             curr_y += child.size[1]
 
     def click(self, event):

@@ -26,20 +26,11 @@ class ScrollView:
     def paint(self, region, pos):
         self.pos = pos
         width, height = self.size
-        viewport_width, viewport_height = self.size
+        viewport_width = self.get_viewport_width()
+        viewport_height = self.get_viewport_height()
         content_width, content_height = self.content.size
         offsetx, offsety = self.offset
-        hscroll = False
-        vscroll = False
-        if viewport_width < content_width:
-            hscroll = True
-            # save one row for the horizontal scroll bar
-            viewport_height -= 1
-        if viewport_height < content_height:
-            vscroll = True
-            # save one column for the vertical scroll bar
-            viewport_width -= 1
-        region.clear_rect(0, 0, width, height)
+        # region.clear_rect(0, 0, width, height)
         
         self.draw_scroll_bars(region)
         
@@ -54,8 +45,10 @@ class ScrollView:
         width, height = self.size
         content_width, content_height = self.content.size
         offsetx, offsety = self.offset
+        vscroll = height < content_height
+        hscroll = width < content_width
         
-        if height < content_height:
+        if vscroll:
             vscroll_offset_percent = offsety / content_height
             vscroll_visible_percent = height / content_height
             vscroll_knob_offset = vscroll_offset_percent * height
@@ -68,12 +61,16 @@ class ScrollView:
                 else:
                     region.draw(width - 1, i, sstring(" ", REVERSED))
         
-        if width < content_width:
+        if hscroll:
+            if vscroll:
+                hscroll_width = width - 1
+            else:
+                hscroll_width = width
             hscroll_offset_percent = offsetx / content_width
             hscroll_visible_percent = width / content_width
             hscroll_knob_offset = hscroll_offset_percent * width
-            hscroll_scroll_knob_height = hscroll_visible_percent * width
-            for i in range(width):
+            hscroll_scroll_knob_height = hscroll_visible_percent * hscroll_width
+            for i in range(hscroll_width):
                 if i < hscroll_knob_offset:
                     region.draw(i, height - 1, "━")
                 elif i >= hscroll_knob_offset + hscroll_scroll_knob_height:
@@ -81,11 +78,25 @@ class ScrollView:
                 else:
                     region.draw(i, height - 1, sstring(" ", REVERSED))
     
+    def get_viewport_width(self):
+        viewport_width, viewport_height = self.size
+        content_width, content_height = self.content.size
+        if viewport_height < content_height:
+            viewport_width -= 1
+        return viewport_width
+        
+    def get_viewport_height(self):
+        viewport_width, viewport_height = self.size
+        content_width, content_height = self.content.size
+        if viewport_width < content_width:
+            viewport_height -= 1
+        return viewport_height
+    
     def wheelup(self, evt):
         offsetx, offsety = self.offset
         content_width, content_height = self.content.size
         width, height = self.size
-        new_offsety = min(content_height - height, offsety + evt.amount)
+        new_offsety = min(content_height - self.get_viewport_height(), offsety + evt.amount)
         if new_offsety != offsety:
             self.offset = (offsetx, new_offsety)
             repaint(self)
@@ -101,7 +112,7 @@ class ScrollView:
         offsetx, offsety = self.offset
         content_width, content_height = self.content.size
         width, height = self.size
-        new_offsetx = min(content_width - width, offsetx + evt.amount)
+        new_offsetx = min(content_width - self.get_viewport_width(), offsetx + evt.amount)
         if new_offsetx != offsetx:
             self.offset = (new_offsetx, offsety)
             repaint(self)

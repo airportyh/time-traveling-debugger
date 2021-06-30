@@ -1,10 +1,12 @@
 # Ideas
 #
-# integrate region into paint process
-# scroll pane
+# backport vbox fixes into hbox
+# upgrade tree element to regions
+# upgrade menu elements to regions
+# centering
+# how to hard-code width and height on an element?
 # child to parent communication when resizing of a child has to change
 # windows/draggable/resizable
-# centering
 # flow box
 # how to exit properly?
 # Search function within current file
@@ -12,6 +14,9 @@
 # multi-line text
 # word wrap
 
+# scroll view fix flickering when scrolling (don't use clear_rect? buffer?) (done)
+# integrate region into paint process (done)
+# scroll pane (done)
 # implement region that does clipping to boundaries (done)
 # implement (peg/cork) board (done)
 # resurrect sstring (done)
@@ -37,10 +42,7 @@
 # add MenuItem class (done)
 # stretch (done)
 # collapsable tree (done)
-
-# TODO
-# Tree - solve expand/collapse
-# maybe I need a tree pane?
+# Tree - solve expand/collapse (done)
 
 import termios
 import tty

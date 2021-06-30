@@ -88,12 +88,20 @@ class HBox:
             return
         x, y = self.pos
         width, height = self.size
-        region.clear_rect(0, 0, width, height)
         
-        curr_x = x
-        curr_y = y
-        for element in self.children:
-            child_pos = (curr_x, curr_y)
-            child_region = Region(child_pos, element.size)
-            element.paint(child_region, child_pos)
-            curr_x += element.size[0]
+        curr_x = 0
+        curr_y = 0
+        offsetx, offsety = region.offset
+        rwidth, rheight = region.size
+        for child in self.children:
+            child_origin = (curr_x, curr_y)
+            child_region = region.child_region(child_origin, child.size)
+            child.paint(child_region, child_origin)
+            cwidth, cheight = child.size
+            region.clear_rect(curr_x, curr_y + cheight, cwidth, height - cheight)
+            
+            curr_x += child.size[0]
+            
+            
+            
+            

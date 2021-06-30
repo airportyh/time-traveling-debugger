@@ -143,12 +143,12 @@ class NavigatorGUI:
                             self.stack_pane.scroll_down()
                         elif event.x < self.code_pane.box.width + 1:
                             self.code_pane.scroll_down()
-                    elif event.type == "ctrlwheelup":
+                    elif event.type == "altwheelup":
                         if event.x > self.code_pane.box.width + 1:
                             self.stack_pane.scroll_left()
                         elif event.x < self.code_pane.box.width + 1:
                             self.code_pane.scroll_left()
-                    elif event.type == "ctrlwheeldown":
+                    elif event.type == "altwheeldown":
                         if event.x > self.code_pane.box.width + 1:
                             self.stack_pane.scroll_right()
                         elif event.x < self.code_pane.box.width + 1:

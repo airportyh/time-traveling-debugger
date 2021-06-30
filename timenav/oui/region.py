@@ -17,7 +17,8 @@ class Region:
         if screenx >= offsetx + width:
             return
         if screenx < offsetx:
-            string = string[offsetx - screenx:]
+            string_offset = offsetx - screenx
+            string = string[string_offset:]
             screenx = offsetx
         if len(string) + x > width:
             string = string[0:width-x]
@@ -37,6 +38,28 @@ class Region:
         rect_height = screen_stop_y - recty
         clear_rect(rectx + 1, recty + 1, rect_width, rect_height)
         
-        
+    def child_region(self, child_origin, child_size):
+        originx, originy = self.origin
+        offsetx, offsety = self.offset
+        width, height = self.size
+        coriginx, coriginy = child_origin
+        coriginx += originx
+        coriginy += originy
+        cwidth, cheight = child_size
+        coffsetx = max(offsetx, coriginx)
+        coffsety = max(offsety, coriginy)
+        cwidth = min(
+            coriginx + cwidth,
+            offsetx + width
+        ) - coffsetx
+        cheight = min(
+            coriginy + cheight,
+            offsety + height
+        ) - coffsety
+        return Region(
+            (coriginx, coriginy),
+            (cwidth, cheight),
+            (coffsetx, coffsety)
+        )
         
         
