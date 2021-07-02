@@ -1,10 +1,12 @@
 # Ideas
 #
-# backport vbox fixes into hbox
-# upgrade tree element to regions
+# put new region scheme into all elements
 # upgrade menu elements to regions
 # centering
 # how to hard-code width and height on an element?
+    # Idea: board respects size of its children if set and does not call layout?
+    #   but children's children still need layout. Maybe board uses child's size
+    #   to strictly constraint its children's layout
 # child to parent communication when resizing of a child has to change
 # windows/draggable/resizable
 # flow box
@@ -14,6 +16,10 @@
 # multi-line text
 # word wrap
 
+# store region onto UI element (done)
+# fix mouse event handling (done)
+# upgrade tree element to regions (done)
+# backport vbox fixes into hbox (done)
 # scroll view fix flickering when scrolling (don't use clear_rect? buffer?) (done)
 # integrate region into paint process (done)
 # scroll pane (done)
@@ -102,9 +108,8 @@ def restore(settings):
     print("\n")
 
 def repaint(element):
-    if hasattr(element, "pos"):
-        region = Region(element.pos, element.size)
-        element.paint(region, element.pos)
+    if hasattr(element, "region"):
+        element.paint()
 
 def has_stretch_x(element):
     return get_stretch(element) in ["x", "both"]
@@ -118,22 +123,16 @@ def get_stretch(element):
 def has_size(element):
     return hasattr(element, "size")
 
-def has_pos(element):
-    return hasattr(element, "pos")
-
 def has_children(element):
     return hasattr(element, "children") and len(element.children) > 0
 
 def contains(element, x, y):
-    ex, ey = element.pos
-    width, height = element.size
-    return ex <= x and ey <= y and ex + width > x \
-        and ey + height > y
+    return element.region.contains(x, y)
 
 def fire_mouse_event(element, event, level=0):
     indent = "  " * level
     if hasattr(event, "x") and hasattr(event, "y"):
-        if has_pos(element) and contains(element, event.x, event.y):
+        if contains(element, event.x, event.y):
             _fire_event(element, event)
         else:
             return
@@ -233,8 +232,8 @@ def render_all():
             min_height=None,
             max_height=screen_height
         ))
-        region = Region((0, 0), (screen_width, screen_height))
-        root.paint(region, (0, 0))
+        root.region = Region((0, 0), (screen_width, screen_height))
+        root.paint()
 
 max_click_gap = 0.250
 max_dbl_click_gap = 0.5

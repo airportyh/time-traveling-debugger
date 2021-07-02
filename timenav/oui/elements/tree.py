@@ -46,9 +46,8 @@ class Tree:
             
         self.size = (width, height)
 
-    def paint(self, region, pos):
-        self.pos = pos
-        x, y = pos
+    def paint(self):
+        region = self.region
         if len(list(self.child_nodes)) == 0:
             region.draw(0, 0, "-")
         elif self.expanded:
@@ -59,14 +58,14 @@ class Tree:
         curr_y = 0
         for child in self.children:
             child_origin = (curr_x, curr_y)
-            child_region = region.child_region(child_origin, child.size)
-            child.paint(child_region, child_origin)
+            child.region = region.child_region(child_origin, child.size)
+            child.paint()
             curr_y += child.size[1]
 
     def click(self, event):
         indent = 2
-        x, y = self.pos
-        if event.y == y and event.x >= x and event.x < x + indent:
+        eventx, eventy = self.region.relative_pos(event.x, event.y)
+        if eventy == 0 and eventx >= 0 and eventx < indent:
             self.expanded = not self.expanded
             render_all()
 

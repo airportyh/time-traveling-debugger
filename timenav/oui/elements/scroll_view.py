@@ -23,25 +23,23 @@ class ScrollView:
             width = constraints.constrain_width(width + 1)
         self.size = (width, height)
     
-    def paint(self, region, pos):
-        self.pos = pos
+    def paint(self):
         width, height = self.size
         viewport_width = self.get_viewport_width()
         viewport_height = self.get_viewport_height()
         content_width, content_height = self.content.size
         offsetx, offsety = self.offset
-        # region.clear_rect(0, 0, width, height)
         
-        self.draw_scroll_bars(region)
+        self.draw_scroll_bars()
         
-        x, y = self.pos
-        content_origin = (x - offsetx, y - offsety)
-        content_offset = (x, y)
+        content_origin = (-offsetx, -offsety)
+        content_offset = (0, 0)
         content_size = (viewport_width, viewport_height)
-        region = Region(content_origin, content_size, content_offset)
-        self.content.paint(region, content_origin)
+        self.content.region = self.region.child_region(content_origin, content_size, content_offset)
+        self.content.paint()
     
-    def draw_scroll_bars(self, region):
+    def draw_scroll_bars(self):
+        region = self.region
         width, height = self.size
         content_width, content_height = self.content.size
         offsetx, offsety = self.offset

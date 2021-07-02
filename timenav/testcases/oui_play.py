@@ -14,22 +14,17 @@ def main():
         label.set_text("You still clicked! MUAHAHAH!")
 
     panel = VBox()
-    tree_root = Tree(Text("poem"))
-    b = Tree(Text("roses are red"))
-    c = Tree(Text("violets are blue"))
-    d = Tree(Text("sunflowers are yellow"))
-    e = Tree(Text("grass are green"))
-    f = Tree(Text("dung is brown"))
-    add_child(d, e)
-    add_child(d, f)
-    add_child(tree_root, b)
-    add_child(tree_root, c)
-    add_child(tree_root, d)
-
-    # scroll_view = ScrollView(tree_root)
-    # add_child(panel, Border(scroll_view))
-    add_child(panel, Border(tree_root))
-
+    label = Text("What would you like to do?")
+    button_panel = HBox()
+    click_button = Text("Click here!")
+    add_handler(click_button, "click", click1)
+    dont_click_button = Text("Don't click")
+    add_handler(dont_click_button, "click", click2)
+    add_child(button_panel, click_button)
+    add_child(button_panel, dont_click_button)
+    add_child(panel, label)
+    add_child(panel, button_panel)
+    
     quit_label = Text("Press 'q' to quit")
     add_child(panel, quit_label)
 

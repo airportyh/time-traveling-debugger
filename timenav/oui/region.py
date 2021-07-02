@@ -38,7 +38,7 @@ class Region:
         rect_height = screen_stop_y - recty
         clear_rect(rectx + 1, recty + 1, rect_width, rect_height)
         
-    def child_region(self, child_origin, child_size):
+    def child_region(self, child_origin, child_size, child_offset=None):
         originx, originy = self.origin
         offsetx, offsety = self.offset
         width, height = self.size
@@ -46,8 +46,14 @@ class Region:
         coriginx += originx
         coriginy += originy
         cwidth, cheight = child_size
-        coffsetx = max(offsetx, coriginx)
-        coffsety = max(offsety, coriginy)
+        if child_offset:
+            coffsetx, coffsety = child_offset
+            coffsetx += originx
+            coffsety += originy
+        else:
+            coffsetx = max(offsetx, coriginx) - coriginx
+            coffsety = max(offsety, coriginy) - coriginy
+            # TODO test
         cwidth = min(
             coriginx + cwidth,
             offsetx + width
@@ -61,5 +67,17 @@ class Region:
             (cwidth, cheight),
             (coffsetx, coffsety)
         )
+    
+    def contains(self, x, y):
+        offsetx, offsety = self.offset
+        originx, originy = self.origin
+        offsetx += originx
+        offsety += originy
+        width, height = self.size
+        return offsetx <= x and offsety <= y and offsetx + width > x \
+            and offsety + height > y
         
+    def relative_pos(self, x, y):
+        originx, originy = self.origin
+        return (x - originx, y - originy)
         

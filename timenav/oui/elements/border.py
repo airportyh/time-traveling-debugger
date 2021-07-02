@@ -21,10 +21,9 @@ class Border:
         cwidth, cheight = self.content.size
         self.size = (cwidth + 2, cheight + 2)
     
-    def paint(self, region, pos):
-        self.pos = pos
-        x, y = pos
+    def paint(self):
         width, height = self.size
+        region = self.region
         if self.color:
             write('\x1B[%sm' % self.color)
         region.draw(0, 0, "┏" + ("━" * (width - 2)) + "┓")
@@ -34,9 +33,9 @@ class Border:
         region.draw(0, height - 1, "┗" + ("━" * (width - 2)) + "┛")
         if self.color:
             write('\x1B[0m')
-        child_pos = (x + 1, y + 1)
-        child_region = Region(child_pos, self.content.size)
-        self.content.paint(child_region, child_pos)
+        child_pos = (1, 1)
+        self.content.region = region.child_region(child_pos, self.content.size)
+        self.content.paint()
     
     def __repr__(self):
         return "<Border %r>" % self.content

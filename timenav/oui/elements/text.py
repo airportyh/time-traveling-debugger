@@ -14,11 +14,10 @@ class Text:
         height = constraints.constrain_height(1)
         self.size = (width, height)
 
-    def paint(self, region, pos):
-        self.pos = pos
+    def paint(self):
         width, height = self.size
         display = self.text.ljust(width)
-        region.draw(0, 0, display)
+        self.region.draw(0, 0, display)
     
     def __repr__(self):
         return "<Text %r>" % self.text

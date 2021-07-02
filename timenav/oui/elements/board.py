@@ -24,9 +24,8 @@ class Board:
                 child.layout(constraints)
         self.size = (width, height)
     
-    def paint(self, region, pos):
-        self.pos = pos
+    def paint(self):
         if has_children(self):
             for child in self.children:
-                child_region = Region(child.pos, child.size)
-                child.paint(child_region, child.pos)
+                child.region = Region(child.pos, child.size)
+                child.paint()

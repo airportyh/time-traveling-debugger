@@ -82,11 +82,10 @@ class HBox:
         height = constraints.contrain_height(height)
         self.size = (width, height)
     
-    def paint(self, region, pos):
-        self.pos = pos
+    def paint(self):
+        region = self.region
         if not has_children(self):
             return
-        x, y = self.pos
         width, height = self.size
         
         curr_x = 0
@@ -95,13 +94,8 @@ class HBox:
         rwidth, rheight = region.size
         for child in self.children:
             child_origin = (curr_x, curr_y)
-            child_region = region.child_region(child_origin, child.size)
-            child.paint(child_region, child_origin)
+            child.region = region.child_region(child_origin, child.size)
+            child.paint()
             cwidth, cheight = child.size
             region.clear_rect(curr_x, curr_y + cheight, cwidth, height - cheight)
-            
             curr_x += child.size[0]
-            
-            
-            
-            

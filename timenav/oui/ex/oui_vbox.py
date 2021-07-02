@@ -1,4 +1,5 @@
 from oui import *
+from oui.elements import *
 
 def main():
     ui = VBox()

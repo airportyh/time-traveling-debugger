@@ -21,8 +21,9 @@ def main():
     add_child(tree_root, c)
     add_child(tree_root, d)
 
-    scroll_view = ScrollView(tree_root)
-    add_child(panel, Border(scroll_view))
+    # scroll_view = ScrollView(tree_root)
+    # add_child(panel, Border(scroll_view))
+    add_child(panel, Border(tree_root))
 
     quit_label = Text("Press 'q' to quit")
     add_child(panel, quit_label)
