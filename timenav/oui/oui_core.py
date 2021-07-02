@@ -1,7 +1,9 @@
 # Ideas
 #
 # put new region scheme into all elements
-# upgrade menu elements to regions
+# fix popup menu/menu bar
+# maybe unify how to represent a position, should it be a 2-tuple or an object
+#    with x and y?
 # centering
 # how to hard-code width and height on an element?
     # Idea: board respects size of its children if set and does not call layout?
@@ -16,6 +18,10 @@
 # multi-line text
 # word wrap
 
+# fix oui_scroll_view.py (done)
+# write tests for region.py (done)
+# fix todo (done)
+# bug oui_ex1.py, clicking on tree triggers button too (done)
 # store region onto UI element (done)
 # fix mouse event handling (done)
 # upgrade tree element to regions (done)
@@ -169,8 +175,7 @@ def focus(element):
     focused_element = element
     if prev:
         repaint(prev)
-    if has_pos(element):
-        repaint(element)
+    repaint(element)
 
 def has_focus(element):
     return focused_element == element

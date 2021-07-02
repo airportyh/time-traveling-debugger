@@ -10,6 +10,7 @@ def main():
 
     panel = VBox()
     label = Text("What would you like to do?")
+    add_child(panel, label)
     click_button = Text("Click here!")
     add_handler(click_button, "click", click1)
     add_child(panel, click_button)

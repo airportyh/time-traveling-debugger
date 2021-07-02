@@ -25,9 +25,9 @@ class TodoItem:
         self.panel.layout(constraints)
         self.size = self.panel.size
     
-    def paint(self, region, pos):
-        self.pos = pos
-        self.panel.paint(region, pos)
+    def paint(self):
+        self.panel.region = self.region
+        self.panel.paint()
     
     def on_checkbox_clicked(self, evt):
         self.checked = not self.checked

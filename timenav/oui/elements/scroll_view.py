@@ -34,7 +34,7 @@ class ScrollView:
         
         content_origin = (-offsetx, -offsety)
         content_offset = (0, 0)
-        content_size = (viewport_width, viewport_height)
+        content_size = (viewport_width + offsetx, viewport_height + offsety)
         self.content.region = self.region.child_region(content_origin, content_size, content_offset)
         self.content.paint()
     

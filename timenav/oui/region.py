@@ -1,6 +1,7 @@
 from term_util import *
 
 class Region:
+    # both origin and offset are absolute coordinates relative to the screen
     def __init__(self, origin, size, offset=None):
         self.origin = origin
         self.size = size
@@ -48,11 +49,13 @@ class Region:
         cwidth, cheight = child_size
         if child_offset:
             coffsetx, coffsety = child_offset
-            coffsetx += originx
-            coffsety += originy
+            coffsetx += coriginx
+            coffsety += coriginy
+            coffsetx = max(coffsetx, offsetx)
+            coffsety = max(coffsety, offsety)
         else:
-            coffsetx = max(offsetx, coriginx) - coriginx
-            coffsety = max(offsety, coriginy) - coriginy
+            coffsetx = max(offsetx, coriginx)
+            coffsety = max(offsety, coriginy)
             # TODO test
         cwidth = min(
             coriginx + cwidth,
@@ -71,13 +74,94 @@ class Region:
     def contains(self, x, y):
         offsetx, offsety = self.offset
         originx, originy = self.origin
-        offsetx += originx
-        offsety += originy
         width, height = self.size
         return offsetx <= x and offsety <= y and offsetx + width > x \
             and offsety + height > y
         
     def relative_pos(self, x, y):
         originx, originy = self.origin
-        return (x - originx, y - originy)
-        
+        return (x - originx, y - originy)    
+
+def test_contains():
+    region = Region((0, 0), (5, 5))
+    assert not region.contains(-1, 0)
+    assert not region.contains(0, -1)
+    assert region.contains(0, 0)
+    assert region.contains(4, 4)
+    assert not region.contains(4, 5)
+    assert not region.contains(5, 4)
+    
+def test_contains_with_offset():
+    region = Region((0, 0), (5, 5), (2, 2))
+    assert not region.contains(1, 2)
+    assert not region.contains(2, 1)
+    assert region.contains(2, 2)
+    assert region.contains(6, 6)
+    assert not region.contains(6, 7)
+    assert not region.contains(7, 6)
+
+def test_child_region():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((0, 1), (5, 1))
+    assert cregion.origin == (1, 2)
+    assert cregion.offset == (1, 2)
+    assert cregion.size == (5, 1)
+
+def test_child_region_x_y():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((1, 1), (5, 1))
+    assert cregion.origin == (2, 2)
+    assert cregion.offset == (2, 2)
+    assert cregion.size == (4, 1)
+
+def test_child_region_with_clip_width():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((0, 1), (10, 1))
+    assert cregion.origin == (1, 2)
+    assert cregion.offset == (1, 2)
+    assert cregion.size == (5, 1)
+
+def test_child_region_with_clip_height():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((0, 1), (5, 10))
+    assert cregion.origin == (1, 2)
+    assert cregion.offset == (1, 2)
+    assert cregion.size == (5, 4)
+
+def test_child_region_with_offset():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((1, 1), (5, 5), (2, 2))
+    assert cregion.origin == (2, 2)
+    assert cregion.offset == (4, 4)
+    assert cregion.size == (2, 2)
+
+def test_child_region_with_offset_negative_size():
+    region = Region((1, 1), (5, 5))
+    cregion = region.child_region((1, 1), (5, 1), (2, 2))
+    assert cregion.origin == (2, 2)
+    assert cregion.offset == (4, 4)
+    assert cregion.size == (2, -1)
+
+def test_child_region_with_negative_origin():
+    # scroll view usecase
+    region = Region((1, 1), (5, 5))
+    # 3rd parameter 'offset' is relative to the child origin
+    cregion = region.child_region((-2, -2), (5, 5))
+    assert cregion.origin == (-1, -1)
+    assert cregion.offset == (1, 1)
+    assert cregion.size == (3, 3)
+    assert not cregion.contains(0, 0)
+
+def test():
+    test_contains()
+    test_contains_with_offset()
+    test_child_region()
+    test_child_region_x_y()
+    test_child_region_with_clip_width()
+    test_child_region_with_clip_height()
+    test_child_region_with_offset()
+    test_child_region_with_offset_negative_size()
+    test_child_region_with_negative_origin()
+    
+if __name__ == "__main__":
+    test()

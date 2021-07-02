@@ -16,10 +16,9 @@ class TextField:
         height = constraints.constrain_height(1)
         self.size = (width, height)
         
-    def paint(self, region, pos):
-        self.pos = pos
+    def paint(self):
+        region = self.region
         width, height = self.size
-        x, y = self.pos
         text = self.text
         use_placeholder = self.placeholder and len(text) == 0
         if use_placeholder:
