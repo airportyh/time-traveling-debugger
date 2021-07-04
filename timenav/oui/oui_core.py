@@ -242,9 +242,6 @@ def render_all():
         root.region = Region((0, 0), (screen_width, screen_height))
         root.paint()
 
-max_click_gap = 0.250
-max_dbl_click_gap = 0.5
-
 def run(root_element, global_key_handler=None):
     global root
     root = root_element
@@ -255,17 +252,11 @@ def run(root_element, global_key_handler=None):
 
     original_settings = termios.tcgetattr(sys.stdin)
 
-    try:
-        
+    try:    
         tty.setraw(sys.stdin)
         clear_screen()
         mouse_on()
         cursor_off()
-        
-        prev_mousedown = None
-        prev_mousedown_tick = None
-        prev_click = None
-        prev_click_tick = None
         
         focus_next_element_from(root, None)
         render_all()
@@ -274,27 +265,13 @@ def run(root_element, global_key_handler=None):
             inp = get_input()
             events = decode_input(inp)
             for event in events:
+                # adjust coordinates so origin is (0, 0)
                 if hasattr(event, "x") and hasattr(event, "y"):
                     event.x -= 1
                     event.y -= 1
-            more_events = []
-            even_more_events = []
             # codes = list(map(ord, inp))
             # log("Input: %r, %r, %r" % (inp, codes, events))
             for event in events:
-                if event.type == "mouseup":
-                    if prev_mousedown and (time.time() - prev_mousedown_tick < max_click_gap):
-                        if event.x == prev_mousedown.x and event.y == prev_mousedown.y:
-                            click_event = Event("click", x=event.x, y=event.y)
-                            more_events.append(click_event)
-                            prev_mousedown = None
-                            prev_mousedown_tick = None
-                            prev_click = click_event
-                            prev_click_tick = time.time()
-                elif event.type == "mousedown":
-                    prev_mousedown = event
-                    prev_mousedown_tick = time.time()
-                
                 if event.type == "keypress":
                     prevent_default = False
                     if global_key_handler:
@@ -311,21 +288,6 @@ def run(root_element, global_key_handler=None):
                                 fire_event(focused_element, event)
                 else: # assume these are mouse/wheel events, dispatch it starting at root
                     fire_mouse_event(root_element, event)
-
-            for event in more_events:
-                if event.type == "click":
-                    if prev_click and (time.time() - prev_click_tick < max_dbl_click_gap):
-                        if event.x == prev_click.x and event.y == prev_click.y:
-                            dbl_click_event = Event("dblclick", x=event.x, y=event.y)
-                            even_more_events.append(dbl_click_event)
-                            prev_click = None
-                            prev_click_tick = None
-                    prev_click = event
-                    prev_click_tick = time.time()
-                fire_mouse_event(root_element, event)
-            
-            for event in even_more_events:
-                fire_mouse_event(root_element, event)
 
     except Exception as e:
         clean_up()
