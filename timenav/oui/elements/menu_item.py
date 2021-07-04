@@ -1,46 +1,32 @@
 import time
-from oui import add_child, repaint
+from oui import add_child, repaint, fire_event
 from term_util import *
+from sstring import *
+from events import Event
 
 class MenuItem:
-    def __init__(self, label, on_select=None, highlighted=False):
+    def __init__(self, label):
         self.label = label
-        self.on_select = on_select
-        add_child(self, self.label)
-        self.highlighted = highlighted
-        self.update_highlighted_style()
-    
-    def get_menu(self):
-        return self.parent.parent.parent.parent
-    
-    def update_highlighted_style(self):
-        highlighted_background = "46;1"
-        if self.highlighted:
-            self.label.styles.append(highlighted_background)
-        else:
-            if highlighted_background in self.label.styles:
-                self.label.styles.remove(highlighted_background)
+        self.highlighted = False
     
     def set_highlighted(self, value):
         self.highlighted = value
-        self.update_highlighted_style()
         repaint(self)
         
     def layout(self, constraints):
-        self.label.layout(constraints)
-        self.size = self.label.size
+        width = constraints.constrain_width(len(self.label))
+        height = constraints.constrain_height(1)
+        self.size = (width, height)
     
-    def paint(self, pos):
-        self.pos = pos
-        self.label.paint(pos)
+    def paint(self):
+        width, height = self.size
+        display = self.label.ljust(width)
+        if self.highlighted:
+            display = sstring(display, BG_BRIGHT_CYAN)
+        self.region.draw(0, 0, display)
     
     def click(self, evt):
-        self.select()
+        self.fire_select()
     
-    def select(self):
-        menu = self.get_menu()
-        menu.set_highlighted(self)
-        time.sleep(0.2)
-        self.get_menu().close()
-        if self.on_select:
-            self.on_select()
+    def fire_select(self):
+        fire_event(self, Event("select", value=self))

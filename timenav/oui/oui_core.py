@@ -1,23 +1,24 @@
 # Ideas
 #
+# extract click and dblclick logic into events.py
+# rename add_handler to add_listener
 # put new region scheme into all elements
 # fix popup menu/menu bar
 # maybe unify how to represent a position, should it be a 2-tuple or an object
 #    with x and y?
 # centering
-# how to hard-code width and height on an element?
-    # Idea: board respects size of its children if set and does not call layout?
-    #   but children's children still need layout. Maybe board uses child's size
-    #   to strictly constraint its children's layout
 # child to parent communication when resizing of a child has to change
 # windows/draggable/resizable
 # flow box
 # how to exit properly?
-# Search function within current file
 # hover effects
 # multi-line text
 # word wrap
 
+# how to hard-code width and height on an element? (done)
+    # Idea: board respects size of its children if set and does not call layout?
+    #   but children's children still need layout. Maybe board uses child's size
+    #   to strictly constraint its children's layout
 # fix oui_scroll_view.py (done)
 # write tests for region.py (done)
 # fix todo (done)
@@ -68,9 +69,13 @@ from .region import Region
 
 # UI Core Engine
 
-def add_child(parent, child, index=None, stretch=None):
+def add_child(parent, child, index=None, stretch=None, abs_pos=None, abs_size=None):
     if stretch:
         child.stretch = stretch
+    if abs_pos:
+        child.abs_pos = abs_pos
+    if abs_size:
+        child.abs_size = abs_size
     child.parent = parent
     if not hasattr(parent, "children"):
         parent.children = []
@@ -83,6 +88,7 @@ def add_child(parent, child, index=None, stretch=None):
 def remove_child(parent, child):
     global focused_element
     assert child in parent.children
+    child.parent = None
     parent.children.remove(child)
     if child == focused_element:
         focused_element = None
@@ -139,7 +145,7 @@ def fire_mouse_event(element, event, level=0):
     indent = "  " * level
     if hasattr(event, "x") and hasattr(event, "y"):
         if contains(element, event.x, event.y):
-            _fire_event(element, event)
+            fire_event(element, event)
         else:
             return
     
@@ -147,11 +153,7 @@ def fire_mouse_event(element, event, level=0):
         for child in element.children:
             fire_mouse_event(child, event, level + 1)
 
-def fire_keypress(element, event):
-    if hasattr(element, event.type):
-        _fire_event(element, event)
-
-def _fire_event(element, event):
+def fire_event(element, event):
     if hasattr(element, event.type):
         handler = getattr(element, event.type)
         if callable(handler):
@@ -306,7 +308,7 @@ def run(root_element, global_key_handler=None):
                         else:
                             # dispatch to focused_element
                             if focused_element:
-                                fire_keypress(focused_element, event)
+                                fire_event(focused_element, event)
                 else: # assume these are mouse/wheel events, dispatch it starting at root
                     fire_mouse_event(root_element, event)
 

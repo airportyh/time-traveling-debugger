@@ -1,10 +1,13 @@
 from oui import *
+from oui.elements import *
 
 def main():
-    ui = VerticalPanel()
+    ui = Board()
+    box = VBox()
+    add_child(ui, box, stretch="both")
     
     selected_label = Text("                     ")
-    add_child(ui, Border(selected_label, "36"))
+    add_child(box, Border(selected_label, "36"))
     
     def on_option_selected(option):
         nonlocal opened
@@ -15,21 +18,18 @@ def main():
     
     opened = False
     
-    options = [
-        "Drink water",
-        "Eat yogurt",
-        "Buy socks"
-    ]
-    menu = PopUpMenu(options, 1, 1, on_option_selected)
+    menu = Menu()
+    menu.add_item(MenuItem("Drink water"))
+    menu.add_item(MenuItem("Eat yogurt"))
+    menu.add_item(MenuItem("Buy socks"))
     
     def on_open_clicked(evt):
         nonlocal opened
         
         opened = not opened
         if opened:
-            menu.x = open.x
-            menu.y = open.y + 1
-            add_child(ui, menu)
+            x, y = open.region.offset
+            add_child(ui, menu, abs_pos=(x, y + 1))
             open.set_text("▼ Close")
             focus(menu)
         else:
@@ -38,7 +38,7 @@ def main():
         
     open = Text("▶ Open ")
     open.click = on_open_clicked
-    add_child(ui, open)
+    add_child(box, open)
     
     run(ui)
     

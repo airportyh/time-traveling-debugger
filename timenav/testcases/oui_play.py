@@ -3,31 +3,55 @@ import os.path
 parent_dir = os.path.abspath(os.path.dirname(__file__) + "/..")
 sys.path.append(parent_dir)
 
-from sstring import *
 from oui import *
 from oui.elements import *
 
 def main():
-    file = open("testcases/odyseey.txt")
-    lines = file.readlines()[0:500]
-    # print(lines)
+    ui = Board()
+    box = VBox()
+    add_child(ui, box, stretch="both")
     
-    # lines = ['\n', 'The Project Gutenberg EBook of The Odyssey, by Homer\n', '\n', 'This eBook is for the use of anyone anywhere in the United States and most\n', 'other parts of the world at no cost and with almost no restrictions\n', 'whatsoever.  You may copy it, give it away or re-use it under the terms of\n', 'the Project Gutenberg License included with this eBook or online at\n', "www.gutenberg.org.  If you are not located in the United States, you'll have\n", 'to check the laws of the country where you are located before using this ebook.\n', '\n', 'Title: The Odyssey\n', '\n', 'Author: Homer\n', '\n', 'Translator: Samuel Butler\n', '\n', '\n', 'Release Date: April, 1999 [EBook #1727]\n', 'Last Updated: November 10, 2019\n', '\n', 'Language: English\n', '\n', 'Character set encoding: UTF-8\n', '\n', '*** START OF THIS PROJECT GUTENBERG EBOOK THE ODYSSEY ***\n', '\n', '\n', '\n', '\n', 'Produced by Jim Tinsley\n', '\n', 'HTML file produced by David Widger\n', '\n', 'cover\n', '\n', '\n', '\n', '\n', 'The Odyssey\n', '\n', 'by Homer\n', '\n', 'rendered into English prose for the use of those who cannot read the\n', 'original\n', '\n', 'Contents\n', '\n', ' PREFACE TO FIRST EDITION\n', ' PREFACE TO SECOND EDITION\n', ' THE ODYSSEY\n']
+    selected_label = Text("                     ")
+    add_child(box, Border(selected_label, "36"))
     
+    def on_option_selected(option):
+        nonlocal opened
+        remove_child(ui, menu)
+        open.set_text("▶ Open ")
+        opened = False
+        selected_label.set_text(option)
     
-    for i, line in enumerate(lines):
-        if line.endswith("\n"):
-            lines[i] = line[0:-1]
-    list_ui = VBox()
-    for line in lines:
-        add_child(list_ui, Text(line))
-    scroll_view = ScrollView(list_ui)
-    # scroll_view.offset = (8, 0)
-    border = Border(scroll_view, color="33")
-    border.pos = (5, 3)
-    ui = border
+    def on_menu_close(evt):
+        nonlocal opened
+        open.set_text("▶ Open ")
+        opened = False
+    
+    opened = False
+    
+    menu = Menu()
+    add_handler(menu, "close", on_menu_close)
+    menu.add_item(MenuItem("Eat yogurt"))
+    menu.add_item(MenuItem("Drink water"))
+    menu.add_item(MenuItem("Buy socks"))
+    
+    def on_open_clicked(evt):
+        nonlocal opened
+        
+        opened = not opened
+        if opened:
+            x, y = open.region.offset
+            add_child(ui, menu, abs_pos=(x, y + 1))
+            open.set_text("▼ Close")
+            focus(menu)
+        else:
+            remove_child(ui, menu)
+            open.set_text("▶ Open ")
+        
+    open = Text("▶ Open ")
+    open.click = on_open_clicked
+    add_child(box, open)
+    
     run(ui)
     
 if __name__ == "__main__":
     main()
-    

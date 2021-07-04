@@ -4,8 +4,8 @@ class MenuButton:
     def __init__(self, label, popup_menu, on_open=None, on_close=None):
         self.label = label
         add_child(self, self.label)
+        popup_menu.menu_button = self
         self.popup_menu = popup_menu
-        self.popup_menu.menu_button = self
         self.is_open = False
         self.on_open = on_open
         self.on_close = on_close
@@ -14,9 +14,9 @@ class MenuButton:
         self.label.layout(constraints)
         self.size = self.label.size
     
-    def paint(self, pos):
-        self.pos = pos
-        self.label.paint(pos)
+    def paint(self):
+        self.label.region = self.region
+        self.label.paint()
     
     def open(self):
         x, y = self.pos

@@ -3,8 +3,7 @@ from .border import Border
 from .vbox import VBox
 from .hbox import HBox
 from .tree import Tree
-from .popup import PopUp
-from .popup_menu import PopUpMenu
+from .menu import Menu
 from .menu_bar import MenuBar
 from .menu_item import MenuItem
 from .menu_button import MenuButton

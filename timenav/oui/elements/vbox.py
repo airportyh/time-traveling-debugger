@@ -60,15 +60,7 @@ class VBox:
                 width = max(width, ewidth)
                 height += eheight
         
-        if self.same_item_width:
-            for element in self.children:
-                ewidth, eheight = element.size
-                element.layout(BoxConstraints(
-                    min_width=width,
-                    max_width=width,
-                    min_height=eheight,
-                    max_height=eheight
-                ))
+        self.ensure_same_item_width(width)
         width = constraints.constrain_width(width)
         height = constraints.constrain_height(height)
         self.size = (width, height)
@@ -89,9 +81,21 @@ class VBox:
             height += eheight
             width = max(width, ewidth)
         
+        self.ensure_same_item_width(width)
         width = constraints.constrain_width(width)
         height = constraints.constrain_height(height)
         self.size = (width, height)
+    
+    def ensure_same_item_width(self, width):
+        if self.same_item_width:
+            for element in self.children:
+                ewidth, eheight = element.size
+                element.layout(BoxConstraints(
+                    min_width=width,
+                    max_width=width,
+                    min_height=eheight,
+                    max_height=eheight
+                ))
     
     def paint(self):
         region = self.region
