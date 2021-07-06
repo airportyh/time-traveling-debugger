@@ -7,51 +7,44 @@ from oui import *
 from oui.elements import *
 
 def main():
+    def global_key_handler(evt):
+        if evt.key == "F2":
+            # focus activate first menu
+            menu_bar.activate_next_menu()
+    
+    
     ui = Board()
-    box = VBox()
-    add_child(ui, box, stretch="both")
+    app_body = VBox()
+    add_child(ui, app_body)
     
-    selected_label = Text("                     ")
-    add_child(box, Border(selected_label, "36"))
+    menu_bar = MenuBar(ui)
     
-    def on_option_selected(option):
-        nonlocal opened
-        remove_child(ui, menu)
-        open.set_text("▶ Open ")
-        opened = False
-        selected_label.set_text(option)
+    def on_exit(evt):
+        raise Exception("Exit")
     
-    def on_menu_close(evt):
-        nonlocal opened
-        open.set_text("▶ Open ")
-        opened = False
+    file_menu = Menu()
+    file_menu.add_item(MenuItem("New File"))
+    file_menu.add_item(MenuItem("Open..."))
+    file_menu.add_item(MenuItem("Save"))
+    file_menu.add_item(MenuItem("Save..."))
+    file_menu.add_item(MenuItem("Exit", on_select=on_exit))
     
-    opened = False
+    menu_bar.add_menu(Text(" File "), file_menu)
     
-    menu = Menu()
-    add_handler(menu, "close", on_menu_close)
-    menu.add_item(MenuItem("Eat yogurt"))
-    menu.add_item(MenuItem("Drink water"))
-    menu.add_item(MenuItem("Buy socks"))
+    edit_menu = Menu()
+    edit_menu.add_item(MenuItem("Undo"))
+    edit_menu.add_item(MenuItem("Redo"))
     
-    def on_open_clicked(evt):
-        nonlocal opened
-        
-        opened = not opened
-        if opened:
-            x, y = open.region.offset
-            add_child(ui, menu, abs_pos=(x, y + 1))
-            open.set_text("▼ Close")
-            focus(menu)
-        else:
-            remove_child(ui, menu)
-            open.set_text("▶ Open ")
-        
-    open = Text("▶ Open ")
-    open.click = on_open_clicked
-    add_child(box, open)
+    menu_bar.add_menu(Text(" Edit "), edit_menu)
     
-    run(ui)
+    add_child(app_body, menu_bar)
+    
+    content = VBox()
+    for i in range(40):
+        add_child(content, Text("How are you?"))
+    add_child(app_body, content)
+    
+    run(ui, global_key_handler)
     
 if __name__ == "__main__":
     main()

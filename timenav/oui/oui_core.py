@@ -1,9 +1,10 @@
 # Ideas
 #
-# extract click and dblclick logic into events.py
-# rename add_handler to add_listener
 # put new region scheme into all elements
 # fix popup menu/menu bar
+# test suite?
+#   * mock screen?
+#   * simulate events
 # maybe unify how to represent a position, should it be a 2-tuple or an object
 #    with x and y?
 # centering
@@ -15,6 +16,10 @@
 # multi-line text
 # word wrap
 
+# change event handler name to on_<event name> so that the element can still use
+#   the event name itself as a method name (done)
+# rename add_handler to add_listener (done)
+# extract click and dblclick logic into events.py (done)
 # how to hard-code width and height on an element? (done)
     # Idea: board respects size of its children if set and does not call layout?
     #   but children's children still need layout. Maybe board uses child's size
@@ -94,16 +99,17 @@ def remove_child(parent, child):
         focused_element = None
     render_all()
 
-def add_handler(element, event_name, handler, front=False):
-    if not hasattr(element, event_name):
+def add_listener(element, event_name, handler, front=False):
+    method_name = "on_%s" % event_name
+    if not hasattr(element, method_name):
         handlers = []
-        setattr(element, event_name, handlers)
+        setattr(element, method_name, handlers)
     else:
-        handlers = getattr(element, event_name)
+        handlers = getattr(element, method_name)
         if not isinstance(handlers, list):
             assert callable(handlers)
             handlers = [handlers]
-            setattr(element, event_name, handlers)
+            setattr(element, method_name, handlers)
     if front:
         handlers.insert(0, handler)
     else:
@@ -154,8 +160,9 @@ def fire_mouse_event(element, event, level=0):
             fire_mouse_event(child, event, level + 1)
 
 def fire_event(element, event):
-    if hasattr(element, event.type):
-        handler = getattr(element, event.type)
+    method_name = "on_%s" % event.type
+    if hasattr(element, method_name):
+        handler = getattr(element, method_name)
         if callable(handler):
             handler(event)
         else:
@@ -263,12 +270,7 @@ def run(root_element, global_key_handler=None):
         quit = False
         while not quit:
             inp = get_input()
-            events = decode_input(inp)
-            for event in events:
-                # adjust coordinates so origin is (0, 0)
-                if hasattr(event, "x") and hasattr(event, "y"):
-                    event.x -= 1
-                    event.y -= 1
+            events = decode_input(inp, (33, 33))
             # codes = list(map(ord, inp))
             # log("Input: %r, %r, %r" % (inp, codes, events))
             for event in events:

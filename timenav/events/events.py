@@ -19,11 +19,12 @@ prev_mousedown_tick = None
 prev_click = None
 prev_click_tick = None
 
-def decode_input(an_input):
+def decode_input(an_input, offset=(32, 32)):
     global prev_mousedown
     global prev_mousedown_tick
     global prev_click
     global prev_click_tick
+    offsetx, offsety = (offset)
     events = []
     wheel_events = {}
     if len(an_input) == 1:
@@ -45,8 +46,9 @@ def decode_input(an_input):
         if code == 77:
             # a mouse event
             mouse_code = ord(an_input[3])
-            x = ord(an_input[4]) - 32
-            y = ord(an_input[5]) - 32
+            
+            x = ord(an_input[4]) - offsetx
+            y = ord(an_input[5]) - offsety
             
             event_name = {
                 32: "mousedown",
@@ -82,7 +84,9 @@ def decode_input(an_input):
                                 if click_event.x == prev_click.x and click_event.y == prev_click.y:
                                     dbl_click_event = Event("dblclick", x=click_event.x, y=click_event.y)
                                     events.append(dbl_click_event)
-                            prev_click = event
+                                    prev_click = None
+                                    prev_click_tick = None
+                            prev_click = click_event
                             prev_click_tick = time.time()
                 elif event.type == "mousedown":
                     prev_mousedown = event

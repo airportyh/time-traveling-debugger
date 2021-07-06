@@ -1,14 +1,17 @@
-from oui import add_child, get_root, focus, remove_child
+from oui import add_child, get_root, focus, remove_child, fire_event, add_listener
+from oui import repaint
+from events import Event
+from sstring import BG_BRIGHT_CYAN
 
 class MenuButton:
-    def __init__(self, label, popup_menu, on_open=None, on_close=None):
+    def __init__(self, label, menu, container):
         self.label = label
         add_child(self, self.label)
-        popup_menu.menu_button = self
-        self.popup_menu = popup_menu
+        menu.menu_button = self
+        self.menu = menu
+        self.container = container
         self.is_open = False
-        self.on_open = on_open
-        self.on_close = on_close
+        add_listener(self.menu, "close", self.on_menu_close)
     
     def layout(self, constraints):
         self.label.layout(constraints)
@@ -18,31 +21,27 @@ class MenuButton:
         self.label.region = self.region
         self.label.paint()
     
+    def on_menu_close(self, evt):
+        self.is_open = False
+        self.label.set_styles(None)
+        repaint(self.label)
+        fire_event(self, Event("close", menu_button=self, menu=self.menu))
+    
     def open(self):
-        x, y = self.pos
-        self.popup_menu.x = x
-        self.popup_menu.y = y + 1
-        add_child(get_root(), self.popup_menu)
-        focus(self.popup_menu)
+        x, y = self.region.offset
+        pos = (x, y + 1)
+        add_child(self.container, self.menu, abs_pos=pos)
+        focus(self.menu)
         self.is_open = True
-        selected_background = "46;1"
-        self.label.add_style(selected_background)
-        if self.on_open:
-            self.on_open()
+        self.label.set_styles([BG_BRIGHT_CYAN])
+        repaint(self.label)
+        fire_event(self, Event("open", menu_button=self, menu=self.menu))
         
     def close(self):
-        remove_child(get_root(), self.popup_menu)
-        self.is_open = False
-        selected_background = "46;1"
-        self.label.remove_style(selected_background)
-        if self.on_close:
-            self.on_close()
+        self.menu.close()
         
-    def click(self, evt):
+    def on_click(self, evt):
         if not self.is_open:
             self.open()
         else:
             self.close()
-    
-    def get_menu_bar(self):
-        return self.parent.parent

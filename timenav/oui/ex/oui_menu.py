@@ -16,12 +16,21 @@ def main():
         opened = False
         selected_label.set_text(option)
     
+    def on_menu_close(evt):
+        nonlocal opened
+        open.set_text("▶ Open ")
+        opened = False
+    
+    def on_selected(evt):
+        selected_label.set_text(evt.value.label)
+    
     opened = False
     
     menu = Menu()
-    menu.add_item(MenuItem("Drink water"))
-    menu.add_item(MenuItem("Eat yogurt"))
-    menu.add_item(MenuItem("Buy socks"))
+    add_listener(menu, "close", on_menu_close)
+    menu.add_item(MenuItem("Eat yogurt", on_selected))
+    menu.add_item(MenuItem("Drink water", on_selected))
+    menu.add_item(MenuItem("Buy socks", on_selected))
     
     def on_open_clicked(evt):
         nonlocal opened
@@ -37,7 +46,7 @@ def main():
             open.set_text("▶ Open ")
         
     open = Text("▶ Open ")
-    open.click = on_open_clicked
+    add_listener(open, "click", on_open_clicked)
     add_child(box, open)
     
     run(ui)

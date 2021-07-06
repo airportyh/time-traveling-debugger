@@ -5,9 +5,11 @@ from sstring import *
 from events import Event
 
 class MenuItem:
-    def __init__(self, label):
+    def __init__(self, label, on_select=None):
         self.label = label
         self.highlighted = False
+        if on_select:
+            self.on_select = on_select
     
     def set_highlighted(self, value):
         self.highlighted = value
@@ -25,8 +27,9 @@ class MenuItem:
             display = sstring(display, BG_BRIGHT_CYAN)
         self.region.draw(0, 0, display)
     
-    def click(self, evt):
-        self.fire_select()
+    def on_click(self, evt):
+        self.select()
     
-    def fire_select(self):
-        fire_event(self, Event("select", value=self))
+    def select(self):
+        event = Event("select", value=self)
+        fire_event(self, event)

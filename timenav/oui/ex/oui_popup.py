@@ -20,7 +20,7 @@ def main():
             open.set_text("▶ Open ")
         
     open = Text("▶ Open ")
-    # add_handler(open, "click", on_open_clicked)
+    # add_listener(open, "click", on_open_clicked)
     open.click = on_open_clicked
     add_child(box, open)
     

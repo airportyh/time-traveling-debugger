@@ -120,20 +120,6 @@ def test_child_region_with_clip_height():
     assert cregion.offset == (1, 2)
     assert cregion.size == (5, 4)
 
-# def test_child_region_with_offset():
-#     region = Region((1, 1), (5, 5))
-#     cregion = region.child_region((1, 1), (5, 5), (2, 2))
-#     assert cregion.origin == (2, 2)
-#     assert cregion.offset == (4, 4)
-#     assert cregion.size == (2, 2)
-# 
-# def test_child_region_with_offset_negative_size():
-#     region = Region((1, 1), (5, 5))
-#     cregion = region.child_region((1, 1), (5, 1), (2, 2))
-#     assert cregion.origin == (2, 2)
-#     assert cregion.offset == (4, 4)
-#     assert cregion.size == (2, -1)
-
 def test_child_region_with_negative_origin():
     # scroll view usecase
     region = Region((1, 1), (5, 5))
@@ -151,8 +137,6 @@ def test():
     test_child_region_x_y()
     test_child_region_with_clip_width()
     test_child_region_with_clip_height()
-    # test_child_region_with_offset()
-    # test_child_region_with_offset_negative_size()
     test_child_region_with_negative_origin()
     
 if __name__ == "__main__":

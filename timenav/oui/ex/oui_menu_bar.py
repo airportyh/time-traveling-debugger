@@ -7,34 +7,37 @@ def main():
             # focus activate first menu
             menu_bar.activate_next_menu()
     
-    ui = VBox()
     
-    menu_bar = MenuBar()
+    ui = Board()
+    app_body = VBox()
+    add_child(ui, app_body)
     
-    def on_exit():
+    menu_bar = MenuBar(ui)
+    
+    def on_exit(evt):
         raise Exception("Exit")
     
-    file_menu = PopUpMenu()
-    file_menu.add_item(MenuItem(Text("New File")))
-    file_menu.add_item(MenuItem(Text("Open...")))
-    file_menu.add_item(MenuItem(Text("Save")))
-    file_menu.add_item(MenuItem(Text("Save...")))
-    file_menu.add_item(MenuItem(Text("Exit"), on_select=on_exit))
+    file_menu = Menu()
+    file_menu.add_item(MenuItem("New File"))
+    file_menu.add_item(MenuItem("Open..."))
+    file_menu.add_item(MenuItem("Save"))
+    file_menu.add_item(MenuItem("Save..."))
+    file_menu.add_item(MenuItem("Exit", on_select=on_exit))
     
     menu_bar.add_menu(Text(" File "), file_menu)
     
-    edit_menu = PopUpMenu()
-    edit_menu.add_item(MenuItem(Text("Undo")))
-    edit_menu.add_item(MenuItem(Text("Redo")))
+    edit_menu = Menu()
+    edit_menu.add_item(MenuItem("Undo"))
+    edit_menu.add_item(MenuItem("Redo"))
     
     menu_bar.add_menu(Text(" Edit "), edit_menu)
     
-    add_child(ui, menu_bar)
+    add_child(app_body, menu_bar)
     
     content = VBox()
     for i in range(40):
         add_child(content, Text("How are you?"))
-    add_child(ui, content)
+    add_child(app_body, content)
     
     run(ui, global_key_handler)
     

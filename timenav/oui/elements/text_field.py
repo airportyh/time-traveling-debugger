@@ -3,13 +3,12 @@ from term_util import *
 from sstring import *
 
 class TextField:
-    def __init__(self, init_text=None, width=10, placeholder=None, on_keypress=None):
+    def __init__(self, init_text=None, width=10, placeholder=None):
         self.text = list(init_text or "")
         self.width = width
         self.placeholder = placeholder
         self.cursor = 0
         self.offset = 0
-        self.on_keypress = on_keypress
     
     def layout(self, constraints):
         width = constraints.constrain_width(self.width)
@@ -49,10 +48,7 @@ class TextField:
             else:
                 region.draw(0, 0, sstring(display_text, background))
     
-    def keypress(self, evt):
-        if self.on_keypress:
-            if self.on_keypress(evt) == False: # prevent default in the style of JS
-                return
+    def on_keypress(self, evt):
         width, height = self.size
         if evt.key in ["UP_ARROW", "DOWN_ARROW"]:
             return
@@ -85,7 +81,7 @@ class TextField:
                 self.offset = (self.cursor + 1) - width
         repaint(self)
         
-    def click(self, evt):
+    def on_click(self, evt):
         focus(self)
     
     def want_focus(self):

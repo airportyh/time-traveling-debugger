@@ -62,7 +62,7 @@ class Tree:
             child.paint()
             curr_y += child.size[1]
 
-    def click(self, event):
+    def on_click(self, event):
         indent = 2
         eventx, eventy = self.region.relative_pos(event.x, event.y)
         if eventy == 0 and eventx >= 0 and eventx < indent:

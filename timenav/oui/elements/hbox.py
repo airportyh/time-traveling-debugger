@@ -79,7 +79,7 @@ class HBox:
             height = max(height, eheight)
         
         width = constraints.constrain_width(width)
-        height = constraints.contrain_height(height)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
     
     def paint(self):

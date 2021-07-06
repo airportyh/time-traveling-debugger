@@ -1,4 +1,4 @@
-from oui import add_child, repaint, add_handler, fire_event, remove_child, Event
+from oui import add_child, repaint, add_listener, fire_event, remove_child, Event
 from .vbox import VBox
 from .border import Border
 from .menu_item import MenuItem
@@ -21,20 +21,23 @@ class Menu:
     
     def add_item(self, menu_item):
         add_child(self.box, menu_item)
-        def on_select(evt):
-            self.set_highlighted(evt.value)
-            time.sleep(0.2)
-            remove_child(self.parent, self)
-            fire_event(self, Event("close", element=self))
-            
-        add_handler(menu_item, "select", on_select)
+        add_listener(menu_item, "select", self.on_menu_item_select)
         if self.highlighted == len(self.box.children) - 1:
             menu_item.set_highlighted(True)
+        
+    def on_menu_item_select(self, evt):
+        self.set_highlighted(evt.value)
+        time.sleep(0.2)
+        self.close()
+        
+    def close(self):
+        remove_child(self.parent, self)
+        fire_event(self, Event("close", element=self))
             
     def get_menu_bar(self):
         return self.menu_button.get_menu_bar()
     
-    def keypress(self, evt):
+    def on_keypress(self, evt):
         # we need focus...
         if evt.key == "DOWN_ARROW":
             self.set_highlighted(self.highlighted + 1)
@@ -46,14 +49,14 @@ class Menu:
                 self.set_highlighted(len(self.box.children) - 1)
             repaint(self)
         elif evt.key in ["RIGHT_ARROW", "\t"]:
-            self.get_menu_bar().activate_next_menu()
+            fire_event(self, Event("next", menu=self))
         elif evt.key in ["LEFT_ARROW", "REVERSE_TAB"]:
-            self.get_menu_bar().activate_prev_menu()
+            fire_event(self, Event("previous", menu=self))
         elif evt.key in ["ESC"]:
             self.close()
         elif evt.key == "\r":
             item = self.box.children[self.highlighted]
-            item.fire_select()
+            item.select()
         elif len(evt.key) == 1 and evt.key.isalpha():
             self.highlight_next_starting_with(evt.key)
     
