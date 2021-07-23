@@ -63,7 +63,8 @@ def main():
         
     ui = VBox()
     
-    field = TextField(placeholder="What to do?", width=20, on_keypress=on_keypress)
+    field = TextField(placeholder="What to do?", width=20)
+    add_listener(field, "keypress", on_keypress)
     add_child(ui, Border(field, "36"))
     
     list_ui = VBox()

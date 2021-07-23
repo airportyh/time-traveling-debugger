@@ -106,6 +106,10 @@ class SStringSingle:
         assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
         return SStringGroup([self, other])
     
+    def __mul__(self, times):
+        assert isinstance(times, int)
+        return sstring(self.string * times, codes=self.codes, strike_through=self.strike_through)
+    
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.step is not None:
@@ -153,6 +157,13 @@ class SStringGroup:
     def __add__(self, other):
         assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
         return SStringGroup([self, other])
+    
+    def __mul__(self, times):
+        assert isinstance(times, int)
+        result = sstring("")
+        for i in range(times):
+            result += self
+        return result
     
     def __len__(self):
         return reduce(lambda a, b: a + len(b), self.children, 0)

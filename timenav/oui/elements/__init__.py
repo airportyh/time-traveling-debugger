@@ -10,3 +10,6 @@ from .menu_button import MenuButton
 from .board import Board
 from .text_field import TextField
 from .scroll_view import ScrollView
+from .window import Window
+from .window_manager import WindowManager
+from .space import Space

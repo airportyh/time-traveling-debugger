@@ -1,21 +1,21 @@
 # Ideas
 #
-# put new region scheme into all elements
-# fix popup menu/menu bar
+# centering
 # test suite?
 #   * mock screen?
 #   * simulate events
 # maybe unify how to represent a position, should it be a 2-tuple or an object
 #    with x and y?
-# centering
 # child to parent communication when resizing of a child has to change
-# windows/draggable/resizable
 # flow box
 # how to exit properly?
 # hover effects
 # multi-line text
 # word wrap
 
+# windows/draggable/resizable (done)
+# put new region scheme into all elements (one)
+# fix popup menu/menu bar (done)
 # change event handler name to on_<event name> so that the element can still use
 #   the event name itself as a method name (done)
 # rename add_handler to add_listener (done)
@@ -115,6 +115,16 @@ def add_listener(element, event_name, handler, front=False):
     else:
         handlers.append(handler)
 
+def remove_listener(element, event_name, handler):
+    method_name = "on_%s" % event_name
+    if not hasattr(element, method_name):
+        return
+    handlers = getattr(element, method_name)
+    if not isinstance(handlers, list):
+        assert callable(handlers)
+        return
+    handlers.remove(handler)
+    
 def num_children(element):
     if not hasattr(element, "children"):
         return 0
@@ -249,7 +259,21 @@ def render_all():
         root.region = Region((0, 0), (screen_width, screen_height))
         root.paint()
 
+def defer_layout(parent, child, constraints):
+    child.layout(constraints)
+    parent.size = child.size
+
+def defer_paint(parent, child):
+    child.region = parent.region
+    child.paint()
+
 def run(root_element, global_key_handler=None):
+    # Configuring the encoding to latin1
+    # overcomes a UnicodeDecodeError (with utf-8 encoding)
+    # which can come if you
+    # receive a mouse click event on the far right of the terminal
+    # a better solution might be to write a custom decoder
+    sys.stdin.reconfigure(encoding='latin1')
     global root
     root = root_element
     def clean_up():

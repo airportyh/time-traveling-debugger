@@ -19,7 +19,6 @@ class VBox:
         width = 0
         height = 0
         available_height = constraints.max_height
-        non_stretch_height = 0
         non_stretch_elements = filter(lambda c: not has_stretch_y(c), self.children)
         stretch_elements = list(filter(has_stretch_y, self.children))
         for element in non_stretch_elements:
@@ -115,3 +114,5 @@ class VBox:
             region.clear_rect(curr_x + cwidth, curr_y, width - cwidth, cheight)
 
             curr_y += child.size[1]
+        
+        region.clear_rect(0, curr_y, width, height - curr_y)
