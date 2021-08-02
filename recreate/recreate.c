@@ -218,6 +218,7 @@ StrToIdEntry *strToId = NULL; // only needed by setLocal. Can be removed once se
 unsigned long pendingErrorType = 0;
 unsigned long pendingError = 0;
 char *pendingErrorMessage = NULL;
+char *recreateDir = NULL;
 
 // </Global State>
 
@@ -261,6 +262,27 @@ int readFile(char *filename, char **fileContents) {
     return 0;
 }
 
+UT_string *resolveFileName(char *filename) {
+    UT_string *realFileName = NULL;
+    utstring_new(realFileName);
+
+    if (strncmp(filename, "<frozen ", 8) == 0) {
+        int len = strlen(filename);
+        utstring_printf(realFileName, "%s/../cpython/Lib/", recreateDir);
+        for (int i = 8; i < len - 1; i++) {
+            if (filename[i] == '.') {
+                utstring_printf(realFileName, "/");
+            } else {
+                utstring_printf(realFileName, "%c", filename[i]);
+            }
+        }
+        utstring_printf(realFileName, ".py");
+    } else {
+        utstring_printf(realFileName, "%s", filename);
+    }
+    return realFileName;
+}
+
 int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
     CodeFile *code_file;
 
@@ -275,12 +297,14 @@ int loadCodeFile(char *filename, int filenameLen, unsigned long *id) {
         code_file->filename = (char *)malloc(sizeof(char) * (filenameLen + 1));
         strncpy(code_file->filename, filename, filenameLen);
         code_file->filename[filenameLen] = '\0';
+        UT_string *realFileName = resolveFileName(code_file->filename);
         HASH_ADD_KEYPTR(hh, code_files, code_file->filename, filenameLen, code_file);
         
         char *fileContents;
-        if (readFile(code_file->filename, &fileContents) != 0) {
+        if (readFile(utstring_body(realFileName), &fileContents) != 0) {
             clear_error();
         }
+        utstring_free(realFileName);
 
         SQLITE(bind_int64(insertCodeFileStmt, 1, code_file->id));
         SQLITE(bind_text(insertCodeFileStmt, 2, code_file->filename, -1, SQLITE_STATIC));
@@ -1837,10 +1861,6 @@ int processEvent(char *line, int line_no) {
 int createSchema() {
     UT_string *schemaPath;
     utstring_new(schemaPath);
-    char *recreateDir = getenv("RECREATE_DIR");
-    if (recreateDir == NULL) {
-        recreateDir = ".";
-    }
     utstring_printf(schemaPath, "%s/schema.sql", recreateDir);
     char *contents;
     CALL(readFile(utstring_body(schemaPath), &contents));
@@ -1865,6 +1885,11 @@ int main(int argc, char *argv[]) {
     }
 
     registerFuns();
+
+    recreateDir = getenv("RECREATE_DIR");
+    if (recreateDir == NULL) {
+        recreateDir = ".";
+    }
 
     if (verbose) {
         printf("Processing %s...\n", filename);
