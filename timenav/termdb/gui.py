@@ -106,7 +106,7 @@ class NavigatorGUI:
 
         self.last_snapshot = self.nav.get_last_snapshot()
         error = self.nav.get_first_error()
-        begin_snapshot_id = 4
+        begin_snapshot_id = 1
         if error:
             begin_snapshot_id = error["snapshot_id"]
         self.goto_snapshot(self.cache.get_snapshot(begin_snapshot_id))
