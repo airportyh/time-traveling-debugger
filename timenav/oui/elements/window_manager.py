@@ -36,7 +36,7 @@ class WindowManager:
     
     def on_window_focus(self, evt):
         self.move_to_front(evt.window)
-        render_all()
+        # render_all()
     
     def on_window_maximize(self, evt):
         window = evt.window
@@ -57,7 +57,7 @@ class WindowManager:
             window.abs_pos = (0, 0)
             window.abs_size = self.size
             window.maximized = True
-        render_all()
+        # render_all()
     
     def on_window_resize_start(self, evt):
         window = evt.window
@@ -70,7 +70,7 @@ class WindowManager:
         remove_listener(window, "window_move_start", self.on_window_move_start)
         remove_listener(window, "window_focus", self.on_window_focus)
         remove_listener(window, "close", self.on_window_close)
-        render_all()
+        # render_all()
     
     def on_mouseup(self, evt):
         if self.moving_window:
@@ -81,7 +81,7 @@ class WindowManager:
             window.abs_pos = (x + deltax, y + deltay)
             self.moving_window = None
             self.move_start_event = None
-            render_all()
+            # render_all()
         if self.resizing_window:
             window = self.resizing_window
             deltax = 0
@@ -96,7 +96,7 @@ class WindowManager:
             window.abs_size = (new_wwidth, new_wheight)
             self.resizing_window = None
             self.resize_start_event = None
-            render_all()
+            # render_all()
     
     def layout(self, constraints):
         self.board.layout(constraints)

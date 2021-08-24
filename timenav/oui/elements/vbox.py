@@ -111,8 +111,8 @@ class VBox:
             child.region = region.child_region(child_origin, child.size)
             child.paint()
             cwidth, cheight = child.size
-            region.clear_rect(curr_x + cwidth, curr_y, width - cwidth, cheight)
+            # region.clear_rect(curr_x + cwidth, curr_y, width - cwidth, cheight)
 
             curr_y += child.size[1]
         
-        region.clear_rect(0, curr_y, width, height - curr_y)
+        # region.clear_rect(0, curr_y, width, height - curr_y)

@@ -5,6 +5,7 @@ class ValueRenderer:
     def __init__(self, cache, value_cache):
         self.cache = cache
         self.value_cache = value_cache
+        self.max_depth = 5
 
     def render_value(self, value, version, visited, level):
         if value is None:
@@ -23,8 +24,8 @@ class ValueRenderer:
         elif tp == "<ref>":
             ref_id = int(value["id"])
             value_id = int(value["value"])
-            if already_visited:
-                return ["*%d" % (ref_id, value_id)]
+            if already_visited or level >= self.max_depth:
+                return ["*%d" % (ref_id,)]
             real_value = self.value_cache.get_value(value_id, version)
             retval = self.render_value(real_value, version, visited, level)
             return retval
@@ -33,7 +34,7 @@ class ValueRenderer:
                 value["value"] = float("nan")
             return [value["value"]]
         elif tp == "tuple":
-            if already_visited:
+            if already_visited or level >= self.max_depth:
                 return ["tuple *%d" % value["id"]]
             return self.render_tuple(value, version, visited, level)
         elif tp == "list":
@@ -41,11 +42,11 @@ class ValueRenderer:
                 return ["list *%d" % value["id"]]
             return self.render_list(value, version, visited, level)
         elif tp == "dict":
-            if already_visited:
+            if already_visited or level >= self.max_depth:
                 return ["dict *%d" % value["id"]]
             return self.render_dict(value, version, visited, level)
         elif tp == "object":
-            if already_visited:
+            if already_visited or level >= self.max_depth:
                 return ["object *%d" % value["id"]]
             return self.render_object(value, version, visited, level)
         else:

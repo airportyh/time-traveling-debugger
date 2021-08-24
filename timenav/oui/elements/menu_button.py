@@ -29,7 +29,7 @@ class MenuButton:
     
     def open(self):
         x, y = self.region.offset
-        pos = (x, y + 1)
+        pos = (x, y)
         add_child(self.container, self.menu, abs_pos=pos)
         focus(self.menu)
         self.is_open = True

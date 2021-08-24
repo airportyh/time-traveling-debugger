@@ -97,5 +97,5 @@ class HBox:
             child.region = region.child_region(child_origin, child.size)
             child.paint()
             cwidth, cheight = child.size
-            region.clear_rect(curr_x, curr_y + cheight, cwidth, height - cheight)
+            # region.clear_rect(curr_x, curr_y + cheight, cwidth, height - cheight)
             curr_x += child.size[0]

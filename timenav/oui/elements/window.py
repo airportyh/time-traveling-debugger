@@ -1,4 +1,4 @@
-from oui import BoxConstraints, add_child, fire_event, add_listener, defer_layout, defer_paint
+from oui import BoxConstraints, add_child, fire_event, add_listener, defer_layout, defer_paint, repaint
 from oui.elements import Text, VBox, Border, HBox
 from .space import Space
 from sstring import sstring, BG_WHITE, BLACK, BG_BRIGHT_WHITE, REVERSED
@@ -20,6 +20,10 @@ class Window:
     
     def paint(self):
         defer_paint(self, self.vbox)
+    
+    def set_title(self, title):
+        self.title = title
+        self.title_bar.set_title(title)
         
     def on_title_label_mousedown(self, evt):
         fire_event(self, Event("window_move_start", window=self, x=evt.x, y=evt.y))
@@ -31,6 +35,7 @@ class Window:
 class TitleBar:
     def __init__(self, title, window):
         style = [REVERSED]
+        self.style = style
         self.title = title
         self.window = window
         self.title_label = Text(sstring(self.title, style))
@@ -53,7 +58,10 @@ class TitleBar:
         # add_listener(self.min_button, "click", self.on_min_button_click)
         add_listener(self.max_button, "click", self.on_max_button_click)
         add_listener(self.close_button, "click", self.on_close_button_click)
-        
+    
+    def set_title(self, title):
+        self.title_label.set_text(sstring(title, self.style))    
+    
     def on_start_move(self, evt):
         fire_event(self.window, Event("window_move_start", window=self.window, x=evt.x, y=evt.y))
         fire_event(self.window, Event("window_focus", window=self.window))
@@ -96,6 +104,7 @@ class WindowBorder:
     def paint(self):
         width, height = self.size
         region = self.region
+        region.clear_rect(0, 0, width, height)
         for i in range(height - 1):
             region.draw(0, i, "│")
             region.draw(width - 1, i, "│")

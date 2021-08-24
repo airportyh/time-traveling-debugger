@@ -27,7 +27,6 @@ class Menu:
         
     def on_menu_item_select(self, evt):
         self.set_highlighted(evt.value)
-        time.sleep(0.2)
         self.close()
         
     def close(self):

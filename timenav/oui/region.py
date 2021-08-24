@@ -2,9 +2,10 @@ from term_util import *
 
 class Region:
     # both origin and offset are absolute coordinates relative to the screen
-    def __init__(self, origin, size, offset=None):
+    def __init__(self, origin, size, buffer, offset=None):
         self.origin = origin
         self.size = size
+        self.buffer = buffer
         self.offset = offset or self.origin
     
     def draw(self, x, y, string):
@@ -23,7 +24,7 @@ class Region:
             screenx = offsetx
         if len(string) + x > width:
             string = string[0:width-x]
-        print_at(screenx + 1, screeny + 1, str(string))
+        self.buffer.print_at(screenx, screeny, string)
         
     def clear_rect(self, x, y, width, height):
         originx, originy = self.origin
@@ -37,7 +38,7 @@ class Region:
         recty = max(offsety, screeny)
         rect_width = screen_stop_x - rectx
         rect_height = screen_stop_y - recty
-        clear_rect(rectx + 1, recty + 1, rect_width, rect_height)
+        self.buffer.clear_rect(rectx, recty, rect_width, rect_height)
         
     def child_region(self, child_origin, child_size):
         originx, originy = self.origin
@@ -60,6 +61,7 @@ class Region:
         return Region(
             (coriginx, coriginy),
             (cwidth, cheight),
+            self.buffer,
             (coffsetx, coffsety)
         )
     

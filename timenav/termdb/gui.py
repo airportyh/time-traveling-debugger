@@ -96,6 +96,7 @@ class NavigatorGUI:
             print_at(x, i + 1, "┃")
 
     def run(self):
+        sys.stdin.reconfigure(encoding='latin1')
         self.save_term_settings()
         atexit.register(self.clean_up)
         tty.setraw(sys.stdin)
@@ -163,8 +164,6 @@ class NavigatorGUI:
                             line_no = self.code_pane.get_line_no_for_y(event.y)
                             next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
                             self.goto_snapshot(next)
-
-
 
     def goto_snapshot(self, next):
         if next is None:

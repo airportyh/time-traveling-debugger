@@ -71,6 +71,8 @@ import sys
 import time
 from .box_constraints import BoxConstraints
 from .region import Region
+from term_buffer import TermBuffer
+from logger import log
 
 # UI Core Engine
 
@@ -88,16 +90,26 @@ def add_child(parent, child, index=None, stretch=None, abs_pos=None, abs_size=No
         parent.children.append(child)
     else:
         parent.children.insert(index, child)
-    render_all()
+    # render_all()
+
+def clear_children(parent):
+    if not hasattr(parent, "children"):
+        return
+    for child in parent.children:
+        child.parent = parent
+    parent.children = []
 
 def remove_child(parent, child):
     global focused_element
     assert child in parent.children
-    child.parent = None
+    clen = len(parent.children)
     parent.children.remove(child)
+    assert child not in parent.children
+    assert len(parent.children) == clen - 1
+    child.parent = None
     if child == focused_element:
         focused_element = None
-    render_all()
+    # render_all()
 
 def add_listener(element, event_name, handler, front=False):
     method_name = "on_%s" % event_name
@@ -115,6 +127,12 @@ def add_listener(element, event_name, handler, front=False):
     else:
         handlers.append(handler)
 
+def add_listener_once(element, event_name, handler, front=False):
+    def _handler(evt):
+        handler(evt)
+        remove_listener(element, event_name, _handler)
+    add_listener(element, event_name, _handler, front)
+
 def remove_listener(element, event_name, handler):
     method_name = "on_%s" % event_name
     if not hasattr(element, method_name):
@@ -124,7 +142,7 @@ def remove_listener(element, event_name, handler):
         assert callable(handlers)
         return
     handlers.remove(handler)
-    
+
 def num_children(element):
     if not hasattr(element, "children"):
         return 0
@@ -155,19 +173,27 @@ def has_children(element):
     return hasattr(element, "children") and len(element.children) > 0
 
 def contains(element, x, y):
-    return element.region.contains(x, y)
+    if hasattr(element, "region"):
+        return element.region.contains(x, y)
+    else:
+        return False
 
 def fire_mouse_event(element, event, level=0):
     indent = "  " * level
+    log(indent + "fire_mouse_event %r %r" % (element, event))
+    handled = False
     if hasattr(event, "x") and hasattr(event, "y"):
         if contains(element, event.x, event.y):
-            fire_event(element, event)
-        else:
-            return
-    
-    if hasattr(element, "children"):
-        for child in element.children:
-            fire_mouse_event(child, event, level + 1)
+            result = fire_event(element, event)
+            handled = handled or result
+            if hasattr(element, "children"):
+                children = list(element.children)
+                for i in range(len(children)):
+                    child = children[i]
+                    result = fire_mouse_event(child, event, level + 1)
+                    handled = handled or result
+    log(indent + "handled: %r" % handled)
+    return handled
 
 def fire_event(element, event):
     method_name = "on_%s" % event.type
@@ -175,10 +201,16 @@ def fire_event(element, event):
         handler = getattr(element, method_name)
         if callable(handler):
             handler(event)
+            return True
         else:
-            for h in handler:
-                if h(event): # returning True disable rest of the handlers
-                    return
+            if len(handler) > 0:
+                for h in handler:
+                    if h(event): # returning True disable rest of the handlers
+                        return True
+                return True
+            else:
+                return False
+    return False
 
 root = None
 focused_element = None
@@ -248,16 +280,16 @@ def render_all():
     screen_width = termsize.columns
     screen_height = termsize.lines
     if root:
-        # TODO, switch to using region for clear_rect
-        clear_rect(1, 1, screen_width, screen_height)
+        buf = TermBuffer((screen_width, screen_height))
         root.layout(BoxConstraints(
             min_width=None,
             max_width=screen_width,
             min_height=None,
             max_height=screen_height
         ))
-        root.region = Region((0, 0), (screen_width, screen_height))
+        root.region = Region((0, 0), (screen_width, screen_height), buf)
         root.paint()
+        buf.draw_to_screen()
 
 def defer_layout(parent, child, constraints):
     child.layout(constraints)
@@ -280,6 +312,7 @@ def run(root_element, global_key_handler=None):
         restore(original_settings)
         mouse_off()
         cursor_on()
+        clear_screen()
 
     original_settings = termios.tcgetattr(sys.stdin)
 
@@ -296,7 +329,7 @@ def run(root_element, global_key_handler=None):
             inp = get_input()
             events = decode_input(inp, (33, 33))
             # codes = list(map(ord, inp))
-            # log("Input: %r, %r, %r" % (inp, codes, events))
+            handled = False
             for event in events:
                 if event.type == "keypress":
                     prevent_default = False
@@ -310,10 +343,16 @@ def run(root_element, global_key_handler=None):
                             break
                         else:
                             # dispatch to focused_element
-                            if focused_element:
-                                fire_event(focused_element, event)
+                            result = fire_event(focused_element or root, event)
+                            log("keyboard event %r handled: %r" % (event, result))
+                            handled = handled or result
                 else: # assume these are mouse/wheel events, dispatch it starting at root
-                    fire_mouse_event(root_element, event)
+                    result = fire_mouse_event(root_element, event)
+                    log("mouse event %r handled: %r" % (event, result))
+                    handled = handled or result
+                
+            if handled:
+                render_all()
 
     except Exception as e:
         clean_up()
