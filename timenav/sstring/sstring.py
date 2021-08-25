@@ -104,6 +104,9 @@ class SStringSingle:
         
     def __add__(self, other):
         assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
+        if isinstance(other, SStringSingle) and same_styles(self, other):
+            # optimization: merge into one SStringSingle
+            return SStringSingle(self.string + other.string, self.codes, self.strike_through)
         return SStringGroup([self, other])
     
     def __mul__(self, times):
@@ -156,6 +159,8 @@ class SStringGroup:
     
     def __add__(self, other):
         assert isinstance(other, SStringGroup) or isinstance(other, SStringSingle)
+        if same_styles(self, other):
+            return SStringGroup(self.children + [other], self.codes, self.strike_through)
         return SStringGroup([self, other])
     
     def __mul__(self, times):
@@ -246,12 +251,18 @@ class SStringGroup:
                     if start == 0 and stop == 0:
                         break
                     i += 1
-                return SStringGroup(results)
+                if len(results) == 0:
+                    return sstring("")
+                return reduce(lambda a, b: a + b, results)
+                # return SStringGroup(results)
 
         elif isinstance(key, int):
             return self[key:key + 1]
         else:
             raise Exception("Invalid argument type.")
+
+def same_styles(one, other):
+    return one.strike_through == other.strike_through and one.codes == other.codes
 
 def _render_repr(ss, content):
     if len(ss.codes) > 0 or ss.strike_through:

@@ -31,6 +31,7 @@ class Window:
     
     def on_click(self, evt):
         fire_event(self, Event("window_focus", window=self))
+        evt.stop_propagation()
         
 class TitleBar:
     def __init__(self, title, window):

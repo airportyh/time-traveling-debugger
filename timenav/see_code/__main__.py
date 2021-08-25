@@ -117,8 +117,8 @@ class CodeSeer:
             else:
                 prefix = ""
                 
-            line_no = str(snapshot["id"]).ljust(8)
-            print("%s%s%s" % (line_no, prefix, line))  
+            # line_no = str(snapshot["id"]).ljust(8)
+            print("%s%s" % (prefix, line))  
             
             # if snapshot["start_fun_call_id"] != None:
             #     fun_call = self.fun_calls[snapshot["start_fun_call_id"]]

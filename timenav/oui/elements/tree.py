@@ -1,11 +1,12 @@
-from oui import add_child, BoxConstraints, render_all, Region
+from oui import add_child, BoxConstraints, render_all, Region, fire_event, Event
 from term_util import *
 
 class Tree:
-    def __init__(self, label):
+    def __init__(self, label, expandable=False):
         self.label = label
         add_child(self, label)
         self.expanded = False
+        self.expandable = expandable
     
     def layout(self, constraints):
         max_width = constraints.max_width
@@ -43,13 +44,15 @@ class Tree:
                     min_height=0,
                     max_height=0
                 ))
-            
+        
+        width = constraints.constrain_width(width)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
 
     def paint(self):
         region = self.region
-        if len(list(self.child_nodes)) == 0:
-            region.draw(0, 0, "-")
+        if not self.expandable or len(self.children) == 0:
+            region.draw(0, 0, "•")
         elif self.expanded:
             region.draw(0, 0, "▼")
         else:
@@ -61,20 +64,23 @@ class Tree:
             child.region = region.child_region(child_origin, child.size)
             child.paint()
             curr_y += child.size[1]
+    
+    def remove_child_nodes(self):
+        for child_node in self.children[1:]:
+            child_node.parent = None
+        self.children = self.children[:1]
 
     def on_click(self, event):
         indent = 2
         eventx, eventy = self.region.relative_pos(event.x, event.y)
         if eventy == 0 and eventx >= 0 and eventx < indent:
-            self.expanded = not self.expanded
-            render_all()
+            if self.expanded:
+                self.expanded = False
+                fire_event(self, Event("collapse", tree=self))
+            else:
+                self.expanded = True
+                fire_event(self, Event("expand", tree=self))
 
     @property
     def child_nodes(self):
         return filter(lambda c: c != self.label, self.children)
-
-    def is_root(self):
-        return not hasattr(self, "parent") or not isinstance(self.parent, Tree)    
-
-    def __repr__(self):
-        return "<Tree %r>" % self.label

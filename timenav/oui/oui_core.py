@@ -180,19 +180,20 @@ def contains(element, x, y):
 
 def fire_mouse_event(element, event, level=0):
     indent = "  " * level
-    log(indent + "fire_mouse_event %r %r" % (element, event))
     handled = False
-    if hasattr(event, "x") and hasattr(event, "y"):
-        if contains(element, event.x, event.y):
-            result = fire_event(element, event)
-            handled = handled or result
-            if hasattr(element, "children"):
-                children = list(element.children)
-                for i in range(len(children)):
-                    child = children[i]
-                    result = fire_mouse_event(child, event, level + 1)
-                    handled = handled or result
-    log(indent + "handled: %r" % handled)
+    if contains(element, event.x, event.y):
+        if hasattr(element, "children"):
+            children = list(element.children)
+            for child in reversed(children):
+                result = fire_mouse_event(child, event, level + 1)
+                if event.propagation_stopped:
+                    return handled
+                handled = handled or result
+
+        result = fire_event(element, event)
+        handled = handled or result
+        if event.propagation_stopped:
+            return handled
     return handled
 
 def fire_event(element, event):
@@ -205,8 +206,9 @@ def fire_event(element, event):
         else:
             if len(handler) > 0:
                 for h in handler:
-                    if h(event): # returning True disable rest of the handlers
-                        return True
+                    h(event)
+                    if event.immediate_propagation_stopped:
+                        break
                 return True
             else:
                 return False

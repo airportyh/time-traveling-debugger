@@ -4,6 +4,15 @@ class Event(object):
     def __init__(self, etype, **kwargs):
         self.type = etype
         self.__dict__.update(kwargs)
+        self.propagation_stopped = False
+        self.immediate_propagation_stopped = False
+    
+    def stop_propagation(self):
+        self.propagation_stopped = True
+    
+    def stop_immediate_propagation(self):
+        self.immediate_propagation_stopped = True
+        self.propagation_stopped = True
     
     def __repr__(self):
         parts = [self.type]

@@ -1,20 +1,23 @@
 # Todo
 
-# scroll_view for stack pane
 # remember expand/collapse state across snapshots
 # fix source line out of sync when debugging self
-# optimize renders
 # navigation is slow
-# stack pane
-# expand/collapse of objects/dicts/lists, etc
 # fix border issue when part of window out of view
 # centering status bar
 # call hierarchy
-# chronology
+# time-line
 # search
+# switch files
 # step out
 # reverse step out
 
+# stack pane (done)
+# click and scroll events on one window is received by window underneath (done)
+# expand/collapse of objects/dicts/lists, etc (done)
+# optimize renders (done)
+# running debugger in pyrewind too slow to be useful (done)
+# scroll_view for stack pane too slow (done)
 # tuples (done)
 # lists (done)
 # classes (done)
@@ -49,7 +52,7 @@ from .code_pane import CodePane
 from .stack_pane import StackPane
 
 class DebuggerGUI:
-    def __init__(self, hist_filename):
+    def __init__(self, hist_filename, begin_snapshot_id=1):
         self.hist_filename = hist_filename
         self.init_db()
         self.cache = ObjectCache(self.conn, self.cursor)
@@ -84,7 +87,7 @@ class DebuggerGUI:
         log("code_win %r" % self.code_win)
         self.win_manager.add_window(self.code_win,
             abs_pos=(1, 1),
-            abs_size=(60, 30)
+            abs_size=(60, 25)
         )
         self.stack_pane = StackPane(self.cache, self.value_cache)
         self.stack_win = Window("Variables", self.stack_pane)
@@ -94,7 +97,7 @@ class DebuggerGUI:
             abs_size=(40, 20)
         )
         self.last_snapshot = self.nav.get_last_snapshot()
-        snapshot = self.cache.get_snapshot(1)
+        snapshot = self.cache.get_snapshot(begin_snapshot_id)
         self.goto_snapshot(snapshot)
     
     def goto_snapshot(self, snapshot):
@@ -195,7 +198,10 @@ def main():
         print("Please provide a history file.")
     
     hist_filename = sys.argv[1]
-    dbui = DebuggerGUI(hist_filename)
+    begin_snapshot_id = 1
+    if len(sys.argv) >= 3:
+        begin_snapshot_id = int(sys.argv[2])
+    dbui = DebuggerGUI(hist_filename, begin_snapshot_id)
     dbui.start()
     
 if __name__ == "__main__":

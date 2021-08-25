@@ -141,7 +141,7 @@ def test_nesting():
     b_string = sstring(" World", YELLOW)
     c_string = sstring(sstring("+") + a_string + b_string + sstring("+"), UNDERLINE)
     print("nested", c_string)
-    assert str(c_string) == '\x1b[4m+\x1b[0m\x1b[4mHello\x1b[0m\x1b[4m\x1b[33m World\x1b[0m\x1b[4m+\x1b[0m'
+    assert str(c_string) == '\x1b[4m+Hello\x1b[0m\x1b[4m\x1b[33m World\x1b[0m\x1b[4m+\x1b[0m'
     assert len(c_string) == len(a_string) + len(b_string) + 2
     print("nested", repr(c_string))
     assert repr(c_string) == "<4m>+Hello<33m> World</33m>+</4m>"
@@ -176,6 +176,7 @@ def test():
     test_ljust_rjust_center_group()
     test_nesting()
     test_equality()
+    print(sstring("ok", [GREEN]))
 
 if __name__ == "__main__":
     test()

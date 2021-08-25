@@ -45,7 +45,7 @@ from string_util import add_indent
 # sys.paths.append(os.path.dirname(__FILE__))
 
 class NavigatorGUI:
-    def __init__(self, hist_filename):
+    def __init__(self, hist_filename, begin_snapshot_id):
         self.hist_filename = hist_filename
         self.init_db()
         self.cache = ObjectCache(self.conn, self.cursor)
@@ -63,6 +63,7 @@ class NavigatorGUI:
         self.draw_divider()
         self.value_renderer = ValueRenderer(self.cache, self.value_cache)
         self.term_file = open("term.txt", "w")
+        self.begin_snapshot_id = begin_snapshot_id
 
     def init_db(self):
         # https://docs.python.org/3/library/sqlite3.html
@@ -107,10 +108,9 @@ class NavigatorGUI:
 
         self.last_snapshot = self.nav.get_last_snapshot()
         error = self.nav.get_first_error()
-        begin_snapshot_id = 1
         if error:
-            begin_snapshot_id = error["snapshot_id"]
-        self.goto_snapshot(self.cache.get_snapshot(begin_snapshot_id))
+            self.begin_snapshot_id = error["snapshot_id"]
+        self.goto_snapshot(self.cache.get_snapshot(self.begin_snapshot_id))
 
         while True:
             inp = get_input()
@@ -308,7 +308,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Please provide a history file.")
     else:
-        nav = NavigatorGUI(sys.argv[1])
+        begin_snapshot_id = 1
+        if len(sys.argv) >= 3:
+            begin_snapshot_id = int(sys.argv[2])
+        nav = NavigatorGUI(sys.argv[1], begin_snapshot_id)
         try:
             nav.run()
         except Exception as e:
