@@ -1,6 +1,6 @@
 # Todo
 
-# boolean display bug?
+# scroll event leak
 # time-line
 # search
 # switch files
@@ -10,6 +10,7 @@
 # step out
 # reverse step out
 
+# boolean display bug? (done)
 # remember expand/collapse state across snapshots (done)
 # stack pane (done)
 # click and scroll events on one window is received by window underneath (done)
@@ -62,7 +63,7 @@ class DebuggerGUI:
         self.menu_bar = MenuBar(self.content)
         file_menu = Menu()
         file_menu.add_item(MenuItem("Open..."))
-        file_menu.add_item(MenuItem("Exit"))
+        file_menu.add_item(MenuItem("Exit", self.exit))
         self.menu_bar.add_menu(Text(" File "), file_menu)
         nav_menu = Menu()
         nav_menu.add_item(MenuItem("Step →", self.step))
@@ -190,7 +191,10 @@ class DebuggerGUI:
         self.conn = sqlite3.connect(self.hist_filename)
         self.conn.row_factory = dict_factory
         self.cursor = self.conn.cursor()
-        
+    
+    def exit(self, evt):
+        clean_up()
+        exit(0)
 
 def main():
     if len(sys.argv) < 2:

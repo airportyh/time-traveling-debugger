@@ -33,6 +33,30 @@ class Window:
         fire_event(self, Event("window_focus", window=self))
         evt.stop_propagation()
         
+    def on_wheelup(self, evt):
+        evt.stop_propagation()
+    
+    def on_wheeldown(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousedown(self, evt):
+        evt.stop_propagation()
+    
+    def on_rightmousedown(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousemove(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousedrag(self, evt):
+        evt.stop_propagation()
+    
+    def on_altwheeldown(self, evt):
+        evt.stop_propagation()
+    
+    def on_altwheelup(self, evt):
+        evt.stop_propagation()
+        
 class TitleBar:
     def __init__(self, title, window):
         style = [REVERSED]

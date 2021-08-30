@@ -96,7 +96,7 @@ class WindowManager:
             window.abs_size = (new_wwidth, new_wheight)
             self.resizing_window = None
             self.resize_start_event = None
-            # render_all()
+        evt.stop_propagation()
     
     def layout(self, constraints):
         self.board.layout(constraints)

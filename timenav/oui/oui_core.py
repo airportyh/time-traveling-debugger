@@ -74,8 +74,12 @@ from .region import Region
 from term_buffer import TermBuffer
 from logger import log
 
-# UI Core Engine
+# Global Varibles
+root = None
+focused_element = None
+original_term_settings = None
 
+# UI Core Engine
 def add_child(parent, child, index=None, stretch=None, abs_pos=None, abs_size=None):
     if stretch:
         child.stretch = stretch
@@ -186,9 +190,9 @@ def fire_mouse_event(element, event, level=0):
             children = list(element.children)
             for child in reversed(children):
                 result = fire_mouse_event(child, event, level + 1)
+                handled = handled or result
                 if event.propagation_stopped:
                     return handled
-                handled = handled or result
 
         result = fire_event(element, event)
         handled = handled or result
@@ -222,9 +226,6 @@ def fire_event(element, event, bubble=False):
             handled = handled or result
             element = element.parent if hasattr(element, "parent") else None
     return handled
-
-root = None
-focused_element = None
 
 def get_root():
     return root
@@ -310,7 +311,14 @@ def defer_paint(parent, child):
     child.region = parent.region
     child.paint()
 
+def clean_up():
+    restore(original_term_settings)
+    mouse_off()
+    cursor_on()
+    clear_screen()
+
 def run(root_element, global_key_handler=None):
+    global original_term_settings
     # Configuring the encoding to latin1
     # overcomes a UnicodeDecodeError (with utf-8 encoding)
     # which can come if you
@@ -319,13 +327,8 @@ def run(root_element, global_key_handler=None):
     sys.stdin.reconfigure(encoding='latin1')
     global root
     root = root_element
-    def clean_up():
-        restore(original_settings)
-        mouse_off()
-        cursor_on()
-        clear_screen()
 
-    original_settings = termios.tcgetattr(sys.stdin)
+    original_term_settings = termios.tcgetattr(sys.stdin)
 
     try:    
         tty.setraw(sys.stdin)
@@ -343,25 +346,11 @@ def run(root_element, global_key_handler=None):
             handled = False
             for event in events:
                 if event.type == "keypress":
-                    prevent_default = False
-                    if global_key_handler:
-                        result = global_key_handler(event)
-                        if result == False:
-                            prevent_default = True
-                    if not prevent_default:
-                        if event.key == "q":
-                            quit = True
-                            break
-                        else:
-                            # dispatch to focused_element
-                            result = fire_event(focused_element or root, event)
-                            log("keyboard event %r handled: %r" % (event, result))
-                            handled = handled or result
+                    result = fire_event(focused_element or root, event)
+                    handled = handled or result
                 else: # assume these are mouse/wheel events, dispatch it starting at root
                     result = fire_mouse_event(root_element, event)
-                    log("mouse event %r handled: %r" % (event, result))
                     handled = handled or result
-                
             if handled:
                 render_all()
 
