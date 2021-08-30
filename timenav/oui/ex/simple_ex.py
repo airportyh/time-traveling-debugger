@@ -7,8 +7,13 @@ def main():
 
     def click2(evt):
         label.set_text("You still clicked! MUAHAHAH!")
+    
+    def on_keypress(evt):
+        if evt.key == "q":
+            quit()
 
     panel = VBox()
+    add_listener(panel, "keypress", on_keypress)
     label = Text("What would you like to do?")
     add_child(panel, label)
     click_button = Text("Click here!")

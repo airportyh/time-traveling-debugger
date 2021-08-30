@@ -317,6 +317,10 @@ def clean_up():
     cursor_on()
     clear_screen()
 
+def quit():
+    clean_up()
+    exit(0)
+
 def run(root_element, global_key_handler=None):
     global original_term_settings
     # Configuring the encoding to latin1

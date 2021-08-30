@@ -16,5 +16,5 @@ else
     fi
 fi
 
-echo "PYTHONPATH=$DIR/../timenav python3 -m termdb.gui $ARG $2"
-PYTHONPATH=$DIR/../timenav python3 -m termdb.gui $ARG $2
+echo "PYTHONPATH=$DIR/../timenav python3 -m termdb.gui2 $ARG $2"
+PYTHONPATH=$DIR/../timenav python3 -m termdb.gui2 $ARG $2
