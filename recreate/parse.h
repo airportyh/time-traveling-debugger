@@ -199,7 +199,7 @@ static inline int parseAnyArg(int *i, AnyValue *value) {
         (*i) += 4;
     } else if (strncmp(line + (*i), "False", 5) == 0) {
         value->type = BOOL_TYPE;
-        value->boolean = 1;
+        value->boolean = 0;
         (*i) += 5;
     } else if (strncmp(line + (*i), "None", 4) == 0) {
         value->type = NONE_TYPE;
