@@ -165,6 +165,8 @@ class DebuggerGUI:
             self.reverse_step(evt)
         elif evt.key == "RIGHT_ARROW":
             self.step(evt)
+        elif evt.key == "q":
+            quit()
             
     def on_code_pane_click(self, evt):
         line_no = self.code_pane.get_line_no_for_y(evt.y)

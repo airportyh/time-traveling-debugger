@@ -79,13 +79,19 @@ class StackPane:
                 self.restore_expanded_path(child, path[1:])
                 break
     
-    def populate_variable_tree(self, dict_id, var_tree, version):
-        members = self.cache.get_members(dict_id)
-        for member in members:
+    def key_value_for_member(self, version):
+        def fun(member):
             key_id = member["key"]
             value_id = member["value"]
             key = self.value_cache.get_value(key_id, version)
             value = self.value_cache.get_value(value_id, version)
+            return (key, value)
+        return fun
+    
+    def populate_variable_tree(self, dict_id, var_tree, version):
+        members = self.cache.get_members(dict_id)
+        member_key_values = map(self.key_value_for_member(version), members)
+        for key, value in sorted(member_key_values, key=lambda p: p[0] and p[0]["value"] or ""):
             value_display = self.render_value(value, version)    
             expandable = self.is_value_expandable(value, version)
             label = "%s = %s" % (key and key["value"], value_display)
