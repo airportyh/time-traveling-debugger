@@ -1,10 +1,12 @@
-from oui import add_child, BoxConstraints, render_all, Region, fire_event, Event
+from oui import add_child, BoxConstraints, render_all, Region, fire_event, Event, num_children
+from oui.elements import Text
 from term_util import *
 
 class Tree:
-    def __init__(self, label, expandable=False):
-        self.label = label
-        add_child(self, label)
+    def __init__(self, label_text, expandable=False):
+        self.label_text = label_text
+        self.label = Text(label_text)
+        add_child(self, self.label)
         self.expanded = False
         self.expandable = expandable
     
@@ -51,12 +53,13 @@ class Tree:
 
     def paint(self):
         region = self.region
-        if not self.expandable or len(self.children) == 0:
-            region.draw(0, 0, "•")
-        elif self.expanded:
-            region.draw(0, 0, "▼")
+        if self.expandable or len(list(self.child_nodes)) > 0:
+            if self.expanded:
+                region.draw(0, 0, "▼")
+            else:
+                region.draw(0, 0, "▶")
         else:
-            region.draw(0, 0, "▶")
+            region.draw(0, 0, "•")
         curr_x = 2
         curr_y = 0
         for child in self.children:
@@ -75,11 +78,21 @@ class Tree:
         eventx, eventy = self.region.relative_pos(event.x, event.y)
         if eventy == 0 and eventx >= 0 and eventx < indent:
             if self.expanded:
-                self.expanded = False
-                fire_event(self, Event("collapse", tree=self))
+                self.collapse()
             else:
-                self.expanded = True
-                fire_event(self, Event("expand", tree=self))
+                self.expand()
+
+    def expand(self):
+        if self.expanded:
+            return
+        self.expanded = True
+        fire_event(self, Event("expand", tree=self), bubble=True)
+
+    def collapse(self):
+        if not self.expanded:
+            return
+        self.expanded = False
+        fire_event(self, Event("collapse", tree=self), bubble=True)
 
     @property
     def child_nodes(self):

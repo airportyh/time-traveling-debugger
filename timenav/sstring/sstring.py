@@ -227,7 +227,7 @@ class SStringGroup:
     
     def __eq__(self, other):
         return repr(self) == repr(other)
-    
+
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.step is not None:
@@ -254,7 +254,6 @@ class SStringGroup:
                 if len(results) == 0:
                     return sstring("")
                 return reduce(lambda a, b: a + b, results)
-                # return SStringGroup(results)
 
         elif isinstance(key, int):
             return self[key:key + 1]

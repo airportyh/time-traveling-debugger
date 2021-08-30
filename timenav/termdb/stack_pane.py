@@ -1,5 +1,5 @@
 from oui import defer_layout, defer_paint, BoxConstraints
-from oui import add_child, clear_children, add_listener_once, fire_event, Event
+from oui import add_child, clear_children, add_listener, add_listener_once, fire_event, Event
 from oui.elements import Text, VBox, ScrollView, Tree
 from logger import log
 
@@ -9,10 +9,17 @@ class StackPane:
         self.value_cache = value_cache
         self.snapshot = None
         self.vbox = VBox()
-        self.locals_tree = Tree(Text("Locals"))
-        self.globals_tree = Tree(Text("Globals"))
+        self.locals_tree = Tree("Locals")
+        self.globals_tree = Tree("Globals")
+        self.expanded_paths = set()
+        
         add_child(self.vbox, self.locals_tree)
         add_child(self.vbox, self.globals_tree)
+        add_listener(self.locals_tree, "expand", self.on_expand)
+        add_listener(self.locals_tree, "collapse", self.on_expand)
+        add_listener(self.globals_tree, "expand", self.on_expand)
+        add_listener(self.globals_tree, "collapse", self.on_expand)
+
         # add_child(self, self.vbox)
         self.scroll_view = ScrollView(self.vbox)
         add_child(self, self.scroll_view)
@@ -22,6 +29,22 @@ class StackPane:
     
     def paint(self):
         defer_paint(self, self.scroll_view)
+    
+    def tree_key(self, tree):
+        path = []
+        while tree and isinstance(tree, Tree):
+            path.insert(0, tree.label_text)
+            tree = tree.parent
+        key = "/".join(path)
+        return key
+    
+    def on_expand(self, evt):
+        key = self.tree_key(evt.tree)
+        self.expanded_paths.add(key)
+    
+    def on_collapse(self, evt):
+        key = self.tree_key(evt.tree)
+        self.expanded_paths.remove(key)
     
     def update(self, snapshot):
         self.snapshot = snapshot
@@ -34,6 +57,27 @@ class StackPane:
         
         self.populate_variable_tree(locals_id, self.locals_tree, version)
         self.populate_variable_tree(globals_id, self.globals_tree, version)
+        self.restore_expanded_paths()
+    
+    def restore_expanded_paths(self):
+        for key in self.expanded_paths:
+            path = key.split("/")
+            if path[0] == "Locals":
+                self.restore_expanded_path(self.locals_tree, path[1:])
+            elif path[0] == "Globals":
+                self.restore_expanded_path(self.globals_tree, path[1:])
+            else:
+                raise Exception("This should not happen")
+    
+    def restore_expanded_path(self, tree, path):
+        tree.expand()
+        if path == []:
+            return
+        key = path[0]
+        for child in tree.child_nodes:
+            if child.label_text == key:
+                self.restore_expanded_path(child, path[1:])
+                break
     
     def populate_variable_tree(self, dict_id, var_tree, version):
         members = self.cache.get_members(dict_id)
@@ -44,10 +88,8 @@ class StackPane:
             value = self.value_cache.get_value(value_id, version)
             value_display = self.render_value(value, version)    
             expandable = self.is_value_expandable(value, version)
-            sub_tree = Tree(
-                Text("%s = %s" % (key and key["value"], value_display)), 
-                expandable=expandable
-            )
+            label = "%s = %s" % (key and key["value"], value_display)
+            sub_tree = Tree(label, expandable=expandable)
             if expandable:
                 add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
             add_child(var_tree, sub_tree)
@@ -80,10 +122,8 @@ class StackPane:
             value = self.value_cache.get_value(value_id, version)
             value_display = self.render_value(value, version)
             expandable = self.is_value_expandable(value, version)
-            sub_tree = Tree(
-                Text("%s: %s" % (key_display, value_display)),
-                expandable=expandable
-            )
+            label = "%s: %s" % (key_display, value_display)
+            sub_tree = Tree(label, expandable=expandable)
             if expandable:
                 add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
             add_child(tree, sub_tree)
@@ -113,10 +153,7 @@ class StackPane:
                 continue
             value_display = self.render_value(value, version)
             expandable = self.is_value_expandable(value, version)
-            sub_tree = Tree(
-                Text(value_display),
-                expandable=expandable
-            )
+            sub_tree = Tree(value_display, expandable=expandable)
             if expandable:
                 add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
             add_child(tree, sub_tree)

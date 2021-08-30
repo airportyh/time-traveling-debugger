@@ -196,23 +196,32 @@ def fire_mouse_event(element, event, level=0):
             return handled
     return handled
 
-def fire_event(element, event):
-    method_name = "on_%s" % event.type
-    if hasattr(element, method_name):
-        handler = getattr(element, method_name)
-        if callable(handler):
-            handler(event)
-            return True
-        else:
-            if len(handler) > 0:
-                for h in handler:
-                    h(event)
-                    if event.immediate_propagation_stopped:
-                        break
+def fire_event(element, event, bubble=False):
+    def _fire_event(element, event):
+        method_name = "on_%s" % event.type
+        if hasattr(element, method_name):
+            handler = getattr(element, method_name)
+            if callable(handler):
+                handler(event)
                 return True
             else:
-                return False
-    return False
+                if len(handler) > 0:
+                    for h in handler:
+                        h(event)
+                        if event.immediate_propagation_stopped:
+                            break
+                    return True
+                else:
+                    return False
+        return False
+    handled = _fire_event(element, event)
+    if bubble:
+        element = element.parent
+        while element:
+            result = _fire_event(element, event)
+            handled = handled or result
+            element = element.parent if hasattr(element, "parent") else None
+    return handled
 
 root = None
 focused_element = None

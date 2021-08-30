@@ -1,17 +1,16 @@
 # Todo
 
-# remember expand/collapse state across snapshots
-# fix source line out of sync when debugging self
-# navigation is slow
-# fix border issue when part of window out of view
-# centering status bar
-# call hierarchy
+# boolean display bug?
 # time-line
 # search
 # switch files
+# fix border issue when part of window out of view
+# centering status bar
+# call hierarchy
 # step out
 # reverse step out
 
+# remember expand/collapse state across snapshots (done)
 # stack pane (done)
 # click and scroll events on one window is received by window underneath (done)
 # expand/collapse of objects/dicts/lists, etc (done)
