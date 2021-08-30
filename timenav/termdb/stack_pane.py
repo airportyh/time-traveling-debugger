@@ -60,7 +60,7 @@ class StackPane:
         self.restore_expanded_paths()
     
     def restore_expanded_paths(self):
-        for key in self.expanded_paths:
+        for key in sorted(self.expanded_paths, key=lambda path: len(path)):
             path = key.split("/")
             if path[0] == "Locals":
                 self.restore_expanded_path(self.locals_tree, path[1:])
@@ -70,8 +70,8 @@ class StackPane:
                 raise Exception("This should not happen")
     
     def restore_expanded_path(self, tree, path):
-        tree.expand()
         if path == []:
+            tree.expand()
             return
         key = path[0]
         for child in tree.child_nodes:
