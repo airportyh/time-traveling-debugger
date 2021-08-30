@@ -96,6 +96,9 @@ class DebuggerGUI:
             abs_pos=(64, 4),
             abs_size=(40, 20)
         )
+        
+        self.term_file = open("term.txt", "w")
+        
         self.last_snapshot = self.nav.get_last_snapshot()
         snapshot = self.cache.get_snapshot(begin_snapshot_id)
         self.goto_snapshot(snapshot)
@@ -116,6 +119,7 @@ class DebuggerGUI:
         self.update_code_pane()
         self.update_status()
         self.update_stack_pane()
+        self.update_term_file()
     
     def update_code_pane(self):
         snapshot = self.snapshot
@@ -193,6 +197,13 @@ class DebuggerGUI:
         self.conn = sqlite3.connect(self.hist_filename)
         self.conn.row_factory = dict_factory
         self.cursor = self.conn.cursor()
+    
+    def update_term_file(self):
+        outputs = self.nav.get_print_output_up_to(self.snapshot["id"])
+        self.term_file.write('\x1B[0m\x1B[2J\x1Bc')
+        for output in outputs:
+            self.term_file.write(output["data"])
+            self.term_file.flush()
     
     def exit(self, evt):
         clean_up()
