@@ -22,8 +22,12 @@ class Region:
             string_offset = offsetx - screenx
             string = string[string_offset:]
             screenx = offsetx
-        if len(string) + x > width:
-            string = string[0:width-x]
+        if x > 0:
+            if len(string) + x > width:
+                string = string[0:width - x]
+        else:
+            if len(string) > width:
+                string = string[0:width]
         self.buffer.print_at(screenx, screeny, string)
         
     def clear_rect(self, x, y, width, height):
