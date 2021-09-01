@@ -1,6 +1,5 @@
 # Todo
 
-# scroll event leak
 # time-line
 # search
 # switch files
@@ -10,6 +9,7 @@
 # step out
 # reverse step out
 
+# scroll event leak (done)
 # boolean display bug? (done)
 # remember expand/collapse state across snapshots (done)
 # stack pane (done)
@@ -50,6 +50,7 @@ from .value_cache import ValueCache
 import sqlite3
 from .code_pane import CodePane
 from .stack_pane import StackPane
+from .timeline import Timeline
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=1):
@@ -58,20 +59,22 @@ class DebuggerGUI:
         self.cache = ObjectCache(self.conn, self.cursor)
         self.value_cache = ValueCache(self.conn, self.cursor)
         self.nav = Navigator(self.conn, self.cursor, self.cache)
+        
+        self.last_snapshot = self.nav.get_last_snapshot()
+        
+        self.init_ui()
+        self.term_file = open("term.txt", "w")
+        
+        snapshot = self.cache.get_snapshot(begin_snapshot_id)
+        self.goto_snapshot(snapshot)
+    
+    def init_ui(self):
         self.ui = VBox()
         self.content = Board()
-        self.menu_bar = MenuBar(self.content)
-        file_menu = Menu()
-        file_menu.add_item(MenuItem("Open..."))
-        file_menu.add_item(MenuItem("Exit", self.exit))
-        self.menu_bar.add_menu(Text(" File "), file_menu)
-        nav_menu = Menu()
-        nav_menu.add_item(MenuItem("Step →", self.step))
-        nav_menu.add_item(MenuItem("Reverse Step ←", self.reverse_step))
-        nav_menu.add_item(MenuItem("Step Over ↴ ", self.step_over))
-        nav_menu.add_item(MenuItem("Reverse Step Over ↰ ", self.reverse_step_over))
-        self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
-        self.status_bar = Text(sstring("Status", [REVERSED]))
+        
+        self.init_menu_bar()
+        
+        self.status_bar = Text(sstring("", [REVERSED]))
         
         add_child(self.ui, self.menu_bar, stretch="x")
         add_child(self.ui, self.content, stretch="both")
@@ -84,29 +87,40 @@ class DebuggerGUI:
         add_listener(self.code_pane, "click", self.on_code_pane_click)
         add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
         self.code_win = Window("Code", self.code_pane)
-        log("code_win %r" % self.code_win)
         self.win_manager.add_window(self.code_win,
             abs_pos=(1, 1),
             abs_size=(60, 25)
         )
         self.stack_pane = StackPane(self.cache, self.value_cache)
         self.stack_win = Window("Variables", self.stack_pane)
-        log("stack_win %r" % self.stack_win)
         self.win_manager.add_window(self.stack_win,
             abs_pos=(64, 4),
             abs_size=(40, 20)
         )
         
-        self.term_file = open("term.txt", "w")
-        
-        self.last_snapshot = self.nav.get_last_snapshot()
-        snapshot = self.cache.get_snapshot(begin_snapshot_id)
-        self.goto_snapshot(snapshot)
+        self.timeline = Timeline(self.last_snapshot["id"], self.cache)
+        self.timeline_win = Window("Timeline", self.timeline)
+        self.win_manager.add_window(self.timeline_win,
+            abs_pos=(5, 1),
+            abs_size=(40, 20)
+        )
+    
+    def init_menu_bar(self):
+        self.menu_bar = MenuBar(self.content)
+        file_menu = Menu()
+        file_menu.add_item(MenuItem("Open..."))
+        file_menu.add_item(MenuItem("Exit", self.exit))
+        self.menu_bar.add_menu(Text(" File "), file_menu)
+        nav_menu = Menu()
+        nav_menu.add_item(MenuItem("Step →", self.step))
+        nav_menu.add_item(MenuItem("Reverse Step ←", self.reverse_step))
+        nav_menu.add_item(MenuItem("Step Over ↴ ", self.step_over))
+        nav_menu.add_item(MenuItem("Reverse Step Over ↰ ", self.reverse_step_over))
+        self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
     
     def goto_snapshot(self, snapshot):
         if snapshot is None:
             return
-        log("goto_snapshot %s" % snapshot["id"])
         self.snapshot = snapshot
         fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
         self.fun_call = fun_call
@@ -120,12 +134,17 @@ class DebuggerGUI:
         self.update_status()
         self.update_stack_pane()
         self.update_term_file()
+        self.update_timeline()
     
     def update_code_pane(self):
         snapshot = self.snapshot
         self.code_win.set_title(self.get_file_name(self.code_file["file_path"]))
         self.code_pane.set_location(self.code_file, snapshot["line_no"])
         self.code_pane.scroll_to_current_line_if_needed()
+        
+    def update_timeline(self):
+        self.timeline.set_current_snapshot_id(self.snapshot["id"])
+        self.timeline.scroll_to_current_line_if_needed()
     
     def update_stack_pane(self):
         self.stack_pane.update(self.snapshot)

@@ -82,7 +82,7 @@ class CodePane:
         line = self.current_line
         xoffset, yoffset = self.offset
         width, height = self.size
-        if line > (yoffset + height - 1):
+        if line > yoffset + height:
             yoffset = min(
                 len(self.file_lines) - height,
                 line - height // 2

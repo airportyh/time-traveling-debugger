@@ -96,14 +96,12 @@ class ScrollView:
         new_offsety = min(content_height - self.get_viewport_height(), offsety + evt.amount)
         if new_offsety != offsety:
             self.offset = (offsetx, new_offsety)
-            # repaint(self)
     
     def on_wheeldown(self, evt):
         offsetx, offsety = self.offset
         new_offsety = max(0, offsety - evt.amount)
         if new_offsety != offsety:
             self.offset = (offsetx, new_offsety)
-            # repaint(self)
     
     def on_altwheelup(self, evt):
         offsetx, offsety = self.offset
@@ -112,16 +110,13 @@ class ScrollView:
         new_offsetx = min(content_width - self.get_viewport_width(), offsetx + evt.amount)
         if new_offsetx != offsetx:
             self.offset = (new_offsetx, offsety)
-            # repaint(self)
     
     def on_altwheeldown(self, evt):
         offsetx, offsety = self.offset
         new_offsetx = max(0, offsetx - evt.amount)
         if new_offsetx != offsetx:
             self.offset = (new_offsetx, offsety)
-            # repaint(self)
             
     def set_offset(self, offset):
         self.offset = offset
-        # repaint(self)
         
