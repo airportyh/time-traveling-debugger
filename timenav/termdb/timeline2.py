@@ -1,27 +1,28 @@
 from sstring import *
 
-class Timeline:
+class Timeline2:
     def __init__(self, last_snapshot_id, cache):
         self.last_snapshot_id = last_snapshot_id
         self.cache = cache
-        self.offset = (0, 0)
         self.code_file_lines_cache = {}
         self.fun_call_level_map = {}
         self.current_snapshot_id = None
-        self.scroll_needed = False
-
+        
+    def set_current_snapshot_id(self, snapshot_id):
+        self.current_snapshot_id = snapshot_id
+        
     def layout(self, constraints):
-        cwidth, cheight = self.get_content_size()
-        width = constraints.constrain_width(cwidth)
-        height = constraints.constrain_height(cheight)
+        width = 500
+        height = self.last_snapshot_id
+        width = constraints.constrain_width(width)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
-        if self.scroll_needed:
-            self._scroll_to_current_line_if_needed()
-            self.scroll_needed = False
     
     def paint(self):
-        width, height = self.size
-        xoffset, yoffset = self.offset
+        xoffset = self.region.offset[0] - self.region.origin[0]
+        yoffset = self.region.offset[1] - self.region.origin[1]
+        width = self.size[0]
+        height = self.region.size[1]
         gutter_width = len(str(self.last_snapshot_id))
         prev_snapshot = None
         next_snapshot = None
@@ -34,8 +35,8 @@ class Timeline:
             line_display = lineno_display + prefix + line
             if self.current_snapshot_id == snapshot_id:
                 line_display = sstring(line_display.ljust(width), [REVERSED])
-            self.region.draw(-xoffset, i, line_display)
-        
+            self.region.draw(-xoffset, yoffset + i, line_display)
+    
     def calculate_prefix(self, snapshot):
         snapshot_id = snapshot["id"]
         prev_snapshot = snapshot_id > 1 and self.cache.get_snapshot(snapshot_id - 1)
@@ -76,55 +77,6 @@ class Timeline:
             self.code_file_lines_cache[code_file_id] = code_lines
             return code_lines
     
-    def set_current_snapshot_id(self, snapshot_id):
-        self.current_snapshot_id = snapshot_id
-    
-    def get_content_size(self):
-        return (500, self.last_snapshot_id)
-    
-    def on_wheelup(self, evt):
-        offsetx, offsety = self.offset
-        content_width, content_height = self.get_content_size()
-        width, height = self.size
-        new_offsety = min(content_height - self.get_viewport_height(), offsety + evt.amount)
-        if new_offsety != offsety:
-            self.offset = (offsetx, new_offsety)
-        evt.stop_propagation()
-    
-    def on_wheeldown(self, evt):
-        offsetx, offsety = self.offset
-        new_offsety = max(0, offsety - evt.amount)
-        if new_offsety != offsety:
-            self.offset = (offsetx, new_offsety)
-        evt.stop_propagation()
-    
-    def on_altwheelup(self, evt):
-        offsetx, offsety = self.offset
-        content_width, content_height = self.get_content_size()
-        new_offsetx = min(content_width - self.get_viewport_width(), offsetx + evt.amount)
-        if new_offsetx != offsetx:
-            self.offset = (new_offsetx, offsety)
-
-    def on_altwheeldown(self, evt):
-        offsetx, offsety = self.offset
-        new_offsetx = max(0, offsetx - evt.amount)
-        if new_offsetx != offsetx:
-            self.offset = (new_offsetx, offsety)
-    
-    def get_viewport_height(self):
-        viewport_width, viewport_height = self.size
-        content_width, content_height = self.get_content_size()
-        if viewport_width < content_width:
-            viewport_height -= 1
-        return viewport_height
-        
-    def get_viewport_width(self):
-        viewport_width, viewport_height = self.size
-        content_width, content_height = self.get_content_size()
-        if viewport_height < content_height:
-            viewport_width -= 1
-        return viewport_width
-        
     def get_fun_call_level(self, fun_call_id):
         if fun_call_id in self.fun_call_level_map:
             return self.fun_call_level_map[fun_call_id]
@@ -135,26 +87,3 @@ class Timeline:
             retval = 1 + self.get_fun_call_level(fun_call["parent_id"])
         self.fun_call_level_map[fun_call_id] = retval
         return retval
-        
-    def scroll_to_current_line_if_needed(self):
-        if hasattr(self, "size"):
-            self._scroll_to_current_line_if_needed()
-        else:
-            self.scroll_needed = True
-    
-    def _scroll_to_current_line_if_needed(self):
-        content_width, content_height = self.get_content_size()
-        snapshot_id = self.current_snapshot_id
-        xoffset, yoffset = self.offset
-        width, height = self.size
-        if snapshot_id > yoffset + height:
-            yoffset = min(
-                content_height - height,
-                snapshot_id - height // 2
-            )
-            self.offset = (xoffset, yoffset)
-        if snapshot_id < (yoffset + 1):
-            yoffset = max(0, snapshot_id - height // 2)
-            self.offset = (xoffset, yoffset)
-
-        

@@ -1,14 +1,22 @@
 # Todo
 
-# time-line
+# timeline 2: click to fast-forward / rewind
+# timeline 2: dynamic width sizing
+# centralize code lines cache
+# step out
+# reverse step out
+# data structure lifetime
 # search
 # switch files
 # fix border issue when part of window out of view
 # centering status bar
 # call hierarchy
-# step out
-# reverse step out
 
+# code pane 2 (done)
+#  * current line highlight (done)
+#  * scroll current line to visible (done)
+# code pane 2: scrolling too far down? (done)
+# time-line (done)
 # scroll event leak (done)
 # boolean display bug? (done)
 # remember expand/collapse state across snapshots (done)
@@ -49,8 +57,10 @@ from .object_cache import ObjectCache
 from .value_cache import ValueCache
 import sqlite3
 from .code_pane import CodePane
+from .code_pane2 import CodePane2
 from .stack_pane import StackPane
 from .timeline import Timeline
+from .timeline2 import Timeline2
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=1):
@@ -83,27 +93,9 @@ class DebuggerGUI:
         
         self.win_manager = WindowManager()
         add_child(self.content, self.win_manager)
-        self.code_pane = CodePane()
-        add_listener(self.code_pane, "click", self.on_code_pane_click)
-        add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
-        self.code_win = Window("Code", self.code_pane)
-        self.win_manager.add_window(self.code_win,
-            abs_pos=(1, 1),
-            abs_size=(60, 25)
-        )
-        self.stack_pane = StackPane(self.cache, self.value_cache)
-        self.stack_win = Window("Variables", self.stack_pane)
-        self.win_manager.add_window(self.stack_win,
-            abs_pos=(64, 4),
-            abs_size=(40, 20)
-        )
-        
-        self.timeline = Timeline(self.last_snapshot["id"], self.cache)
-        self.timeline_win = Window("Timeline", self.timeline)
-        self.win_manager.add_window(self.timeline_win,
-            abs_pos=(5, 1),
-            abs_size=(40, 20)
-        )
+        self.init_code_pane()
+        self.init_stack_pane()
+        self.init_timeline()
     
     def init_menu_bar(self):
         self.menu_bar = MenuBar(self.content)
@@ -117,6 +109,46 @@ class DebuggerGUI:
         nav_menu.add_item(MenuItem("Step Over ↴ ", self.step_over))
         nav_menu.add_item(MenuItem("Reverse Step Over ↰ ", self.reverse_step_over))
         self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
+    
+    def init_code_pane(self):
+        # self.code_pane = CodePane()
+        # self.code_win = Window("Code", self.code_pane)
+        # self.win_manager.add_window(self.code_win,
+        #     abs_pos=(1, 1),
+        #     abs_size=(60, 25)
+        # )
+        self.code_pane = CodePane2()
+        self.code_pane_scroll_view = ScrollView(self.code_pane)
+        add_listener(self.code_pane, "click", self.on_code_pane_click)
+        add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
+        self.code_win = Window("Code", self.code_pane_scroll_view)
+        self.win_manager.add_window(self.code_win,
+            abs_pos=(1, 1),
+            abs_size=(60, 25)
+        )
+    
+    def init_stack_pane(self):
+        self.stack_pane = StackPane(self.cache, self.value_cache)
+        self.stack_win = Window("Variables", self.stack_pane)
+        self.win_manager.add_window(self.stack_win,
+            abs_pos=(64, 4),
+            abs_size=(40, 20)
+        )
+    
+    def init_timeline(self):
+        # self.timeline = Timeline(self.last_snapshot["id"], self.cache)
+        # self.timeline_win = Window("Timeline", self.timeline)
+        # self.win_manager.add_window(self.timeline_win,
+        #     abs_pos=(66, 1),
+        #     abs_size=(40, 20)
+        # )
+        self.timeline = Timeline2(self.last_snapshot["id"], self.cache)
+        self.timeline_scroll_view = ScrollView(self.timeline)
+        self.timeline_win = Window("Timeline", self.timeline_scroll_view)
+        self.win_manager.add_window(self.timeline_win,
+            abs_pos=(66, 1),
+            abs_size=(40, 20)
+        )
     
     def goto_snapshot(self, snapshot):
         if snapshot is None:
@@ -140,11 +172,12 @@ class DebuggerGUI:
         snapshot = self.snapshot
         self.code_win.set_title(self.get_file_name(self.code_file["file_path"]))
         self.code_pane.set_location(self.code_file, snapshot["line_no"])
-        self.code_pane.scroll_to_current_line_if_needed()
+        self.code_pane_scroll_view.ensure_line_viewable(snapshot["line_no"])
         
     def update_timeline(self):
         self.timeline.set_current_snapshot_id(self.snapshot["id"])
-        self.timeline.scroll_to_current_line_if_needed()
+        # self.timeline.scroll_to_current_line_if_needed()
+        self.timeline_scroll_view.ensure_line_viewable(self.snapshot["id"])
     
     def update_stack_pane(self):
         self.stack_pane.update(self.snapshot)
@@ -192,12 +225,12 @@ class DebuggerGUI:
             quit()
             
     def on_code_pane_click(self, evt):
-        line_no = self.code_pane.get_line_no_for_y(evt.y)
+        line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
         next = self.nav.fast_forward(self.code_file["id"], line_no, self.snapshot["id"])
         self.goto_snapshot(next)
         
     def on_code_pane_right_click(self, evt):
-        line_no = self.code_pane.get_line_no_for_y(evt.y)
+        line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
         next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
         self.goto_snapshot(next)
     
