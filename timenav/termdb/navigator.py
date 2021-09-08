@@ -150,6 +150,9 @@ class Navigator:
         error = self.cursor.execute("select * from Error limit 1").fetchone()
         return error
     
+    def get_all_errors(self):
+        return self.cursor.execute("select * from Error").fetchall()
+    
     def get_snapshot_by_start_fun_call(self, id):
         return self.cursor.execute("select * from Snapshot where start_fun_call_id = ?", (id,)).fetchone()
         

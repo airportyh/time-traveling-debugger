@@ -1,26 +1,28 @@
 from sstring import *
 
 class CodePane2:
-    def __init__(self):
+    def __init__(self, cache):
+        self.cache = cache
         self.code_file = None
-        self.file_lines = None
         self.current_line = None
     
     def layout(self, constraints):
-        width = max(map(len, self.file_lines))
-        height = len(self.file_lines)
+        file_lines = self.cache.get_code_lines(self.code_file["id"])
+        width = max(map(len, file_lines))
+        height = len(file_lines)
         width = constraints.constrain_width(width)
         height = constraints.constrain_height(height)
         self.size = (width, height)
     
     def paint(self):
-        if self.file_lines is None:
+        file_lines = self.cache.get_code_lines(self.code_file["id"])
+        if file_lines is None:
             return
         width, height = self.size
-        gutter_width = len(str(len(self.file_lines) + 1))
+        gutter_width = len(str(len(file_lines) + 1))
         xoffset = self.region.offset[0] - self.region.origin[0]
         yoffset = self.region.offset[1] - self.region.origin[1]
-        display_lines = self.file_lines[yoffset:yoffset + height]
+        display_lines = file_lines[yoffset:yoffset + height]
         for i, line in enumerate(display_lines):
             line = line.replace("\t", "    ")
             lineno = yoffset + i + 1
@@ -33,8 +35,4 @@ class CodePane2:
     def set_location(self, code_file, line_no):
         if code_file != self.code_file:
             self.code_file = code_file
-            if code_file["source"]:
-                self.file_lines = code_file["source"].split("\n")
-            else:
-                self.file_lines = None
         self.current_line = line_no

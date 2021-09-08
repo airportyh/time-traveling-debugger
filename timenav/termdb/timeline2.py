@@ -1,10 +1,10 @@
 from sstring import *
+from logger import log
 
 class Timeline2:
     def __init__(self, last_snapshot_id, cache):
         self.last_snapshot_id = last_snapshot_id
         self.cache = cache
-        self.code_file_lines_cache = {}
         self.fun_call_level_map = {}
         self.current_snapshot_id = None
         
@@ -65,17 +65,8 @@ class Timeline2:
     def get_code_lines_for_snapshot(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
-        code_lines = self.get_code_lines_for_code_file_id(fun_code["code_file_id"])
+        code_lines = self.cache.get_code_lines(fun_code["code_file_id"])
         return code_lines
-    
-    def get_code_lines_for_code_file_id(self, code_file_id):
-        if code_file_id in self.code_file_lines_cache:
-            return self.code_file_lines_cache[code_file_id]
-        else:
-            code_file = self.cache.get_code_file(code_file_id)
-            code_lines = code_file["source"].split("\n")
-            self.code_file_lines_cache[code_file_id] = code_lines
-            return code_lines
     
     def get_fun_call_level(self, fun_call_id):
         if fun_call_id in self.fun_call_level_map:

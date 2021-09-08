@@ -122,8 +122,11 @@ class StackPane:
         members = self.cache.get_members(value["id"])
         for member in members:
             key_id = member["key"]
-            key_value = self.value_cache.get_value(key_id, version)
-            key_display = self.render_value(key_value, version)
+            if member["key_type"] == 0: # ref
+                key_value = self.value_cache.get_value(key_id, version)
+                key_display = self.render_value(key_value, version)
+            else:
+                key_display = repr(member["key"])
             value_id = member["value"]
             value = self.value_cache.get_value(value_id, version)
             value_display = self.render_value(value, version)

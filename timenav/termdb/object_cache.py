@@ -44,6 +44,15 @@ class ObjectCache:
         code_file = self.cursor.execute("select * from CodeFile where id = ?", (id,)).fetchone()
         self.cache[key] = code_file
         return code_file
+    
+    def get_code_lines(self, code_file_id):
+        key = "CodeFile/%d/code_lines" % code_file_id
+        if key in self.cache:
+            return self.cache[key]
+        code_file = self.get_code_file(code_file_id)
+        code_lines = code_file["source"].split("\n") if code_file["source"] else None
+        self.cache[key] = code_lines
+        return code_lines
 
     def get_members(self, container_id):
         key = "Member/%d" % container_id

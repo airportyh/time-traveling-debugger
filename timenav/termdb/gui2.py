@@ -1,20 +1,21 @@
 # Todo
 
-# timeline 2: click to fast-forward / rewind
-# timeline 2: dynamic width sizing
-# call hierarchy
-#    * integrate to gui2
-#    * fix bugs so it can be used for gui2 itself
-#    * maybe use python parser for param parsing or save param count for functions in fun_code
-# centralize code lines cache
+# view menu
+# show error message even when caught
+# see_call for gui
+# searching
+# data structure lifetime
+# switch files
+# hierarchical scroll bar for timeline
 # step out
 # reverse step out
-# data structure lifetime
-# search
-# switch files
 # fix border issue when part of window out of view
-# centering status bar
 
+# centralize code lines cache (done)
+# timeline 2: click to fast-forward / rewind (done)
+#    * fix bugs so it can be used for gui2 itself (done)
+# bug in displaying dict keys in variable panel (done)
+# jump to error first thing (done)
 # code pane 2 (done)
 #  * current line highlight (done)
 #  * scroll current line to visible (done)
@@ -64,7 +65,7 @@ from .stack_pane import StackPane
 from .timeline2 import Timeline2
 
 class DebuggerGUI:
-    def __init__(self, hist_filename, begin_snapshot_id=1):
+    def __init__(self, hist_filename, begin_snapshot_id=None):
         self.hist_filename = hist_filename
         self.init_db()
         self.cache = ObjectCache(self.conn, self.cursor)
@@ -76,8 +77,26 @@ class DebuggerGUI:
         self.init_ui()
         self.term_file = open("term.txt", "w")
         
+        self.init_errors()
+        
+        if begin_snapshot_id is None:
+            if self.first_error:
+                begin_snapshot_id = self.first_error["snapshot_id"]
+            else:
+                begin_snapshot_id = 1
+        
         snapshot = self.cache.get_snapshot(begin_snapshot_id)
         self.goto_snapshot(snapshot)
+    
+    def init_errors(self):
+        errors = self.nav.get_all_errors()
+        self.first_error = None
+        if len(errors) > 0:
+            self.first_error = errors[0]
+        errors_dict = {}
+        for error in errors:
+            errors_dict[error["snapshot_id"]] = error
+        self.errors = errors_dict
     
     def init_ui(self):
         self.ui = VBox()
@@ -112,13 +131,7 @@ class DebuggerGUI:
         self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
     
     def init_code_pane(self):
-        # self.code_pane = CodePane()
-        # self.code_win = Window("Code", self.code_pane)
-        # self.win_manager.add_window(self.code_win,
-        #     abs_pos=(1, 1),
-        #     abs_size=(60, 25)
-        # )
-        self.code_pane = CodePane2()
+        self.code_pane = CodePane2(self.cache)
         self.code_pane_scroll_view = ScrollView(self.code_pane)
         add_listener(self.code_pane, "click", self.on_code_pane_click)
         add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
@@ -137,13 +150,8 @@ class DebuggerGUI:
         )
     
     def init_timeline(self):
-        # self.timeline = Timeline(self.last_snapshot["id"], self.cache)
-        # self.timeline_win = Window("Timeline", self.timeline)
-        # self.win_manager.add_window(self.timeline_win,
-        #     abs_pos=(66, 1),
-        #     abs_size=(40, 20)
-        # )
         self.timeline = Timeline2(self.last_snapshot["id"], self.cache)
+        add_listener(self.timeline, "click", self.on_timeline_click)
         self.timeline_scroll_view = ScrollView(self.timeline)
         self.timeline_win = Window("Timeline", self.timeline_scroll_view)
         self.win_manager.add_window(self.timeline_win,
@@ -161,7 +169,7 @@ class DebuggerGUI:
         self.fun_code = fun_code
         code_file = self.cache.get_code_file(fun_code["code_file_id"])
         self.code_file = code_file
-        self.error = self.cache.get_error_by_snapshot(self.snapshot["id"])
+        self.error = self.errors.get(self.snapshot["id"])
         
         self.update_code_pane()
         self.update_status()
@@ -230,6 +238,11 @@ class DebuggerGUI:
     def on_code_pane_click(self, evt):
         line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
         next = self.nav.fast_forward(self.code_file["id"], line_no, self.snapshot["id"])
+        self.goto_snapshot(next)
+    
+    def on_timeline_click(self, evt):
+        snapshot_id = self.timeline_scroll_view.get_content_line_for_y(evt.y)
+        next = self.cache.get_snapshot(snapshot_id)
         self.goto_snapshot(next)
         
     def on_code_pane_right_click(self, evt):
