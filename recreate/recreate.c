@@ -4,6 +4,7 @@ TODO
 ====
 
 * intermittent error when run on gui.rewind
+* error when using with see_code
 * unique constraint for Member (container, key, key_type)
 * check valgrind
 * the spurious weakref problem (remove_subclass, add_subclass)
@@ -710,7 +711,9 @@ int processNewCode(unsigned int i) {
     CALL(parseStringArg(&i, &funName, &funNameLen));
     int line_no;
     CALL(parseIntArg(&i, &line_no));
-
+    int numArgs;
+    CALL(parseIntArg(&i, &numArgs));
+    
     int numLocals;
     char **localVarnames = NULL;
     UT_string *localsCSV = NULL;
@@ -737,23 +740,24 @@ int processNewCode(unsigned int i) {
     SQLITE(bind_text(insertFunCodeStmt, 2, funName, funNameLen, SQLITE_STATIC));
     SQLITE(bind_int64(insertFunCodeStmt, 3, codeFileId));
     SQLITE(bind_int(insertFunCodeStmt, 4, line_no));
+    SQLITE(bind_int(insertFunCodeStmt, 5, numArgs));
 
     if (localsCSV == NULL) {
-        SQLITE(bind_null(insertFunCodeStmt, 5));
+        SQLITE(bind_null(insertFunCodeStmt, 6));
     } else {
-        SQLITE(bind_text(insertFunCodeStmt, 5, utstring_body(localsCSV), -1, SQLITE_STATIC));
+        SQLITE(bind_text(insertFunCodeStmt, 6, utstring_body(localsCSV), -1, SQLITE_STATIC));
     }
 
     if (cellVarsCSV == NULL) {
-        SQLITE(bind_null(insertFunCodeStmt, 6));
+        SQLITE(bind_null(insertFunCodeStmt, 7));
     } else {
-        SQLITE(bind_text(insertFunCodeStmt, 6, utstring_body(cellVarsCSV), -1, SQLITE_STATIC));
+        SQLITE(bind_text(insertFunCodeStmt, 7, utstring_body(cellVarsCSV), -1, SQLITE_STATIC));
     }
 
     if (freeVarsCSV == NULL) {
-        SQLITE(bind_null(insertFunCodeStmt, 7));
+        SQLITE(bind_null(insertFunCodeStmt, 8));
     } else {
-        SQLITE(bind_text(insertFunCodeStmt, 7, utstring_body(freeVarsCSV), -1, SQLITE_STATIC));
+        SQLITE(bind_text(insertFunCodeStmt, 8, utstring_body(freeVarsCSV), -1, SQLITE_STATIC));
     }
 
     SQLITE_STEP(insertFunCodeStmt);
@@ -1740,7 +1744,7 @@ int prepareStatements() {
     SQLITE(prepare_v2(db, "insert into Snapshot values (?, ?, ?, ?)", -1, &insertSnapshotStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Value values (?1, ?2, ?3, ?4) on conflict(id, version) do update set type = ?2, value = ?4", -1, &insertValueStmt, NULL));
     SQLITE(prepare_v2(db, "update Value set value = value || ' ' || ? where id = ?", -1, &updateObjectDictStmt, NULL));
-    SQLITE(prepare_v2(db, "insert into FunCode values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCodeStmt, NULL));
+    SQLITE(prepare_v2(db, "insert into FunCode values (?, ?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCodeStmt, NULL));
     SQLITE(prepare_v2(db, "insert into FunCall values (?, ?, ?, ?, ?, ?, ?)", -1, &insertFunCallStmt, NULL));
     SQLITE(prepare_v2(db, "insert into CodeFile values (?, ?, ?)", -1, &insertCodeFileStmt, NULL));
     SQLITE(prepare_v2(db, "insert into Type values (?, ?)", -1, &insertTypeStmt, NULL));

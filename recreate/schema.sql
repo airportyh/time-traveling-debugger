@@ -8,6 +8,8 @@ create table Snapshot (
         references FunCall(id)
 );
 
+create index Snapshot_FunCallId_Idx on Snapshot (fun_call_id);
+
 create table Value (
     id integer,
     type tinyint,
@@ -48,6 +50,7 @@ create table FunCode (
     name text,
     code_file_id integer,
     line_no integer,
+    num_args integer, 
     local_varnames text,
     cell_varnames text,
     free_varnames text,
@@ -70,6 +73,8 @@ create table FunCall (
     constraint FunCall_fk_fun_id foreign key (fun_code_id)
         references FunCode(id)
 );
+
+create index FunCall_fk_parent_id_Idx on FunCall (parent_id);
 
 create table Error (
     id integer primary key,
