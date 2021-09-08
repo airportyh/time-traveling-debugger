@@ -51,47 +51,56 @@ class CodeSeer:
         self.fun_call_level_map[fun_call_id] = retval
         return retval
     
-    def get_dict(self, id, version):
-        members_sql = """
-        select * from Member
-        """
-        # TODO: make sure value is latest one
-        members = list(self.cursor.execute(members_sql))
-        ids = []
-        for member in members:
-            ids.append(member['key'])
-            ids.append(member['value'])
-        
-        
-        values_sql = """
-        select 
-        	Value.*
-        from
-        	Value,
-            (select 
-        		id,
-        		max(version) as version
-        	from Value
-        	where
-        		version <= ?
-                and id in (%s)
-        	group by id) as Versions
-        where
-            Value.id = Versions.id and 
-            Value.version = Versions.version
-        """ % ",".join(map(str, ids))
-        
-        values = self.cursor.execute(values_sql, (version,))
-        values_dict = {}
-        for value in values:
-            values_dict[value['id']] = value['value']
-        
-        retval = {}
-        print("values_dict", values_dict)
-        print("members", members)
-        for member in members:
-            retval[values_dict[member['key']]] = values_dict[member['value']]
-        return retval
+    # def get_dict(self, id, version):
+    #     members_sql = """
+    #     select * from Member
+    #     """
+    #     # TODO: make sure value is latest one
+    #     members = list(self.cursor.execute(members_sql))
+    #     ids = []
+    #     for member in members:
+    #         ids.append(member['key'])
+    #         ids.append(member['value'])
+    # 
+    # 
+    #     values_sql = """
+    #     select 
+    #     	Value.*
+    #     from
+    #     	Value,
+    #         (select 
+    #     		id,
+    #     		max(version) as version
+    #     	from Value
+    #     	where
+    #     		version <= ?
+    #             and id in (%s)
+    #     	group by id) as Versions
+    #     where
+    #         Value.id = Versions.id and 
+    #         Value.version = Versions.version
+    #     """ % ",".join(map(str, ids))
+    # 
+    #     values = self.cursor.execute(values_sql, (version,))
+    #     values_dict = {}
+    #     for value in values:
+    #         values_dict[value['id']] = value['value']
+    # 
+    #     retval = {}
+    #     # print("values_dict", values_dict)
+    #     # print("members", members)
+    #     for member in members:
+    #         print("member", member)
+    #         if member['key_type'] == 0: #int
+    #             key_key = values_dict[member['key']]
+    #         else:
+    #             key_key = member['key']
+    #         value_key = member['value']
+    #         if value_key in values_dict:
+    #             retval[key_key] = values_dict[value_key]
+    #         else:
+    #             retval[key_key] = "<Unknown>"
+    #     return retval
     
     def display_code(self):
         for i, snapshot in enumerate(self.snapshots):
@@ -116,18 +125,18 @@ class CodeSeer:
             else:
                 prefix = ""
                 
-            # line_no = str(snapshot["id"]).ljust(8)
-            print("%s%s" % (prefix, line))  
+            line_no = str(snapshot["id"]).ljust(8)
+            print("%s%s%s" % (line_no, prefix, line))  
             
             # if snapshot["start_fun_call_id"] != None:
             #     fun_call = self.fun_calls[snapshot["start_fun_call_id"]]
             #     fun_code = self.fun_codes[fun_call["fun_code_id"]]
-            #     # locals = self.get_dict(fun_call["locals"], snapshot["id"] + 1)
+            #     locals = self.get_dict(fun_call["locals"], snapshot["id"] + 1)
             #     params = ", ".join(
             #         map(lambda k: "%s=%r" % (k, locals[k]), 
             #         filter(lambda k: locals[k] is not None, locals.keys())))
             #     indent = "    " + " ┃  " * (level)
-            #     print("%s%s" % (indent, color("%s(%s)" % (fun_code["name"], params), 33)))
+                # print("%s%s" % (indent, color("%s(%s)" % (fun_code["name"], params), 33)))
 
 def color(string, code):
     return "\u001b[%dm%s\u001b[0m" % (code, string)

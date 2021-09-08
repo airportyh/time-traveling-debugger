@@ -2,6 +2,10 @@
 
 # timeline 2: click to fast-forward / rewind
 # timeline 2: dynamic width sizing
+# call hierarchy
+#    * integrate to gui2
+#    * fix bugs so it can be used for gui2 itself
+#    * maybe use python parser for param parsing or save param count for functions in fun_code
 # centralize code lines cache
 # step out
 # reverse step out
@@ -10,7 +14,6 @@
 # switch files
 # fix border issue when part of window out of view
 # centering status bar
-# call hierarchy
 
 # code pane 2 (done)
 #  * current line highlight (done)
@@ -56,10 +59,8 @@ from .navigator import Navigator
 from .object_cache import ObjectCache
 from .value_cache import ValueCache
 import sqlite3
-from .code_pane import CodePane
 from .code_pane2 import CodePane2
 from .stack_pane import StackPane
-from .timeline import Timeline
 from .timeline2 import Timeline2
 
 class DebuggerGUI:
@@ -221,6 +222,8 @@ class DebuggerGUI:
             self.reverse_step(evt)
         elif evt.key == "RIGHT_ARROW":
             self.step(evt)
+        elif evt.key == "e":
+            self.goto_snapshot(self.last_snapshot)
         elif evt.key == "q":
             quit()
             

@@ -1,0 +1,20 @@
+set -e
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+if [[ ${1: -7} == ".sqlite" || ${1: -8} == ".history" || $1 == http://* ]]
+then
+    ARG=$1
+else
+    if [[ ${1: -7} == ".rewind" ]]
+    then
+        REWIND_FILE=$1
+        ARG=${1%.rewind}.sqlite
+        recreate $REWIND_FILE
+    else
+        echo "Please provide a .rewind, .sqlite or .history file."
+        exit 1
+    fi
+fi
+
+echo "PYTHONPATH=$DIR/../timenav python3 -m see_calls $ARG $2"
+PYTHONPATH=$DIR/../timenav python3 -m see_calls $ARG $2

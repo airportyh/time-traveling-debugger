@@ -12,20 +12,20 @@ def main():
         if evt.key == "q":
             quit()
 
-    panel = VBox()
-    add_listener(panel, "keypress", on_keypress)
+    vbox = VBox()
+    add_listener(vbox, "keypress", on_keypress)
     label = Text("What would you like to do?")
-    add_child(panel, label)
+    add_child(vbox, label)
     click_button = Text("Click here!")
     add_listener(click_button, "click", click1)
-    add_child(panel, click_button)
+    add_child(vbox, click_button)
     dont_click_button = Text("Don't click")
     add_listener(dont_click_button, "click", click2)
-    add_child(panel, dont_click_button)
+    add_child(vbox, dont_click_button)
     quit_label = Text("Press 'q' to quit")
-    add_child(panel, quit_label)
+    add_child(vbox, quit_label)
 
-    run(panel)
+    run(vbox)
 
 if __name__ == "__main__":
     main()

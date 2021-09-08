@@ -1,0 +1,30 @@
+
+
+            HOW GUIs WORK
+            
+            * The lower layer
+                * graphics layer (Output)
+                    * canvas / Qt QPainter
+                        * drawLine
+                        * drawRect
+                        * drawEllipse
+                        * drawImage
+                        * drawText
+                    * OpenGL
+                    * terminal
+                        * control codes
+                    
+                * user events (keyboard, mouse, others) (Input)
+                    * HTML events
+                    * Qt events
+                    * OpenGL ?
+                    * terminal - mouse events
+                    * mouse (x, y coords)
+                    * keyboard (key character / key code)
+                    
+            * UI Componentization
+                * parent/child relationship
+                * dynamic layout
+                * composability of components
+                * rule: a child must be contained by a parent in layout
+                

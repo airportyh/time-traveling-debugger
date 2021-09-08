@@ -60,8 +60,15 @@ def main():
             item = TodoItem(text, list_ui)
             add_child(list_ui, item)
             field.set_text("")
+        elif evt.key == "q":
+            quit()
+    
+    def on_ui_keypress(evt):
+        if evt.key == "q":
+            quit()
         
     ui = VBox()
+    add_listener(ui, "keypress", on_ui_keypress)
     
     field = TextField(placeholder="What to do?", width=20)
     add_listener(field, "keypress", on_keypress)

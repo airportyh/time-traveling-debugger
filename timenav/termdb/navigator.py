@@ -184,3 +184,20 @@ class Navigator:
     def get_print_output_up_to(self, snapshot_id):
         sql = "select * from PrintOutput where snapshot_id <= ?"
         return self.cursor.execute(sql, (snapshot_id,)).fetchall()
+    
+    def get_child_fun_calls(self, fun_call_id):
+        sql = """
+            select *
+            from FunCall
+            where parent_id = ?
+        """
+        return self.cursor.execute(sql, (fun_call_id,)).fetchall()
+    
+    def get_first_and_last_snapshots_for_fun_call(self, fun_call_id):
+        sql = """
+            select min(id) as first_id, max(id) as last_id
+            from Snapshot
+            where fun_call_id = ?
+        """
+        result = self.cursor.execute(sql, (fun_call_id, )).fetchone()
+        return result

@@ -1,0 +1,20 @@
+
+
+Problems Encountered While Building OUI
+    
+* the lower layer (done)
+* building out UI tree (stole DOM) (done)
+* layout (vbox/hbox simplified flex)
+* scroll view (regions) (Flutter's layout)
+* flickering (double buffering)
+* events / event loop
+* good representation of styled string (sstring)
+* how to handle dirty checking / dirty tracking? (Don't)
+* keyboard focus / text fields
+* double-clicks
+* window system
+    * window overlapping
+    * drag/resize
+* trees
+* absolute position
+* event bubbling
