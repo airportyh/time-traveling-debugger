@@ -30,6 +30,7 @@ class MenuButton:
     def open(self):
         x, y = self.region.offset
         pos = (x, y)
+        self.menu.set_highlighted(0)
         add_child(self.container, self.menu, abs_pos=pos)
         focus(self.menu)
         self.is_open = True

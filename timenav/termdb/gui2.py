@@ -1,6 +1,6 @@
 # Todo
 
-# view menu
+# bug: maximize is making window too big
 # show error message even when caught
 # see_call for gui
 # searching
@@ -11,6 +11,7 @@
 # reverse step out
 # fix border issue when part of window out of view
 
+# view menu (done)
 # centralize code lines cache (done)
 # timeline 2: click to fast-forward / rewind (done)
 #    * fix bugs so it can be used for gui2 itself (done)
@@ -116,19 +117,55 @@ class DebuggerGUI:
         self.init_code_pane()
         self.init_stack_pane()
         self.init_timeline()
+        add_listener(self.win_manager, "add_window", self.on_add_window)
+        add_listener(self.win_manager, "close_window", self.on_close_window)
     
     def init_menu_bar(self):
         self.menu_bar = MenuBar(self.content)
         file_menu = Menu()
-        file_menu.add_item(MenuItem("Open..."))
-        file_menu.add_item(MenuItem("Exit", self.exit))
+        file_menu.add_item(MenuItem("Quit q ", self.exit))
         self.menu_bar.add_menu(Text(" File "), file_menu)
         nav_menu = Menu()
-        nav_menu.add_item(MenuItem("Step →", self.step))
-        nav_menu.add_item(MenuItem("Reverse Step ←", self.reverse_step))
-        nav_menu.add_item(MenuItem("Step Over ↴ ", self.step_over))
-        nav_menu.add_item(MenuItem("Reverse Step Over ↰ ", self.reverse_step_over))
+        nav_menu.add_item(MenuItem("Step → ", self.step))
+        nav_menu.add_item(MenuItem("Reverse Step ← ", self.reverse_step))
+        nav_menu.add_item(MenuItem("Step Over ↓ ", self.step_over))
+        nav_menu.add_item(MenuItem("Reverse Step Over ↑ ", self.reverse_step_over))
         self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
+        view_menu = Menu()
+        self.code_view_menu_item = MenuItem("✓ Code", self.toggle_code_view)
+        view_menu.add_item(self.code_view_menu_item)
+        self.variables_view_menu_item = MenuItem("✓ Variables", self.variables_view_menu_item)
+        view_menu.add_item(self.variables_view_menu_item)
+        self.timeline_view_menu_item = MenuItem("✓ Timeline", self.timeline_view_menu_item)
+        view_menu.add_item(self.timeline_view_menu_item)
+        self.menu_bar.add_menu(Text(" View "), view_menu)
+    
+    def toggle_code_view(self, evt):
+        if self.win_manager.has_window(self.code_win):
+            self.win_manager.close_window(self.code_win)
+        else:
+            self.win_manager.add_window(self.code_win,
+                abs_pos=(1, 1),
+                abs_size=(60, 25)
+            )
+    
+    def variables_view_menu_item(self, evt):
+        if self.win_manager.has_window(self.stack_win):
+            self.win_manager.close_window(self.stack_win)
+        else:
+            self.win_manager.add_window(self.stack_win,
+                abs_pos=(64, 4),
+                abs_size=(40, 20)
+            )
+    
+    def timeline_view_menu_item(self, evt):
+        if self.win_manager.has_window(self.timeline_win):
+            self.win_manager.close_window(self.timeline_win)
+        else:
+            self.win_manager.add_window(self.timeline_win,
+                abs_pos=(66, 1),
+                abs_size=(40, 20)
+            )
     
     def init_code_pane(self):
         self.code_pane = CodePane2(self.cache)
@@ -163,19 +200,16 @@ class DebuggerGUI:
         if snapshot is None:
             return
         self.snapshot = snapshot
-        fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
-        self.fun_call = fun_call
-        fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
-        self.fun_code = fun_code
-        code_file = self.cache.get_code_file(fun_code["code_file_id"])
-        self.code_file = code_file
+        self.fun_call = self.cache.get_fun_call(self.snapshot["fun_call_id"])
+        self.fun_code = self.cache.get_fun_code(self.fun_call["fun_code_id"])
+        self.code_file = self.cache.get_code_file(self.fun_code["code_file_id"])
         self.error = self.errors.get(self.snapshot["id"])
         
         self.update_code_pane()
         self.update_status()
         self.update_stack_pane()
-        self.update_term_file()
         self.update_timeline()
+        self.update_term_file()
     
     def update_code_pane(self):
         snapshot = self.snapshot
@@ -185,7 +219,6 @@ class DebuggerGUI:
         
     def update_timeline(self):
         self.timeline.set_current_snapshot_id(self.snapshot["id"])
-        # self.timeline.scroll_to_current_line_if_needed()
         self.timeline_scroll_view.ensure_line_viewable(self.snapshot["id"])
     
     def update_stack_pane(self):
@@ -220,6 +253,26 @@ class DebuggerGUI:
     def reverse_step_over(self, evt):
         next = self.nav.step_over_backward(self.snapshot)
         self.goto_snapshot(next)
+    
+    def on_add_window(self, evt):
+        self.update_view_menu_items()
+    
+    def on_close_window(self, evt):
+        self.update_view_menu_items()
+    
+    def update_view_menu_items(self):
+        if self.win_manager.has_window(self.code_win):
+            self.code_view_menu_item.label = sstring("✓ Code")
+        else:
+            self.code_view_menu_item.label = sstring("  Code")
+        if self.win_manager.has_window(self.stack_win):
+            self.variables_view_menu_item.label = sstring("✓ Variables")
+        else:
+            self.variables_view_menu_item.label = sstring("  Variables")
+        if self.win_manager.has_window(self.timeline_win):
+            self.timeline_view_menu_item.label = sstring("✓ Timeline")
+        else:
+            self.timeline_view_menu_item.label = sstring("  Timeline")
     
     def on_keypress(self, evt):
         if evt.key == "UP_ARROW":
@@ -282,7 +335,7 @@ def main():
         print("Please provide a history file.")
     
     hist_filename = sys.argv[1]
-    begin_snapshot_id = 1
+    begin_snapshot_id = None
     if len(sys.argv) >= 3:
         begin_snapshot_id = int(sys.argv[2])
     dbui = DebuggerGUI(hist_filename, begin_snapshot_id)

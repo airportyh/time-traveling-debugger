@@ -1,4 +1,4 @@
-from oui import add_listener, remove_listener, add_child, render_all
+from oui import add_listener, remove_listener, fire_event, add_child, remove_child, render_all, Event
 from oui.elements import Board
 
 # Todo:
@@ -23,10 +23,23 @@ class WindowManager:
         add_listener(window, "close", self.on_window_close)
         add_listener(window, "window_resize_start", self.on_window_resize_start)
         add_child(self.board, window, **params)
+        fire_event(self, Event("add_window", window=window))
+    
+    def close_window(self, window):
+        remove_child(self.board, window)
+        remove_listener(window, "window_move_start", self.on_window_move_start)
+        remove_listener(window, "window_focus", self.on_window_focus)
+        remove_listener(window, "maximize", self.on_window_maximize)
+        remove_listener(window, "close", self.on_window_close)
+        remove_listener(window, "window_resize_start", self.on_window_resize_start)
+        fire_event(self, Event("close_window", window=window))
     
     def on_window_move_start(self, evt):
         self.moving_window = evt.window
         self.move_start_event = evt
+    
+    def has_window(self, window):
+        return window in self.board.children
     
     def move_to_front(self, window):
         idx = self.board.children.index(window)
@@ -36,7 +49,6 @@ class WindowManager:
     
     def on_window_focus(self, evt):
         self.move_to_front(evt.window)
-        # render_all()
     
     def on_window_maximize(self, evt):
         window = evt.window
@@ -57,7 +69,6 @@ class WindowManager:
             window.abs_pos = (0, 0)
             window.abs_size = self.size
             window.maximized = True
-        # render_all()
     
     def on_window_resize_start(self, evt):
         window = evt.window
@@ -66,11 +77,7 @@ class WindowManager:
     
     def on_window_close(self, evt):
         window = evt.window
-        self.board.children.remove(window)
-        remove_listener(window, "window_move_start", self.on_window_move_start)
-        remove_listener(window, "window_focus", self.on_window_focus)
-        remove_listener(window, "close", self.on_window_close)
-        # render_all()
+        self.close_window(window)
     
     def on_mouseup(self, evt):
         if self.moving_window:
@@ -81,7 +88,6 @@ class WindowManager:
             window.abs_pos = (x + deltax, y + deltay)
             self.moving_window = None
             self.move_start_event = None
-            # render_all()
         if self.resizing_window:
             window = self.resizing_window
             deltax = 0
