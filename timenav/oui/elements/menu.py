@@ -59,15 +59,18 @@ class Menu:
         elif len(evt.key) == 1 and evt.key.isalpha():
             self.highlight_next_starting_with(evt.key)
     
+    def on_click(self, evt):
+        evt.stop_propagation()
+    
     def highlight_next_starting_with(self, char):
         for i in range(self.highlighted + 1, len(self.box.children)):
             item = self.box.children[i]
-            if item.label.text.lower().startswith(char.lower()):
+            if item.label.lower().startswith(char.lower()):
                 self.set_highlighted(i)
                 return
         for i in range(self.highlighted):
             item = self.box.children[i]
-            if item.label.text.lower().startswith(char.lower()):
+            if item.label.lower().startswith(char.lower()):
                 self.set_highlighted(i)
     
     def set_highlighted(self, value):

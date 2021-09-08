@@ -3,17 +3,18 @@ from oui import has_children, has_stretch_x, has_stretch_y, BoxConstraints, Regi
 
 class Board:
     def layout(self, constraints):
-        width = constraints.max_width
-        height = constraints.max_height
-        if width is None or height is None:
-            termsize = os.get_terminal_size()
-            width = width or termsize.columns
-            height = height or termsize.lines
+        width = 0
+        height = 0
         if has_children(self):
             for child in self.children:
                 cx, cy = self.pos_for_child(child)
-                constraints = self.constraints_for_child(child, cx, cy, width, height)
-                child.layout(constraints)
+                cconstraints = self.constraints_for_child(child, cx, cy, constraints)
+                child.layout(cconstraints)
+                cwidth, cheight = child.size
+                width = max(width, cwidth + cx)
+                height = max(height, cheight + cy)
+        width = constraints.constrain_width(width)
+        height = constraints.constrain_height(height)
         self.size = (width, height)
     
     def pos_for_child(self, child):
@@ -22,7 +23,7 @@ class Board:
         else:
             return (0, 0)
     
-    def constraints_for_child(self, child, cx, cy, width, height):
+    def constraints_for_child(self, child, cx, cy, pconstraints):
         constraints = BoxConstraints()
         if hasattr(child, "abs_size"):
             cwidth, cheight = child.abs_size
@@ -31,12 +32,12 @@ class Board:
             constraints.min_height = cheight
             constraints.max_height = cheight
         else:
-            if has_stretch_x(child):
-                constraints.min_width = width - cx
-                constraints.max_width = width - cx
-            if has_stretch_y(child):
-                constraints.min_height = height - cy
-                constraints.max_height = height - cy
+            if has_stretch_x(child) and pconstraints.max_width:
+                constraints.min_width = pconstraints.max_width - cx
+                constraints.max_width = pconstraints.max_width - cx
+            if has_stretch_y(child) and pconstraints.max_height:
+                constraints.min_height = pconstraints.max_height - cy
+                constraints.max_height = pconstraints.max_height - cy
         return constraints
     
     def paint(self):

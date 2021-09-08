@@ -1,16 +1,18 @@
 # Todo
 
-# bug: maximize is making window too big
+# still show line numbers even if scroll is away from them (fixed position)
+# clicking away should close a dropdown menu
 # show error message even when caught
 # see_call for gui
 # searching
-# data structure lifetime
-# switch files
+# object lifetime
+# switch files for code pane
 # hierarchical scroll bar for timeline
 # step out
 # reverse step out
 # fix border issue when part of window out of view
 
+# bug: maximize is making window too big (done)
 # view menu (done)
 # centralize code lines cache (done)
 # timeline 2: click to fast-forward / rewind (done)
@@ -113,7 +115,7 @@ class DebuggerGUI:
         add_listener(self.ui, "keypress", self.on_keypress)
         
         self.win_manager = WindowManager()
-        add_child(self.content, self.win_manager)
+        add_child(self.content, self.win_manager, stretch="both")
         self.init_code_pane()
         self.init_stack_pane()
         self.init_timeline()
@@ -123,44 +125,44 @@ class DebuggerGUI:
     def init_menu_bar(self):
         self.menu_bar = MenuBar(self.content)
         file_menu = Menu()
-        file_menu.add_item(MenuItem("Quit q ", self.exit))
+        file_menu.add_item(MenuItem("Quit q", self.exit))
         self.menu_bar.add_menu(Text(" File "), file_menu)
         nav_menu = Menu()
-        nav_menu.add_item(MenuItem("Step → ", self.step))
-        nav_menu.add_item(MenuItem("Reverse Step ← ", self.reverse_step))
-        nav_menu.add_item(MenuItem("Step Over ↓ ", self.step_over))
-        nav_menu.add_item(MenuItem("Reverse Step Over ↑ ", self.reverse_step_over))
+        nav_menu.add_item(MenuItem("Step →", self.step))
+        nav_menu.add_item(MenuItem("Reverse Step ←", self.reverse_step))
+        nav_menu.add_item(MenuItem("Step Over ↓", self.step_over))
+        nav_menu.add_item(MenuItem("Reverse Step Over ↑", self.reverse_step_over))
         self.menu_bar.add_menu(Text(" Navigation "), nav_menu)
         view_menu = Menu()
-        self.code_view_menu_item = MenuItem("✓ Code", self.toggle_code_view)
+        self.code_view_menu_item = MenuItem("✓ Code", self.show_code_win)
         view_menu.add_item(self.code_view_menu_item)
-        self.variables_view_menu_item = MenuItem("✓ Variables", self.variables_view_menu_item)
+        self.variables_view_menu_item = MenuItem("✓ Variables", self.show_stack_win)
         view_menu.add_item(self.variables_view_menu_item)
-        self.timeline_view_menu_item = MenuItem("✓ Timeline", self.timeline_view_menu_item)
+        self.timeline_view_menu_item = MenuItem("✓ Timeline", self.show_timeline_win)
         view_menu.add_item(self.timeline_view_menu_item)
         self.menu_bar.add_menu(Text(" View "), view_menu)
     
-    def toggle_code_view(self, evt):
+    def show_code_win(self, evt):
         if self.win_manager.has_window(self.code_win):
-            self.win_manager.close_window(self.code_win)
+            self.win_manager.move_to_front(self.code_win)
         else:
             self.win_manager.add_window(self.code_win,
                 abs_pos=(1, 1),
                 abs_size=(60, 25)
             )
-    
-    def variables_view_menu_item(self, evt):
+            
+    def show_stack_win(self, evt):
         if self.win_manager.has_window(self.stack_win):
-            self.win_manager.close_window(self.stack_win)
+            self.win_manager.move_to_front(self.stack_win)
         else:
             self.win_manager.add_window(self.stack_win,
                 abs_pos=(64, 4),
                 abs_size=(40, 20)
             )
     
-    def timeline_view_menu_item(self, evt):
+    def show_timeline_win(self, evt):
         if self.win_manager.has_window(self.timeline_win):
-            self.win_manager.close_window(self.timeline_win)
+            self.win_manager.move_to_front(self.timeline_win)
         else:
             self.win_manager.add_window(self.timeline_win,
                 abs_pos=(66, 1),
