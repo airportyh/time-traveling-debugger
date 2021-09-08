@@ -62,6 +62,36 @@ class Menu:
     def on_click(self, evt):
         evt.stop_propagation()
     
+    def on_wheelup(self, evt):
+        evt.stop_propagation()
+    
+    def on_wheeldown(self, evt):
+        evt.stop_propagation()
+    
+    def on_mouseup(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousedown(self, evt):
+        evt.stop_propagation()
+    
+    def on_rightmouseup(self, evt):
+        evt.stop_propagation()
+    
+    def on_rightmousedown(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousemove(self, evt):
+        evt.stop_propagation()
+    
+    def on_mousedrag(self, evt):
+        evt.stop_propagation()
+    
+    def on_altwheeldown(self, evt):
+        evt.stop_propagation()
+    
+    def on_altwheelup(self, evt):
+        evt.stop_propagation()
+    
     def highlight_next_starting_with(self, char):
         for i in range(self.highlighted + 1, len(self.box.children)):
             item = self.box.children[i]
