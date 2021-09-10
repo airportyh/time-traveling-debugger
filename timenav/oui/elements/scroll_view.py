@@ -63,9 +63,9 @@ class ScrollView:
         gutter_width = self.get_gutter_width()
         for i in range(height):
             line_no = offsety + i + 1
-            line_no_display = 
-                sstring(str(line_no).rjust(gutter_width - 1), [CYAN]) + 
-                sstring("│")
+            line_no_display = sstring(
+                str(line_no).rjust(gutter_width - 1), [CYAN]
+            ) + sstring("│")
             self.region.draw(0, i, line_no_display)
     
     def draw_scroll_bars(self):

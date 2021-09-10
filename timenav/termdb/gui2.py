@@ -2,7 +2,6 @@
 
 # timeline: show file name maybe after a function call / before each indent
 # ensure line viewable seems not to work when line is last line?
-# still show line numbers even if scroll is away from them (fixed position)
 # clicking away should close a dropdown menu
 # switch files for code pane
 # see_call for gui
@@ -14,6 +13,7 @@
 # reverse step out
 # fix border issue when part of window out of view
 
+# still show line numbers even if scroll is away from them (fixed position) (done)
 # bug: maximize is making window too big (done)
 # view menu (done)
 # centralize code lines cache (done)
