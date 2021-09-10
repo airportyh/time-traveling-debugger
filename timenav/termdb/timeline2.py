@@ -23,16 +23,22 @@ class Timeline2:
         yoffset = self.region.offset[1] - self.region.origin[1]
         width = self.size[0]
         height = self.region.size[1]
-        gutter_width = len(str(self.last_snapshot_id))
         prev_snapshot = None
         next_snapshot = None
+        last_filename = None
         for i in range(height):
             snapshot_id = i + yoffset + 1
             snapshot = self.cache.get_snapshot(snapshot_id)
-            line = self.get_line_for_snapshot(snapshot).lstrip()
-            lineno_display = str(snapshot_id).rjust(gutter_width) + " "
+            if snapshot is None:
+                break
+            code_file, line = self.get_file_and_line_for_snapshot(snapshot)
+            line = line.lstrip()
+            filename = code_file["file_path"].split("/")[-1]
             prefix = self.calculate_prefix(snapshot)
-            line_display = lineno_display + prefix + line
+            line_display = prefix + line
+            if last_filename != filename:
+                line_display += " (%s)" % filename
+            last_filename = filename
             if self.current_snapshot_id == snapshot_id:
                 line_display = sstring(line_display.ljust(width), [REVERSED])
             self.region.draw(-xoffset, yoffset + i, line_display)
@@ -58,15 +64,13 @@ class Timeline2:
             prefix = ""
         return prefix
         
-    def get_line_for_snapshot(self, snapshot):
-        code_lines = self.get_code_lines_for_snapshot(snapshot)
-        return code_lines[snapshot["line_no"] - 1]
-    
-    def get_code_lines_for_snapshot(self, snapshot):
+    def get_file_and_line_for_snapshot(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+        code_file = self.cache.get_code_file(fun_code["code_file_id"])
         code_lines = self.cache.get_code_lines(fun_code["code_file_id"])
-        return code_lines
+        code_line = code_lines[snapshot["line_no"] - 1]
+        return code_file, code_line
     
     def get_fun_call_level(self, fun_call_id):
         if fun_call_id in self.fun_call_level_map:

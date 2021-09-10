@@ -3,8 +3,9 @@ from ..region import Region
 from sstring import *
 
 class ScrollView:
-    def __init__(self, content):
+    def __init__(self, content, line_numbers=False):
         self.content = content
+        self.line_numbers = line_numbers
         self.offset = (0, 0)
         add_child(self, self.content)
         self.line_to_ensure_viewable = None
@@ -15,32 +16,57 @@ class ScrollView:
         cwidth, cheight = self.content.size
         width = constraints.constrain_width(cwidth)
         height = constraints.constrain_height(cheight)
-        hscroll = width < cwidth
+        gutter_width = self.get_gutter_width()
+            
+        hscroll = width - gutter_width < cwidth
         vscroll = height < cheight
         if hscroll:
-            # we need one more column for the horizontal scroll bar
+            # we need one more row for the horizontal scroll bar
             height = constraints.constrain_height(cheight + 1)
         if vscroll:
-            width = constraints.constrain_width(width + 1)
+            # we need one more column for the vertical scroll bar
+            # plus the width for the gutter
+            width = constraints.constrain_width(width + 1 + gutter_width)
         self.size = (width, height)
         if self.line_to_ensure_viewable is not None:
             self.do_ensure_line_viewable(self.line_to_ensure_viewable)
             self.line_to_ensure_viewable = None
             
-    
     def paint(self):
         width, height = self.size
         viewport_width = self.get_viewport_width()
         viewport_height = self.get_viewport_height()
         content_width, content_height = self.content.size
         offsetx, offsety = self.offset
-        
+    
+        if self.line_numbers:
+            self.draw_gutter()
+    
         self.draw_scroll_bars()
         
-        content_origin = (-offsetx, -offsety)
+        coriginx = -offsetx
+        coriginy = -offsety
+        
+        gutter_width = self.get_gutter_width()
+        if self.line_numbers:
+            coriginx += gutter_width
+        content_origin = (coriginx, coriginy)
         content_size = (viewport_width + offsetx, viewport_height + offsety)
-        self.content.region = self.region.child_region(content_origin, content_size)
+        content_offset = (gutter_width, 0)
+        self.content.region = self.region.child_region(
+            content_origin, content_size, content_offset)
         self.content.paint()
+        
+    def draw_gutter(self):
+        width, height = self.size
+        offsetx, offsety = self.offset
+        gutter_width = self.get_gutter_width()
+        for i in range(height):
+            line_no = offsety + i + 1
+            line_no_display = 
+                sstring(str(line_no).rjust(gutter_width - 1), [CYAN]) + 
+                sstring("│")
+            self.region.draw(0, i, line_no_display)
     
     def draw_scroll_bars(self):
         region = self.region
@@ -83,6 +109,8 @@ class ScrollView:
     def get_viewport_width(self):
         viewport_width, viewport_height = self.size
         content_width, content_height = self.content.size
+        if self.line_numbers:
+            viewport_width -= self.get_gutter_width()
         if viewport_height < content_height:
             viewport_width -= 1
         return viewport_width
@@ -93,6 +121,12 @@ class ScrollView:
         if viewport_width < content_width:
             viewport_height -= 1
         return viewport_height
+    
+    def get_gutter_width(self):
+        if not self.line_numbers:
+            return 0
+        content_height = self.content.size[1]
+        return len(str(content_height)) + 1
     
     def on_wheelup(self, evt):
         offsetx, offsety = self.offset

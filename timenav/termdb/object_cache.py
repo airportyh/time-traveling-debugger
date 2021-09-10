@@ -50,7 +50,7 @@ class ObjectCache:
         if key in self.cache:
             return self.cache[key]
         code_file = self.get_code_file(code_file_id)
-        code_lines = code_file["source"].split("\n") if code_file["source"] else None
+        code_lines = code_file["source"].split("\n") if code_file["source"] else [""]
         self.cache[key] = code_lines
         return code_lines
 

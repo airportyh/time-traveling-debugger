@@ -6,8 +6,8 @@ def fib(n):
     a = fib(n - 1)
     b = fib(n - 2)
     answer = a + b
-    # table[n] = answer
+    table[n] = answer
     return answer
 
 # 1 1 2 3 5 8
-print(fib(18))
+print(fib(9))

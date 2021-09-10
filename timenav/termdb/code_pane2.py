@@ -26,8 +26,7 @@ class CodePane2:
         for i, line in enumerate(display_lines):
             line = line.replace("\t", "    ")
             lineno = yoffset + i + 1
-            lineno_display = str(lineno).rjust(gutter_width) + ' '
-            line_display = (lineno_display + line).ljust(width)
+            line_display = line.ljust(width)
             if self.current_line == lineno:
                 line_display = sstring(line_display, [REVERSED])
             self.region.draw(-xoffset, yoffset + i, line_display)

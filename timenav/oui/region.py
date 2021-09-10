@@ -44,7 +44,7 @@ class Region:
         rect_height = screen_stop_y - recty
         self.buffer.clear_rect(rectx, recty, rect_width, rect_height)
         
-    def child_region(self, child_origin, child_size):
+    def child_region(self, child_origin, child_size, child_offset=(0, 0)):
         originx, originy = self.origin
         offsetx, offsety = self.offset
         width, height = self.size
@@ -52,8 +52,9 @@ class Region:
         coriginx += originx
         coriginy += originy
         cwidth, cheight = child_size
-        coffsetx = max(offsetx, coriginx)
-        coffsety = max(offsety, coriginy)
+        coffsetx, coffsety = child_offset
+        coffsetx = max(offsetx + coffsetx, coriginx)
+        coffsety = max(offsety + coffsety, coriginy)
         cwidth = min(
             coriginx + cwidth,
             offsetx + width

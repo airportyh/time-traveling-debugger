@@ -1,12 +1,14 @@
 # Todo
 
+# timeline: show file name maybe after a function call / before each indent
+# ensure line viewable seems not to work when line is last line?
 # still show line numbers even if scroll is away from them (fixed position)
 # clicking away should close a dropdown menu
-# show error message even when caught
-# see_call for gui
-# searching
-# object lifetime
 # switch files for code pane
+# see_call for gui
+# object lifetime
+# show error message even when caught
+# searching
 # hierarchical scroll bar for timeline
 # step out
 # reverse step out
@@ -171,7 +173,7 @@ class DebuggerGUI:
     
     def init_code_pane(self):
         self.code_pane = CodePane2(self.cache)
-        self.code_pane_scroll_view = ScrollView(self.code_pane)
+        self.code_pane_scroll_view = ScrollView(self.code_pane, line_numbers=True)
         add_listener(self.code_pane, "click", self.on_code_pane_click)
         add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
         self.code_win = Window("Code", self.code_pane_scroll_view)
@@ -191,11 +193,11 @@ class DebuggerGUI:
     def init_timeline(self):
         self.timeline = Timeline2(self.last_snapshot["id"], self.cache)
         add_listener(self.timeline, "click", self.on_timeline_click)
-        self.timeline_scroll_view = ScrollView(self.timeline)
+        self.timeline_scroll_view = ScrollView(self.timeline, line_numbers=True)
         self.timeline_win = Window("Timeline", self.timeline_scroll_view)
         self.win_manager.add_window(self.timeline_win,
-            abs_pos=(66, 1),
-            abs_size=(40, 20)
+            abs_pos=(40, 1),
+            abs_size=(60, 20)
         )
     
     def goto_snapshot(self, snapshot):
@@ -287,6 +289,8 @@ class DebuggerGUI:
             self.step(evt)
         elif evt.key == "e":
             self.goto_snapshot(self.last_snapshot)
+        elif evt.key == "s":
+            self.goto_to_first_snapshot()
         elif evt.key == "q":
             quit()
             
@@ -303,6 +307,10 @@ class DebuggerGUI:
     def on_code_pane_right_click(self, evt):
         line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
         next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
+        self.goto_snapshot(next)
+    
+    def goto_to_first_snapshot(self):
+        next = self.cache.get_snapshot(1)
         self.goto_snapshot(next)
     
     def get_file_name(self, filepath):
