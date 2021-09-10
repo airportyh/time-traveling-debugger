@@ -1,9 +1,8 @@
 # Todo
 
-# timeline: show file name maybe after a function call / before each indent
-# ensure line viewable seems not to work when line is last line?
-# clicking away should close a dropdown menu
 # switch files for code pane
+# timeline: show file name maybe after a function call / before each indent
+# clicking away should close a dropdown menu
 # see_call for gui
 # object lifetime
 # show error message even when caught
@@ -13,6 +12,7 @@
 # reverse step out
 # fix border issue when part of window out of view
 
+# ensure line viewable seems not to work when line is last line? (done)
 # still show line numbers even if scroll is away from them (fixed position) (done)
 # bug: maximize is making window too big (done)
 # view menu (done)

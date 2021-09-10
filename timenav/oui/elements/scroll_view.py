@@ -164,16 +164,16 @@ class ScrollView:
         
     def do_ensure_line_viewable(self, line):
         xoffset, yoffset = self.offset
-        width, height = self.size
+        vheight = self.get_viewport_height()
         content_width, content_height = self.content.size
-        if line > yoffset + height - 1:
+        if line > yoffset + vheight - 1:
             yoffset = min(
-                content_height - height,
-                line - height // 2
+                content_height - vheight,
+                line - vheight // 2
             )
             self.offset = (xoffset, yoffset)
         if line < (yoffset + 1):
-            yoffset = max(0, line - height // 2)
+            yoffset = max(0, line - vheight // 2)
             self.offset = (xoffset, yoffset)
     
     def get_content_line_for_y(self, y):
