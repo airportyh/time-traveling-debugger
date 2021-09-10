@@ -16,6 +16,7 @@ class CodeLinesPane:
     
     def paint(self):
         file_lines = self.cache.get_code_lines(self.code_file["id"])
+        lines_hit = self.cache.get_code_file_lines_hit(self.code_file["id"])
         if file_lines is None:
             return
         width, height = self.size
@@ -27,8 +28,12 @@ class CodeLinesPane:
             line = line.replace("\t", "    ")
             lineno = yoffset + i + 1
             line_display = line.ljust(width)
+            styles = []
             if self.current_line == lineno:
-                line_display = sstring(line_display, [REVERSED])
+                styles.append(BG_WHITE)
+            if lineno in lines_hit:
+                styles.append(GREEN)
+            line_display = sstring(line_display, styles)
             self.region.draw(-xoffset, yoffset + i, line_display)
     
     def set_location(self, code_file, line_no):

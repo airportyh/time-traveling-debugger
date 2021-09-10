@@ -187,6 +187,8 @@ def fire_mouse_event(element, event, level=0):
     handled = False
     if contains(element, event.x, event.y):
         if hasattr(element, "children"):
+            # make a copy so it's possible for handlers to mutate
+            # the original children list
             children = list(element.children)
             for child in reversed(children):
                 result = fire_mouse_event(child, event, level + 1)

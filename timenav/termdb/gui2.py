@@ -1,11 +1,13 @@
 # Todo
 
-# indicator to show a line has been reached or not
+# variables panel display sets
+# clicking away should close a dropdown menu (do we need capture phase?)
 # maybe have window manager share the same board with the top level
 # object lifetime
+
+# indicator to show a line has been reached or not (done)
 # show all snapshots that hit a line of code
 # timeline: show file name maybe after a function call / before each indent
-# clicking away should close a dropdown menu
 # see_call for gui
 # show error message even when caught
 # searching

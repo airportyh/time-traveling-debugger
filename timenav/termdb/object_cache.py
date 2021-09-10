@@ -53,6 +53,28 @@ class ObjectCache:
         code_lines = code_file["source"].split("\n") if code_file["source"] else [""]
         self.cache[key] = code_lines
         return code_lines
+    
+    def get_code_file_lines_hit(self, code_file_id):
+        key = "CodeFile/%d/lines_hit" % code_file_id
+        if key in self.cache:
+            return self.cache[key]
+        sql = """
+            select 
+            	distinct Snapshot.line_no
+            from Snapshot
+            inner join FunCall
+            	on Snapshot.fun_call_id = FunCall.id
+            inner join FunCode
+            	on FunCall.fun_code_id = FunCode.id
+            where
+            	FunCode.code_file_id = ?
+        """
+        results = self.cursor.execute(sql, (code_file_id,)).fetchall()
+        line_nos = set()
+        for result in results:
+            line_nos.add(result["line_no"])
+        self.cache[key] = line_nos
+        return line_nos
 
     def get_members(self, container_id):
         key = "Member/%d" % container_id
