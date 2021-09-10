@@ -1,14 +1,16 @@
 from oui import add_child, repaint, add_listener, fire_event, remove_child, Event
 from .vbox import VBox
 from .border import Border
+from .scroll_view import ScrollView
 from .menu_item import MenuItem
 import time
 
 class Menu:
     def __init__(self):
-        self.box = VBox(same_item_width=True)
+        self.vbox = VBox(same_item_width=True)
+        self.scroll_view = ScrollView(self.vbox)
         self.highlighted = 0
-        self.popup = Border(self.box, color="36")
+        self.popup = Border(self.scroll_view, color="36")
         add_child(self, self.popup)
     
     def layout(self, constraints):
@@ -20,9 +22,9 @@ class Menu:
         self.popup.paint()
     
     def add_item(self, menu_item):
-        add_child(self.box, menu_item)
+        add_child(self.vbox, menu_item)
         add_listener(menu_item, "select", self.on_menu_item_select)
-        if self.highlighted == len(self.box.children) - 1:
+        if self.highlighted == len(self.vbox.children) - 1:
             menu_item.set_highlighted(True)
         
     def on_menu_item_select(self, evt):
@@ -40,12 +42,12 @@ class Menu:
         # we need focus...
         if evt.key == "DOWN_ARROW":
             self.set_highlighted(self.highlighted + 1)
-            if self.highlighted >= len(self.box.children):
+            if self.highlighted >= len(self.vbox.children):
                 self.set_highlighted(0)
         elif evt.key == "UP_ARROW":
             self.set_highlighted(self.highlighted - 1)
             if self.highlighted < 0:
-                self.set_highlighted(len(self.box.children) - 1)
+                self.set_highlighted(len(self.vbox.children) - 1)
             repaint(self)
         elif evt.key in ["RIGHT_ARROW", "\t"]:
             fire_event(self, Event("next", menu=self))
@@ -54,7 +56,7 @@ class Menu:
         elif evt.key in ["ESC"]:
             self.close()
         elif evt.key == "\r":
-            item = self.box.children[self.highlighted]
+            item = self.vbox.children[self.highlighted]
             item.select()
         elif len(evt.key) == 1 and evt.key.isalpha():
             self.highlight_next_starting_with(evt.key)
@@ -93,18 +95,18 @@ class Menu:
         evt.stop_propagation()
     
     def highlight_next_starting_with(self, char):
-        for i in range(self.highlighted + 1, len(self.box.children)):
-            item = self.box.children[i]
+        for i in range(self.highlighted + 1, len(self.vbox.children)):
+            item = self.vbox.children[i]
             if item.label.lower().startswith(char.lower()):
                 self.set_highlighted(i)
                 return
         for i in range(self.highlighted):
-            item = self.box.children[i]
+            item = self.vbox.children[i]
             if item.label.lower().startswith(char.lower()):
                 self.set_highlighted(i)
     
     def set_highlighted(self, value):
-        children = self.box.children
+        children = self.vbox.children
         if isinstance(value, MenuItem):
             value = children.index(value)
         if value >= len(children):

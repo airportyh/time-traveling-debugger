@@ -304,10 +304,12 @@ def render_all():
         buf.draw_to_screen()
 
 def defer_layout(parent, child, constraints):
+    assert parent.children[0] == child
     child.layout(constraints)
     parent.size = child.size
 
 def defer_paint(parent, child):
+    assert parent.children[0] == child
     child.region = parent.region
     child.paint()
 

@@ -5,11 +5,12 @@ from sstring import *
 from events import Event
 
 class MenuItem:
-    def __init__(self, label, on_select=None):
+    def __init__(self, label, on_select=None, key=None):
         self.label = label
         self.highlighted = False
         if on_select:
             self.on_select = on_select
+        self.key = key
     
     def set_highlighted(self, value):
         self.highlighted = value

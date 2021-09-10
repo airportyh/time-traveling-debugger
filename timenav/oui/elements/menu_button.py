@@ -1,5 +1,5 @@
 from oui import add_child, get_root, focus, remove_child, fire_event, add_listener
-from oui import repaint
+from oui import repaint, BoxConstraints
 from events import Event
 from sstring import BG_BRIGHT_CYAN
 
@@ -30,8 +30,14 @@ class MenuButton:
     def open(self):
         x, y = self.region.offset
         pos = (x, y)
+        cwidth, cheight = self.container.size
+        self.menu.layout(BoxConstraints(
+            max_width = cwidth - x,
+            max_height = cheight - y
+        ))
+        size = self.menu.size
         self.menu.set_highlighted(0)
-        add_child(self.container, self.menu, abs_pos=pos)
+        add_child(self.container, self.menu, abs_pos=pos, abs_size=size)
         focus(self.menu)
         self.is_open = True
         self.label.set_styles([BG_BRIGHT_CYAN])

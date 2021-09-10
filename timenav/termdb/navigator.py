@@ -204,3 +204,9 @@ class Navigator:
         """
         result = self.cursor.execute(sql, (fun_call_id, )).fetchone()
         return result
+    
+    def get_code_files_lite(self):
+        sql = """
+            select id, file_path from CodeFile
+        """
+        return self.cursor.execute(sql).fetchall()

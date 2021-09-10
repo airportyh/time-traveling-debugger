@@ -1,6 +1,6 @@
 from sstring import *
 
-class CodePane:
+class CodeLinesPane:
     def __init__(self, cache):
         self.cache = cache
         self.code_file = None

@@ -1,6 +1,7 @@
 # Todo
 
-# switch files for code pane
+# indicator to show a line has been reached or not
+# maybe have window manager share the same board with the top level
 # object lifetime
 # show all snapshots that hit a line of code
 # timeline: show file name maybe after a function call / before each indent
@@ -13,6 +14,7 @@
 # reverse step out
 # fix border issue when part of window out of view
 
+# switch files for code pane (done)
 # ensure line viewable seems not to work when line is last line? (done)
 # still show line numbers even if scroll is away from them (fixed position) (done)
 # bug: maximize is making window too big (done)
@@ -173,11 +175,9 @@ class DebuggerGUI:
             )
     
     def init_code_pane(self):
-        self.code_pane = CodePane(self.cache)
-        self.code_pane_scroll_view = ScrollView(self.code_pane, line_numbers=True)
-        add_listener(self.code_pane, "click", self.on_code_pane_click)
-        add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
-        self.code_win = Window("Code", self.code_pane_scroll_view)
+        self.code_pane = CodePane(self.cache, self.nav, self.content)
+        self.code_win = Window("Code", self.code_pane)
+        add_listener(self.code_pane, "goto_snapshot", self.on_goto_snapshot)
         self.win_manager.add_window(self.code_win,
             abs_pos=(1, 1),
             abs_size=(60, 25)
@@ -201,6 +201,9 @@ class DebuggerGUI:
             abs_size=(60, 20)
         )
     
+    def on_goto_snapshot(self, event):
+        self.goto_snapshot(event.snapshot)
+    
     def goto_snapshot(self, snapshot):
         if snapshot is None:
             return
@@ -217,10 +220,7 @@ class DebuggerGUI:
         self.update_term_file()
     
     def update_code_pane(self):
-        snapshot = self.snapshot
-        self.code_win.set_title(self.get_file_name(self.code_file["file_path"]))
-        self.code_pane.set_location(self.code_file, snapshot["line_no"])
-        self.code_pane_scroll_view.ensure_line_viewable(snapshot["line_no"])
+        self.code_pane.set_snapshot(self.snapshot)
         
     def update_timeline(self):
         self.timeline.set_current_snapshot_id(self.snapshot["id"])
@@ -294,20 +294,10 @@ class DebuggerGUI:
             self.goto_to_first_snapshot()
         elif evt.key == "q":
             quit()
-            
-    def on_code_pane_click(self, evt):
-        line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
-        next = self.nav.fast_forward(self.code_file["id"], line_no, self.snapshot["id"])
-        self.goto_snapshot(next)
     
     def on_timeline_click(self, evt):
         snapshot_id = self.timeline_scroll_view.get_content_line_for_y(evt.y)
         next = self.cache.get_snapshot(snapshot_id)
-        self.goto_snapshot(next)
-        
-    def on_code_pane_right_click(self, evt):
-        line_no = self.code_pane_scroll_view.get_content_line_for_y(evt.y)
-        next = self.nav.rewind(self.code_file["id"], line_no, self.snapshot["id"])
         self.goto_snapshot(next)
     
     def goto_to_first_snapshot(self):
