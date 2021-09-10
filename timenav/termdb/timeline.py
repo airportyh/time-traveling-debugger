@@ -1,7 +1,7 @@
 from sstring import *
 from logger import log
 
-class Timeline2:
+class Timeline:
     def __init__(self, last_snapshot_id, cache):
         self.last_snapshot_id = last_snapshot_id
         self.cache = cache

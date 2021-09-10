@@ -1,10 +1,11 @@
 # Todo
 
 # switch files for code pane
+# object lifetime
+# show all snapshots that hit a line of code
 # timeline: show file name maybe after a function call / before each indent
 # clicking away should close a dropdown menu
 # see_call for gui
-# object lifetime
 # show error message even when caught
 # searching
 # hierarchical scroll bar for timeline
@@ -65,9 +66,9 @@ from .navigator import Navigator
 from .object_cache import ObjectCache
 from .value_cache import ValueCache
 import sqlite3
-from .code_pane2 import CodePane2
+from .code_pane import CodePane
 from .stack_pane import StackPane
-from .timeline2 import Timeline2
+from .timeline import Timeline
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -172,7 +173,7 @@ class DebuggerGUI:
             )
     
     def init_code_pane(self):
-        self.code_pane = CodePane2(self.cache)
+        self.code_pane = CodePane(self.cache)
         self.code_pane_scroll_view = ScrollView(self.code_pane, line_numbers=True)
         add_listener(self.code_pane, "click", self.on_code_pane_click)
         add_listener(self.code_pane, "rightmousedown", self.on_code_pane_right_click)
@@ -191,7 +192,7 @@ class DebuggerGUI:
         )
     
     def init_timeline(self):
-        self.timeline = Timeline2(self.last_snapshot["id"], self.cache)
+        self.timeline = Timeline(self.last_snapshot["id"], self.cache)
         add_listener(self.timeline, "click", self.on_timeline_click)
         self.timeline_scroll_view = ScrollView(self.timeline, line_numbers=True)
         self.timeline_win = Window("Timeline", self.timeline_scroll_view)
