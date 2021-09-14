@@ -28,8 +28,8 @@ class MenuButton:
         fire_event(self, Event("close", menu_button=self, menu=self.menu))
     
     def open(self):
-        x, y = self.region.offset
-        pos = (x, y)
+        pos = self.region.offset
+        x, y = pos
         cwidth, cheight = self.container.size
         self.menu.layout(BoxConstraints(
             max_width = cwidth - x,
@@ -41,7 +41,6 @@ class MenuButton:
         focus(self.menu)
         self.is_open = True
         self.label.set_styles([BG_BRIGHT_CYAN])
-        repaint(self.label)
         fire_event(self, Event("open", menu_button=self, menu=self.menu))
         
     def close(self):

@@ -1,4 +1,4 @@
-from oui import add_child, repaint, add_listener, fire_event, remove_child, Event
+from oui import add_child, repaint, add_listener, fire_event, remove_child, Event, remove_children
 from .vbox import VBox
 from .border import Border
 from .scroll_view import ScrollView
@@ -19,7 +19,12 @@ class Menu:
     
     def paint(self):
         self.popup.region = self.region
+        width, height = self.size
+        self.region.clear_rect(0, 0, width, height)
         self.popup.paint()
+    
+    def remove_items(self):
+        remove_children(self.vbox)
     
     def add_item(self, menu_item):
         add_child(self.vbox, menu_item)

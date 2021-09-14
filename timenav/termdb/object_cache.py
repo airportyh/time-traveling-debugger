@@ -91,3 +91,14 @@ class ObjectCache:
         error = self.cursor.execute("select * from Error where snapshot_id = ?", (snapshot_id,)).fetchone()
         self.cache[key] = error
         return error
+        
+    def get_code_files_lite(self):
+        key = "CodeFiles/lite"
+        if key in self.cache:
+            return self.cache[key]
+        sql = """
+            select id, file_path from CodeFile
+        """
+        result = self.cursor.execute(sql).fetchall()
+        self.cache[key] = result
+        return result

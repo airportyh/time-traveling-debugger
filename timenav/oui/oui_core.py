@@ -96,7 +96,7 @@ def add_child(parent, child, index=None, stretch=None, abs_pos=None, abs_size=No
         parent.children.insert(index, child)
     # render_all()
 
-def clear_children(parent):
+def remove_children(parent):
     if not hasattr(parent, "children"):
         return
     for child in parent.children:
@@ -111,9 +111,16 @@ def remove_child(parent, child):
     assert child not in parent.children
     assert len(parent.children) == clen - 1
     child.parent = None
-    if child == focused_element:
+    clear_focused_element_if_descendant(child)
+
+def clear_focused_element_if_descendant(element):
+    global focused_element
+    if focused_element == element:
         focused_element = None
-    # render_all()
+        return
+    if hasattr(element, "children"):
+        for child in element.children:
+            clear_focused_element_if_descendant(child)
 
 def add_listener(element, event_name, handler, front=False):
     method_name = "on_%s" % event_name
@@ -175,6 +182,9 @@ def has_size(element):
 
 def has_children(element):
     return hasattr(element, "children") and len(element.children) > 0
+
+def has_child(parent, child):
+    return has_children(parent) and child in parent.children
 
 def contains(element, x, y):
     if hasattr(element, "region"):

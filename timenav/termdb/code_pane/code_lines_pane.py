@@ -29,10 +29,14 @@ class CodeLinesPane:
             lineno = yoffset + i + 1
             line_display = line.ljust(width)
             styles = []
-            if self.current_line == lineno:
-                styles.append(BG_WHITE)
             if lineno in lines_hit:
-                styles.append(GREEN)
+                if self.current_line == lineno:
+                    styles.append(BG_WHITE)
+                    styles.append(BLACK)
+                else:
+                    styles.append(WHITE)
+            else:
+                styles.append(RED)
             line_display = sstring(line_display, styles)
             self.region.draw(-xoffset, yoffset + i, line_display)
     

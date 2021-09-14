@@ -24,7 +24,7 @@ class CodePane:
     
     def init_menu(self):
         self.file_menu = Menu()
-        code_files = self.nav.get_code_files_lite()
+        code_files = self.cache.get_code_files_lite()
         for code_file in sorted(code_files, key=self.get_filename):
             filename = self.get_filename(code_file)
             self.file_menu.add_item(MenuItem(filename, self.on_file_selected, key=code_file["id"]))

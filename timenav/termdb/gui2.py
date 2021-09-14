@@ -1,10 +1,22 @@
 # Todo
 
-# variables panel display sets
+# add scoring to fuzzy_contain
+# search within a file
+# allow you to just type debug to debug the last run program
+# smart launch bar
+#   * jump to file
+#   * jump to function or method
+#   * jump to line in current file
+#   * jump to snapshot
 # clicking away should close a dropdown menu (do we need capture phase?)
+# clicking away should close search bar
+# scroll view y offset can be negative (rare bug)
+# back button (shortcut)
+# variables panel display sets (fix sets in recreate)
 # maybe have window manager share the same board with the top level
 # object lifetime
 
+# switching a file in code pane is slow (done)
 # indicator to show a line has been reached or not (done)
 # show all snapshots that hit a line of code
 # timeline: show file name maybe after a function call / before each indent
@@ -73,6 +85,7 @@ import sqlite3
 from .code_pane import CodePane
 from .stack_pane import StackPane
 from .timeline import Timeline
+from .search_bar import SearchBar
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -294,6 +307,8 @@ class DebuggerGUI:
             self.goto_snapshot(self.last_snapshot)
         elif evt.key == "s":
             self.goto_to_first_snapshot()
+        elif evt.key == "p":
+            self.open_search_bar()
         elif evt.key == "q":
             quit()
     
@@ -301,6 +316,31 @@ class DebuggerGUI:
         snapshot_id = self.timeline_scroll_view.get_content_line_for_y(evt.y)
         next = self.cache.get_snapshot(snapshot_id)
         self.goto_snapshot(next)
+    
+    def open_search_bar(self):
+        self.search_bar = SearchBar(self.cache, self.content)
+        cwidth, cheight = self.content.size
+        self.search_bar.layout(BoxConstraints(
+            min_width = cwidth,
+            max_width = cwidth,
+            max_height = cheight
+        ))
+        swidth, sheight = self.search_bar.size
+        x = (cwidth - swidth) // 2
+        y = min(0, (cheight - sheight) // 2)
+        add_child(self.content, self.search_bar,
+            abs_pos=(x, y),
+            abs_size=(swidth, sheight)
+        )
+        focus_next_element_from(self.search_bar, None)
+        add_listener(self.search_bar, "select", self.on_file_selected)
+        
+    def on_file_selected(self, evt):
+        code_file_id = evt.value
+        code_file = self.cache.get_code_file(code_file_id)
+        self.code_pane.set_location(code_file, None)
+        remove_child(self.content, self.search_bar)
+        self.search_bar = None
     
     def goto_to_first_snapshot(self):
         next = self.cache.get_snapshot(1)

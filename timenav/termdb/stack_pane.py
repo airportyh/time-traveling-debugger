@@ -1,5 +1,5 @@
 from oui import defer_layout, defer_paint, BoxConstraints
-from oui import add_child, clear_children, add_listener, add_listener_once, fire_event, Event
+from oui import add_child, add_listener, add_listener_once, fire_event, Event
 from oui.elements import Text, VBox, ScrollView, Tree
 from logger import log
 
@@ -116,6 +116,8 @@ class StackPane:
                 self.fetch_object(tree, value, version)
             elif type_name in ["list", "tuple"]:
                 self.fetch_list_or_tuple(tree, value, version)
+            elif type_name == "set":
+                self.fetch_set(tree, value, version)
         return fetch
     
     def fetch_dict(self, tree, value, version):
@@ -167,6 +169,22 @@ class StackPane:
                 add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
             add_child(tree, sub_tree)
     
+    def fetch_set(self, tree, value, version):
+        members = self.cache.get_members(value["id"])
+        for member in members:
+            key = member["key"]
+            if member["key_type"] == 0: #ref
+                key_value = self.value_cache.get_value(key, version)
+                expandable = self.is_value_expandable(key_value, version)
+                key_display = self.render_value(key_value, version)
+            else:
+                key_display = repr(key)
+                expandable = False
+            sub_tree = Tree(key_display, expandable=expandable)
+            if expandable:
+                add_listener_once(sub_tree, "expand", self.fetch_children(key_value, version))
+            add_child(tree, sub_tree)
+    
     def render_value(self, value, version):
         if value is None:
             return "None"
@@ -192,6 +210,8 @@ class StackPane:
             return "[…]"
         elif tp == "tuple":
             return "(…)"
+        elif tp == "set":
+            return "set(…)"
         elif tp == "object":
             data = value["value"].split(" ")
             if len(data) == 1:

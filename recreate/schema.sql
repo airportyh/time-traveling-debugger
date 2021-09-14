@@ -59,6 +59,8 @@ create table FunCode (
         references CodeFile(id)
 );
 
+create index FunCode_fk_code_file_id_Idx on FunCode (code_file_id);
+
 create table FunCall (
     id integer primary key,
     fun_code_id integer,
@@ -75,6 +77,7 @@ create table FunCall (
 );
 
 create index FunCall_fk_parent_id_Idx on FunCall (parent_id);
+create index FunCall_fk_fun_code_id_Idx on FunCall (fun_code_id);
 
 create table Error (
     id integer primary key,

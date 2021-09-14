@@ -79,7 +79,6 @@ class TextField:
             self.cursor += 1
             if self.cursor - self.offset >= width:
                 self.offset = (self.cursor + 1) - width
-        repaint(self)
         
     def on_click(self, evt):
         focus(self)
@@ -96,7 +95,6 @@ class TextField:
             self.cursor = len(self.text)
         if self.offset > self.cursor:
             self.offset = self.cursor
-        repaint(self)
         
     def __repr__(self):
         return "<TextField %d>" % id(self)
