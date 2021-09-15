@@ -72,6 +72,21 @@ class SeeCalls:
                 the_dict[key_key] = value
         return the_dict
     
+    def display_tuple(self, value, version):
+        display_values = []
+        members = self.cache.get_members(value["id"])
+        for member in members:
+            idx = member["key"]
+            value_id = member["value"]
+            value = self.value_cache.get_value(value_id, version)
+            if value is None or value["type_name"] == "<deleted>":
+                continue
+            
+            value_display = self.display_value(value, version)
+            display_values.append(value_display)
+        
+        return "(%s)" % ", ".join(map(repr, display_values))
+    
     def display_value(self, value, version):
         type_name = value["type_name"]
         value_value = None
@@ -86,6 +101,7 @@ class SeeCalls:
         elif type_name == "list":
             value_value = "[…]"
         elif type_name == "tuple":
+            return self.display_tuple(value, version)
             value_value = "(…)"
         elif type_name == "set":
             value_value = "set(…)"

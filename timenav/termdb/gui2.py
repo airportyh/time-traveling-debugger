@@ -1,6 +1,7 @@
 # Todo
 
-# add scoring to fuzzy_contain
+# variables, if amount of used space dramatically reduces, the offset should be adjusted so the user
+#    can see stuff (scroll_view in general?)
 # search within a file
 # allow you to just type debug to debug the last run program
 # smart launch bar
@@ -16,6 +17,7 @@
 # maybe have window manager share the same board with the top level
 # object lifetime
 
+# add scoring to fuzzy_contain (done)
 # switching a file in code pane is slow (done)
 # indicator to show a line has been reached or not (done)
 # show all snapshots that hit a line of code
@@ -158,7 +160,7 @@ class DebuggerGUI:
         view_menu.add_item(self.code_view_menu_item)
         self.variables_view_menu_item = MenuItem("✓ Variables", self.show_stack_win)
         view_menu.add_item(self.variables_view_menu_item)
-        self.timeline_view_menu_item = MenuItem("✓ Timeline", self.show_timeline_win)
+        self.timeline_view_menu_item = MenuItem("  Timeline", self.show_timeline_win)
         view_menu.add_item(self.timeline_view_menu_item)
         self.menu_bar.add_menu(Text(" View "), view_menu)
     
@@ -167,7 +169,7 @@ class DebuggerGUI:
             self.win_manager.move_to_front(self.code_win)
         else:
             self.win_manager.add_window(self.code_win,
-                abs_pos=(1, 1),
+                abs_pos=(0, 0),
                 abs_size=(60, 25)
             )
             
@@ -176,8 +178,8 @@ class DebuggerGUI:
             self.win_manager.move_to_front(self.stack_win)
         else:
             self.win_manager.add_window(self.stack_win,
-                abs_pos=(64, 4),
-                abs_size=(40, 20)
+                abs_pos=(61, 0),
+                abs_size=(40, 25)
             )
     
     def show_timeline_win(self, evt):
@@ -194,7 +196,7 @@ class DebuggerGUI:
         self.code_win = Window("Code", self.code_pane)
         add_listener(self.code_pane, "goto_snapshot", self.on_goto_snapshot)
         self.win_manager.add_window(self.code_win,
-            abs_pos=(1, 1),
+            abs_pos=(0, 0),
             abs_size=(60, 25)
         )
     
@@ -202,8 +204,8 @@ class DebuggerGUI:
         self.stack_pane = StackPane(self.cache, self.value_cache)
         self.stack_win = Window("Variables", self.stack_pane)
         self.win_manager.add_window(self.stack_win,
-            abs_pos=(64, 4),
-            abs_size=(40, 20)
+            abs_pos=(60, 0),
+            abs_size=(40, 25)
         )
     
     def init_timeline(self):
@@ -211,10 +213,10 @@ class DebuggerGUI:
         add_listener(self.timeline, "click", self.on_timeline_click)
         self.timeline_scroll_view = ScrollView(self.timeline, line_numbers=True)
         self.timeline_win = Window("Timeline", self.timeline_scroll_view)
-        self.win_manager.add_window(self.timeline_win,
-            abs_pos=(40, 1),
-            abs_size=(60, 20)
-        )
+        # self.win_manager.add_window(self.timeline_win,
+        #     abs_pos=(40, 1),
+        #     abs_size=(60, 20)
+        # )
     
     def on_goto_snapshot(self, event):
         self.goto_snapshot(event.snapshot)
