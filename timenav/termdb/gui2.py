@@ -1,22 +1,23 @@
 # Todo
 
+# back button (shortcut)
+# object lifetime
+
+# jump to line in current file
 # variables, if amount of used space dramatically reduces, the offset should be adjusted so the user
 #    can see stuff (scroll_view in general?)
 # search within a file
 # allow you to just type debug to debug the last run program
-# smart launch bar
-#   * jump to file
-#   * jump to function or method
-#   * jump to line in current file
-#   * jump to snapshot
 # clicking away should close a dropdown menu (do we need capture phase?)
 # clicking away should close search bar
 # scroll view y offset can be negative (rare bug)
-# back button (shortcut)
 # variables panel display sets (fix sets in recreate)
 # maybe have window manager share the same board with the top level
-# object lifetime
 
+# smart launch bar
+#   * jump to file (done)
+#   * jump to function or method (done)
+#   * jump to snapshot (done)
 # add scoring to fuzzy_contain (done)
 # switching a file in code pane is slow (done)
 # indicator to show a line has been reached or not (done)
@@ -88,6 +89,8 @@ from .code_pane import CodePane
 from .stack_pane import StackPane
 from .timeline import Timeline
 from .search_bar import SearchBar
+from .function_search_bar import FunctionSearchBar
+from .goto_step_bar import GotoStepBar
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -311,6 +314,10 @@ class DebuggerGUI:
             self.goto_to_first_snapshot()
         elif evt.key == "p":
             self.open_search_bar()
+        elif evt.key == "f":
+            self.open_function_search_bar()
+        elif evt.key == "g":
+            self.open_goto_step_bar()
         elif evt.key == "q":
             quit()
     
@@ -343,6 +350,57 @@ class DebuggerGUI:
         self.code_pane.set_location(code_file, None)
         remove_child(self.content, self.search_bar)
         self.search_bar = None
+        
+    def open_function_search_bar(self):
+        self.function_search_bar = FunctionSearchBar(self.cache, self.content)
+        cwidth, cheight = self.content.size
+        self.function_search_bar.layout(BoxConstraints(
+            min_width = cwidth,
+            max_width = cwidth,
+            max_height = cheight
+        ))
+        swidth, sheight = self.function_search_bar.size
+        x = (cwidth - swidth) // 2
+        y = min(0, (cheight - sheight) // 2)
+        add_child(self.content, self.function_search_bar,
+            abs_pos=(x, y),
+            abs_size=(swidth, sheight)
+        )
+        focus_next_element_from(self.function_search_bar, None)
+        add_listener(self.function_search_bar, "select", self.on_function_selected)
+    
+    def on_function_selected(self, evt):
+        fun_code_id = evt.value
+        fun_code = self.cache.get_fun_code(fun_code_id)
+        code_file = self.cache.get_code_file(fun_code["code_file_id"])
+        self.code_pane.set_location(code_file, fun_code["line_no"])
+        remove_child(self.content, self.function_search_bar)
+        self.function_search_bar = None
+    
+    def open_goto_step_bar(self):
+        self.goto_step_bar = GotoStepBar()
+        cwidth, cheight = self.content.size
+        self.goto_step_bar.layout(BoxConstraints(
+            min_width = cwidth,
+            max_width = cwidth,
+            max_height = cheight
+        ))
+        bwidth, bheight = self.goto_step_bar.size
+        x = (cwidth - bwidth) // 2
+        y = min(0, (cheight - bheight) // 2)
+        add_child(self.content, self.goto_step_bar,
+            abs_pos=(x, y),
+            abs_size=(bwidth, bheight)
+        )
+        focus_next_element_from(self.goto_step_bar, None)
+        add_listener(self.goto_step_bar, "select", self.on_goto_step_selected)
+    
+    def on_goto_step_selected(self, evt):
+        step_num = evt.value
+        next = self.cache.get_snapshot(step_num)
+        self.goto_snapshot(next)
+        remove_child(self.content, self.goto_step_bar)
+        self.goto_step_bar = None
     
     def goto_to_first_snapshot(self):
         next = self.cache.get_snapshot(1)

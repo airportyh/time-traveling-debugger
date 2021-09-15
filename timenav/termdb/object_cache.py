@@ -102,3 +102,14 @@ class ObjectCache:
         result = self.cursor.execute(sql).fetchall()
         self.cache[key] = result
         return result
+        
+    def get_fun_codes_lite(self):
+        key = "FunCodes/lite"
+        if key in self.cache:
+            return self.cache[key]
+        sql = """
+            select id, name, code_file_id from FunCode
+        """
+        result = self.cursor.execute(sql).fetchall()
+        self.cache[key] = result
+        return result
