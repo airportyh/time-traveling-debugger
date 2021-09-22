@@ -1,4 +1,4 @@
-from oui import add_child, get_root, focus, remove_child, fire_event, add_listener
+from oui import add_child, get_root, focus, remove_child, fire_event, add_listener, add_listener_once
 from oui import repaint, BoxConstraints
 from events import Event
 from sstring import BG_BRIGHT_CYAN
@@ -42,11 +42,13 @@ class MenuButton:
         self.is_open = True
         self.label.set_styles([BG_BRIGHT_CYAN])
         fire_event(self, Event("open", menu_button=self, menu=self.menu))
+        add_listener_once(get_root(), "click", lambda e: self.menu.close())
         
     def close(self):
         self.menu.close()
         
     def on_click(self, evt):
+        evt.stop_propagation()
         if not self.is_open:
             self.open()
         else:

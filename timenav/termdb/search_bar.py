@@ -1,6 +1,6 @@
 from oui import add_child, defer_layout, defer_paint, remove_children, has_child
 from oui import add_listener, remove_listener, remove_child, BoxConstraints, fire_event
-from oui import Event
+from oui import Event, remove_child, get_root, add_listener_once
 from oui.elements import TextField, Border, MenuItem, Menu, VBox, Text
 from fuzzy_match import *
 from sstring import *
@@ -19,6 +19,7 @@ class SearchBar:
         self.border = Border(self.vbox)
         add_child(self, self.border)
         self.file_menu = Menu()
+        add_listener_once(get_root(), "click", lambda e: self.close())
     
     def on_keypress(self, evt):
         if evt.key == "ESC":
@@ -38,7 +39,7 @@ class SearchBar:
                 matches = []
                 for file in self.files:
                     filename = self.get_filename(file)
-                    if fuzzy_match_simple(filename, query):
+                    if fuzzy_contain(filename, query):
                         result = fuzzy_match_5(filename, query)
                         matches.append((file, result))
             else:
@@ -88,5 +89,6 @@ class SearchBar:
         self.region.clear_rect(0, 0, width, height)
         defer_paint(self, self.border)
     
-    
-        
+    def close(self):
+        if has_child(self.parent, self):
+            remove_child(self.parent, self)

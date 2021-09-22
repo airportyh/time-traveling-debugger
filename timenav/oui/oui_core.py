@@ -195,22 +195,26 @@ def contains(element, x, y):
 def fire_mouse_event(element, event, level=0):
     indent = "  " * level
     handled = False
-    if contains(element, event.x, event.y):
-        if hasattr(element, "children"):
-            # make a copy so it's possible for handlers to mutate
-            # the original children list
-            children = list(element.children)
-            for child in reversed(children):
-                result = fire_mouse_event(child, event, level + 1)
-                handled = handled or result
-                if event.propagation_stopped:
-                    return handled
+    if not contains(element, event.x, event.y):
+        return False, False
 
-        result = fire_event(element, event)
-        handled = handled or result
-        if event.propagation_stopped:
-            return handled
-    return handled
+    if hasattr(element, "children"):
+        # make a copy so it's possible for handlers to mutate
+        # the original children list
+        children = list(element.children)
+        for child in reversed(children):
+            result, child_contains = fire_mouse_event(child, event, level + 1)
+            handled = handled or result
+            if event.propagation_stopped:
+                return handled, True
+            if child_contains:
+                # the first found child that contains the mouse position
+                # claims the event and the rest of the children don't get it
+                break
+
+    result = fire_event(element, event)
+    handled = handled or result
+    return handled, True
 
 def fire_event(element, event, bubble=False):
     def _fire_event(element, event):
@@ -367,7 +371,7 @@ def run(root_element, global_key_handler=None):
                     result = fire_event(focused_element or root, event)
                     handled = handled or result
                 else: # assume these are mouse/wheel events, dispatch it starting at root
-                    result = fire_mouse_event(root_element, event)
+                    result, _ = fire_mouse_event(root_element, event)
                     handled = handled or result
             if handled:
                 render_all()

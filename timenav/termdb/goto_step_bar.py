@@ -1,4 +1,5 @@
 from oui import add_child, defer_layout, defer_paint, add_listener, remove_child, Event, fire_event
+from oui import remove_child, get_root, add_listener_once
 from oui.elements import VBox, Text, TextField, Border
 
 class GotoStepBar:
@@ -11,6 +12,7 @@ class GotoStepBar:
         add_child(self.vbox, self.text_field, stretch="x")
         self.border = Border(self.vbox)
         add_child(self, self.border)
+        add_listener_once(get_root(), "click", lambda e: self.close())
     
     def on_keypress(self, evt):
         if evt.key == "ESC":
@@ -32,3 +34,6 @@ class GotoStepBar:
         width, height = self.size
         self.region.clear_rect(0, 0, width, height)
         defer_paint(self, self.border)
+    
+    def close(self):
+        remove_child(self.parent, self)

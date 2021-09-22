@@ -88,6 +88,7 @@ class WindowManager:
             window.abs_pos = (x + deltax, y + deltay)
             self.moving_window = None
             self.move_start_event = None
+            evt.stop_propagation()
         if self.resizing_window:
             window = self.resizing_window
             deltax = 0
@@ -102,7 +103,7 @@ class WindowManager:
             window.abs_size = (new_wwidth, new_wheight)
             self.resizing_window = None
             self.resize_start_event = None
-        evt.stop_propagation()
+            evt.stop_propagation()
     
     def layout(self, constraints):
         self.board.layout(constraints)

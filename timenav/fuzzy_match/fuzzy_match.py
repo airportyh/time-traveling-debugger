@@ -5,7 +5,7 @@
 # test on "tion io ion"
 # implement non-recursively
 # play with scoring
-def fuzzy_match_simple(text, query):
+def fuzzy_contain(text, query):
     if len(query) > len(text):
         return False
     
@@ -219,6 +219,12 @@ def _fuzzy_match_5(t_idx, q_idx, text, query, table):
         # continuation
         curr_score2, consec, best2, pos2 = _fuzzy_match_5(t_idx + 1, q_idx + 1, text, query, table)
     curr_score1, _, best1, pos1 = _fuzzy_match_5(t_idx + 1, q_idx, text, query, table)
+    curr_score3, _, best3, pos3 = _fuzzy_match_5(t_idx, q_idx + 1, text, query, table)
+    best = best1
+    pos = pos1
+    if best3 > best:
+        best = best3
+        pos = pos3
     if score > 0:
         if consec > 0:
             score += 1
@@ -226,17 +232,15 @@ def _fuzzy_match_5(t_idx, q_idx, text, query, table):
         consec += 1
         if curr_score2 > best2:
             best2 = curr_score2
-        best = best1
         
-        if best2 >= best1:
+        if best2 >= best:
             best = best2
-            next_pos = [t_idx, *pos2]
-        else:
-            next_pos = pos1
+            pos = [t_idx, *pos2]
             
-        result = (curr_score2, consec, best, next_pos)
+        result = (curr_score2, consec, best, pos)
     else:
-        result = (0, 0, best1, pos1)
+        
+        result = (0, 0, best, pos)
     table[key] = result
     return result
     
@@ -244,12 +248,78 @@ def fuzzy_match_5(text, query):
     result = _fuzzy_match_5(0, 0, text, query, {})
     return result[2], result[3]
     
-# def fuzzy_match_6(text, query):
-#     table = []
-#     for i in range(len(text) + 1):
-#         table.append([None] * (len(query) + 1))
-#     print(table)
+def fuzzy_match_6(text, query):
+    table = []
+    for i in range(len(query) + 1):
+        table.append([None] * (len(text) + 1))
     
+    table[len(query)][len(text)] = (0, 0, 0)
+    
+    for i, char1 in enumerate(text):
+        table[len(query)][i] = (0, 0, 0)
+    
+    for j, char2 in enumerate(query):
+        table[j][len(text)] = (0, 0, 0)
+        
+    # print_table(table, text, query)
+    
+    for i in range(len(text) - 1, -1, -1):
+        text_char = text[i]
+        for j in range(len(query) - 1, -1, -1):
+            query_char = query[j]
+            
+            if text_char.lower() == query_char.lower():
+                score = 1
+                if i == 0:
+                    # bonus for matching the first character
+                    score = 5
+                elif text_char.isalpha():
+                    prev_char = text[i - 1]
+                    if not prev_char.isalpha():
+                        # first new word
+                        score = 4
+                    elif text_char.isupper() and not prev_char.isupper():
+                        # first new word in camelCase
+                        score = 3
+            else:
+                score = 0
+            
+            if score > 0:
+                curr_score2, consec, best2 = table[j+1][i+1]
+
+            curr_score1, _, best1 = table[j][i+1]
+            curr_score3, _, best3 = table[j+1][i]
+            
+            if score > 0:
+                if consec > 0:
+                    score += 1
+                curr_score2 += score
+                consec += 1
+                    
+                table[j][i] = (curr_score2, consec, max(curr_score2, best1, best2, best3))
+            else:
+                table[j][i] = (0, 0, max(best1, best3))
+    
+    
+    print_table(table, text, query)
+            
+    
+def print_table(table, str1, str2):
+    print("Table:")
+    for char in str1:
+        print("\t%s" % char, end="")
+    print()
+    for i, row in enumerate(table):
+        if i < len(str2):
+            print("%s" % str2[i], end="")
+        else:
+            print("", end="")
+        for cell in row:
+            if cell:
+                print("\t%s" % ",".join(map(str, cell)), end="")
+            else:
+                print("\t", end="")
+        print()
     
     
     

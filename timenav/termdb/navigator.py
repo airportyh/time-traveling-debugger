@@ -22,8 +22,6 @@ class Navigator:
         return snapshot
 
     def step_over(self, snapshot):
-        log("step_over")
-        
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
         step1 = """
             select *
@@ -204,4 +202,27 @@ class Navigator:
         """
         result = self.cursor.execute(sql, (fun_call_id, )).fetchone()
         return result
+    
+    def get_hits(self, code_file_id, line_no):
+        sql = """
+            select Snapshot.*
+            from Snapshot
+            inner join FunCall on Snapshot.fun_call_id = FunCall.id
+            inner join FunCode on FunCall.fun_code_id = FunCode.id
+            where FunCode.code_file_id = ?
+            and Snapshot.line_no = ?
+        """
+        return self.cursor.execute(sql, (code_file_id, line_no)).fetchall()
 	
+    def get_fun_call_starts(self, fun_code_id):
+        sql = """
+            select
+            	Snapshot.*
+            from Snapshot
+            inner join FunCall on Snapshot.start_fun_call_id = FunCall.id
+            inner join FunCode on FunCode.id = FunCall.fun_code_id
+            where
+            	FunCode.id = ?
+        """
+        return self.cursor.execute(sql, (fun_code_id,)).fetchall()
+        

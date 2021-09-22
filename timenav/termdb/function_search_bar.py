@@ -1,6 +1,6 @@
 from oui import add_child, defer_layout, defer_paint, remove_children, has_child
 from oui import add_listener, remove_listener, remove_child, BoxConstraints, fire_event
-from oui import Event
+from oui import Event, remove_child, get_root, add_listener_once
 from oui.elements import TextField, Border, MenuItem, Menu, VBox, Text
 from fuzzy_match import *
 from sstring import *
@@ -19,6 +19,7 @@ class FunctionSearchBar:
         self.border = Border(self.vbox)
         add_child(self, self.border)
         self.menu = Menu()
+        add_listener_once(get_root(), "click", lambda e: self.close())
     
     def on_keypress(self, evt):
         if evt.key == "ESC":
@@ -91,4 +92,7 @@ class FunctionSearchBar:
     
     def get_filename(self, code_file):
         return code_file["file_path"].split("/")[-1]
+    
+    def close(self):
+        remove_child(self.parent, self)
         

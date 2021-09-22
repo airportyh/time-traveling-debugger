@@ -33,8 +33,6 @@ class CodeLinesPane:
                 if self.current_line == lineno:
                     styles.append(BG_WHITE)
                     styles.append(BLACK)
-                else:
-                    styles.append(WHITE)
             else:
                 styles.append(RED)
             line_display = sstring(line_display, styles)

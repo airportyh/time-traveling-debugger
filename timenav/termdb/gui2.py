@@ -1,19 +1,32 @@
 # Todo
 
+# when switching active window, it tries to focus on
+#   an element within the window
+# indicate which window is active
+# hits: show the state of vars on the line in question
+# show all callers for a function
+# filter through the search results for hits, callers, etc
+# show all updates to a variable
+# show all updates to an object (object lifetime)
+# show call stack context (another panel or in the top bar on code pane)
+# zoom-based timeline
 # back button (shortcut)
 # object lifetime
+# maybe have window manager share the same board with the top level
+# re-usable choice bar? (quick-pick)
+# code improvement: make heavy use of event bubbling???
 
+# show all hits for a line in a file (done)
 # jump to line in current file
-# variables, if amount of used space dramatically reduces, the offset should be adjusted so the user
-#    can see stuff (scroll_view in general?)
 # search within a file
 # allow you to just type debug to debug the last run program
-# clicking away should close a dropdown menu (do we need capture phase?)
-# clicking away should close search bar
-# scroll view y offset can be negative (rare bug)
-# variables panel display sets (fix sets in recreate)
-# maybe have window manager share the same board with the top level
+# bug: scroll view y offset can be negative (rare bug)
+# bug: variables, if amount of used space dramatically reduces, the offset should be adjusted so the user
+#    can see stuff (scroll_view in general?)
+# variables panel display set objects broken (fix sets in recreate)
 
+# clicking away should close a dropdown menu (done)
+# clicking away should close search bar (done)
 # smart launch bar
 #   * jump to file (done)
 #   * jump to function or method (done)
@@ -91,6 +104,8 @@ from .timeline import Timeline
 from .search_bar import SearchBar
 from .function_search_bar import FunctionSearchBar
 from .goto_step_bar import GotoStepBar
+from .hits_pane import HitsPane
+from .code_file import get_filename
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -103,6 +118,7 @@ class DebuggerGUI:
         self.last_snapshot = self.nav.get_last_snapshot()
         
         self.init_ui()
+        self.hits_panes = []
         self.term_file = open("term.txt", "w")
         
         self.init_errors()
@@ -138,6 +154,7 @@ class DebuggerGUI:
         add_child(self.ui, self.content, stretch="both")
         add_child(self.ui, self.status_bar, stretch="x")
         add_listener(self.ui, "keypress", self.on_keypress)
+        add_listener(self.ui, "goto_snapshot", self.on_goto_snapshot)
         
         self.win_manager = WindowManager()
         add_child(self.content, self.win_manager, stretch="both")
@@ -197,7 +214,7 @@ class DebuggerGUI:
     def init_code_pane(self):
         self.code_pane = CodePane(self.cache, self.nav, self.content)
         self.code_win = Window("Code", self.code_pane)
-        add_listener(self.code_pane, "goto_snapshot", self.on_goto_snapshot)
+        add_listener(self.code_pane, "hits_request", self.on_hits_request)
         self.win_manager.add_window(self.code_win,
             abs_pos=(0, 0),
             abs_size=(60, 25)
@@ -222,7 +239,9 @@ class DebuggerGUI:
         # )
     
     def on_goto_snapshot(self, event):
-        self.goto_snapshot(event.snapshot)
+        if event.snapshot_id:
+            snapshot = self.cache.get_snapshot(event.snapshot_id)
+            self.goto_snapshot(snapshot)
     
     def goto_snapshot(self, snapshot):
         if snapshot is None:
@@ -238,6 +257,22 @@ class DebuggerGUI:
         self.update_stack_pane()
         self.update_timeline()
         self.update_term_file()
+        self.update_hits_panes()
+    
+    def on_hits_request(self, evt):
+        code_file = evt.code_file
+        line_no = evt.line_no
+        hits_pane = HitsPane(code_file, line_no, self.cache, self.nav, self.cursor, self.value_cache)
+        hits_pane.set_current_snapshot_id(self.snapshot["id"])
+        title = "Hits - %s:%d" % (get_filename(code_file), line_no)
+        hits_win = Window(title, hits_pane)
+        add_listener_once(hits_win, "close", lambda e: self.hits_panes.remove(hits_pane))
+        self.hits_panes.append(hits_pane)
+        self.win_manager.add_window(hits_win,
+            abs_pos=(60, 0),
+            abs_size=(40, 25)
+        )
+        focus(hits_pane)
     
     def update_code_pane(self):
         self.code_pane.set_snapshot(self.snapshot)
@@ -259,6 +294,10 @@ class DebuggerGUI:
         if self.error:
             message += ", Error: %s" % self.error["message"]
         self.status_bar.set_text(sstring(message, [REVERSED]))
+    
+    def update_hits_panes(self):
+        for hits_pane in self.hits_panes:
+            hits_pane.set_current_snapshot_id(self.snapshot["id"])
     
     def start(self):
         run(self.ui)

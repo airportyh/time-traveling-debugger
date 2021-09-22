@@ -1,4 +1,4 @@
-from oui import add_child, repaint, add_listener, fire_event, remove_child, Event, remove_children
+from oui import add_child, repaint, add_listener, fire_event, remove_child, Event, remove_children, get_root
 from .vbox import VBox
 from .border import Border
 from .scroll_view import ScrollView
@@ -37,6 +37,8 @@ class Menu:
         self.close()
         
     def close(self):
+        if self.parent is None:
+            return
         remove_child(self.parent, self)
         fire_event(self, Event("close", element=self))
             
@@ -66,39 +68,6 @@ class Menu:
         elif len(evt.key) == 1 and evt.key.isalpha():
             self.highlight_next_starting_with(evt.key)
     
-    def on_click(self, evt):
-        evt.stop_propagation()
-    
-    def on_wheelup(self, evt):
-        evt.stop_propagation()
-    
-    def on_wheeldown(self, evt):
-        evt.stop_propagation()
-    
-    def on_mouseup(self, evt):
-        evt.stop_propagation()
-    
-    def on_mousedown(self, evt):
-        evt.stop_propagation()
-    
-    def on_rightmouseup(self, evt):
-        evt.stop_propagation()
-    
-    def on_rightmousedown(self, evt):
-        evt.stop_propagation()
-    
-    def on_mousemove(self, evt):
-        evt.stop_propagation()
-    
-    def on_mousedrag(self, evt):
-        evt.stop_propagation()
-    
-    def on_altwheeldown(self, evt):
-        evt.stop_propagation()
-    
-    def on_altwheelup(self, evt):
-        evt.stop_propagation()
-    
     def highlight_next_starting_with(self, char):
         for i in range(self.highlighted + 1, len(self.vbox.children)):
             item = self.vbox.children[i]
@@ -122,3 +91,6 @@ class Menu:
         
     def want_focus(self):
         return True
+    
+    def on_click(self, evt):
+        evt.stop_propagation()
