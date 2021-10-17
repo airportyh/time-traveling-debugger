@@ -128,7 +128,7 @@ class DebuggerGUI:
         
         if begin_snapshot_id is None:
             if self.first_error:
-                begin_snapshot_id = self.first_error["snapshot_id"]
+                snapshot = self.cache.get_snapshot(self.first_error["snapshot_id"])
             else:
                 snapshot = self.cache.get_snapshot(1)
                 fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

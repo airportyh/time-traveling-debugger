@@ -1589,7 +1589,10 @@ int processExceptionUncaught(unsigned int i) {
     unsigned long addr;
     CALL(parseULongArg(&i, &addr));
     unsigned long errorValueId;
-    CALL(getValueIdSoft(addr, &errorValueId));
+    if (getValueIdSoft(addr, &errorValueId) != 0) {
+        errorValueId = 0;
+        clear_error();
+    }
 
     char *message;
     int messageLen;
