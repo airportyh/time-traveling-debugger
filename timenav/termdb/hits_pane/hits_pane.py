@@ -1,13 +1,31 @@
 # Todo
 # cursor/selection and keyboard navigation
 # display some inlined variable values
+# add Nones to distinguishing features
 
-from oui import fire_event, Event
+from oui import fire_event, Event, add_child, defer_layout, defer_paint
+from oui.elements import ScrollView
 from sstring import *
 import random
 from termdb.code_file import get_filename
+from see_code2.group_attributes import *
 
 class HitsPane:
+    def __init__(self, code_file, line_no, cache, nav, cursor, value_cache):
+        self.hits_list = HitsList(code_file, line_no, cache, nav, cursor, value_cache)
+        self.scroll_view = ScrollView(self.hits_list)
+        add_child(self, self.scroll_view)
+    
+    def layout(self, constraints):
+        defer_layout(self, self.scroll_view, constraints)
+    
+    def paint(self):
+        defer_paint(self, self.scroll_view)
+    
+    def set_current_snapshot_id(self, snapshot_id):
+        self.hits_list.set_current_snapshot_id(snapshot_id)
+
+class HitsList:
     def __init__(self, code_file, line_no, cache, nav, cursor, value_cache):
         self.code_file = code_file
         self.line_no = line_no
@@ -23,42 +41,35 @@ class HitsPane:
         self.line = code_lines[self.line_no - 1].strip()
         
         self.snapshots = self.nav.get_hits(self.code_file["id"], self.line_no)
-        refs = find_refs(self.line)
-        attrs_to_use = self.get_distinguishing_attributes(self.snapshots, refs)
+        refs = find_vars(self.line)
+        self.vars = list(map(lambda ref: ref[0], refs))
+        self.attrs_to_use = self.get_distinguishing_attributes(self.snapshots)
     
-    def get_distinguishing_attributes(self, snapshots, refs):
-        # print("get_distinguishing_attributes")
+    def get_distinguishing_attributes(self, snapshots):
         scores = {}
         for i in range(10):
             idx = random.randint(0, len(snapshots) - 1)
             
             snapshot = snapshots[idx]
-            # print("idx: %d, snapshot: %d" % (idx, snapshot["id"]))
             fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
             locals_id = fun_call["locals"]
-            
-            # locals = self.get_dict(locals_id, snapshot["id"])
-            # print("Step %d:" % snapshot["id"])
             
             fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
             
             attrs = {}
             
-            if fun_call["parent_id"]:
-                parent_call = self.cache.get_fun_call(fun_call["parent_id"])
-                parent_fun_code = self.cache.get_fun_code(parent_call["fun_code_id"])
-                parent_code_file = self.cache.get_code_file(parent_fun_code["code_file_id"])
-                code_filename = get_filename(parent_code_file)
-                attrs["context"] = "%s(…):%s" % (parent_fun_code["name"], code_filename)
+            # if fun_call["parent_id"]:
+            #     parent_call = self.cache.get_fun_call(fun_call["parent_id"])
+            #     parent_fun_code = self.cache.get_fun_code(parent_call["fun_code_id"])
+            #     parent_code_file = self.cache.get_code_file(parent_fun_code["code_file_id"])
+            #     code_filename = get_filename(parent_code_file)
+            #     attrs["context"] = "%s(…):%s" % (parent_fun_code["name"], code_filename)
             
-            vars_values = self.value_fetcher.get_values_by_varnames(locals_id, map(lambda r: r[0], refs), snapshot["id"])
+            vars_values = self.value_fetcher.get_values_by_varnames(locals_id, self.vars, snapshot["id"])
             
             attrs["variables"] = {}
             
-            # print("vars_values", vars_values)
             for var_value in vars_values:
-                # display = self.display_value(var_value["value"], snapshot["id"], 1)
-                # print("%s = %s" % (var_value["key"], display))
                 attrs["variables"][var_value["key"]] = self.value_fetcher.fetch_value(var_value["value"], snapshot["id"], 2)
             score_attribute_uniqueness(attrs, scores, "")
 
@@ -78,18 +89,64 @@ class HitsPane:
         width, height = self.size
         xoffset = self.region.offset[0] - self.region.origin[0]
         yoffset = self.region.offset[1] - self.region.origin[1]
-        display_hits = self.snapshots[yoffset:yoffset + height]
-        for i, hit in enumerate(display_hits):
-            line_display = "%d" % hit["id"]
-            if self.current_snapshot_id == hit["id"]:
+        snapshots = self.snapshots[yoffset:yoffset + height]
+        for i, snapshot in enumerate(snapshots):
+            line_display = sstring("%d: " % snapshot["id"])
+            
+            fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+            fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+            locals_id = fun_call["locals"]
+            
+            var_values = self.value_fetcher.get_values_by_varnames(locals_id, self.vars, snapshot["id"])
+            
+            attrs = {}
+            for var_value in var_values:
+                attrs[var_value["key"]] = self.value_fetcher.fetch_value(var_value["value"], snapshot["id"], 2)
+            selected_attrs = {}
+            for key in self.attrs_to_use:
+                key_parts = key.split(".")[2:]
+                curr_attrs = attrs
+                for part in key_parts:
+                    if curr_attrs and part in curr_attrs:
+                        curr_attrs = curr_attrs[part]
+                    else:
+                        curr_attrs = None
+                selected_attrs[key] = curr_attrs
+            
+            display_grouped = group_attributes(selected_attrs)
+            
+            for key, value in display_grouped.items():
+                line_display += self.display_value(key, value)
+            
+            if self.current_snapshot_id == snapshot["id"]:
                 line_display = sstring(line_display.ljust(width), [REVERSED])
             self.region.draw(-xoffset, yoffset + i, line_display)
+            
+    def display_value(self, key, value):
+         if isinstance(value, dict):
+             return sstring("%s = " % key) + sstring(self.display_dict(value), [YELLOW])
+         else:
+             return sstring("%s = " % key) + sstring(value, [YELLOW])
+
+    def display_dict(self, a_dict):
+        retval = "{"
+        if "__class__" in a_dict:
+            type_name = a_dict["__class__"]
+            retval = "<%s>{" % type_name
+        num_items = len(a_dict)
+        for i, (key, value) in enumerate(a_dict.items()):
+            if key == "__class__":
+                continue
+            retval += "%s: %r" % (key, value)
+            retval += ", "
+        retval += "…}"
+        return retval
     
     def on_click(self, evt):
         yoffset = self.region.offset[1] - self.region.origin[1]
         x, y = self.region.relative_pos(evt.x, evt.y)
         i = yoffset + y
-        hit = self.hits[i]
+        hit = self.snapshots[i]
         fire_event(self, Event("goto_snapshot", snapshot_id=hit["id"]), bubble=True)
         
     def set_current_snapshot_id(self, snapshot_id):
@@ -98,12 +155,12 @@ class HitsPane:
     def on_keypress(self, evt):
         if evt.key == "UP_ARROW":
             # optimization: can use binary search
-            for hit in reversed(self.hits):
+            for hit in reversed(self.snapshots):
                 if hit["id"] < self.current_snapshot_id:
                     fire_event(self, Event("goto_snapshot", snapshot_id=hit["id"]), bubble=True)
                     break
         elif evt.key == "DOWN_ARROW":
-            for hit in self.hits:
+            for hit in self.snapshots:
                 if hit["id"] > self.current_snapshot_id:
                     fire_event(self, Event("goto_snapshot", snapshot_id=hit["id"]), bubble=True)
                     break
@@ -119,7 +176,7 @@ keywords = set([
     "while", "assert", "del", "global", "not", "with",
     "async", "elif", "if", "or", "yield"
 ])
-def find_refs(source):
+def find_vars(source):
     results = []
     i = 0
     while i < len(source):
@@ -320,3 +377,26 @@ class ValueFetcher:
                 value = value_dict[member["value"]]
                 the_dict[key_key] = value
         return the_dict
+
+class MysteryValue:
+    def __init__(self, display):
+        self.display = display
+    
+    def __repr__(self):
+        return self.display
+
+    def __hash__(self):
+        return hash(self.display)
+    
+    def __eq__(self, other):
+        return isinstance(other, MysteryValue) and self.display == other.display
+
+class UnknownValue:
+    def __repr__(self):
+        return "Unknown"
+    
+    def __hash__(self):
+        return 1
+    
+    def __eq__(self, other):
+        return isinstance(other, UnknownValue)

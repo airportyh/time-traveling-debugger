@@ -34,7 +34,7 @@ class SeeCode3:
     
     def connect(self):
         self.conn = sqlite3.connect(self.filename)
-        self.conn.row_factory = dict_factory
+        self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
         
     def fetch_types(self):
@@ -47,7 +47,6 @@ class SeeCode3:
         return self.type_dict[type_id]
     
     def run(self):
-        
         fun_code = self.cache.get_fun_code(self.fun_code_id)
         num_args = fun_code["num_args"]
         args = fun_code["local_varnames"].split(",")[:num_args]
@@ -55,6 +54,7 @@ class SeeCode3:
         print("Function name: %s" % fun_code["name"])
         
         snapshots = self.nav.get_fun_call_starts(self.fun_code_id)
+        
         if len(snapshots) == 0:
             print("No snapshots found")
             return

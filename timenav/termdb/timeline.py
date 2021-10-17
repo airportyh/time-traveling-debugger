@@ -26,6 +26,7 @@ class Timeline:
         prev_snapshot = None
         next_snapshot = None
         last_filename = None
+        prev_level = -1
         for i in range(height):
             snapshot_id = i + yoffset + 1
             snapshot = self.cache.get_snapshot(snapshot_id)
@@ -34,13 +35,16 @@ class Timeline:
             code_file, line = self.get_file_and_line_for_snapshot(snapshot)
             line = line.lstrip()
             filename = code_file["file_path"].split("/")[-1]
-            prefix = self.calculate_prefix(snapshot)
+            prefix, level = self.calculate_prefix(snapshot)
+            if prev_level > level:
+                line = "⏎ " + line
             line_display = prefix + line
             if last_filename != filename:
                 line_display += " (%s)" % filename
             last_filename = filename
             if self.current_snapshot_id == snapshot_id:
                 line_display = sstring(line_display.ljust(width), [REVERSED])
+            prev_level = level
             self.region.draw(-xoffset, yoffset + i, line_display)
     
     def calculate_prefix(self, snapshot):
@@ -62,7 +66,7 @@ class Timeline:
                     prefix = " ┃  " * (level - 1) + " ┣━ "
         else:
             prefix = ""
-        return prefix
+        return prefix, level
         
     def get_file_and_line_for_snapshot(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

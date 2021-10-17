@@ -20,6 +20,14 @@ class Navigator:
         snapshot = self.cursor.execute("select * from Snapshot order by id desc limit 1").fetchone()
         self.cache.put_snapshot(snapshot)
         return snapshot
+    
+    def get_next_snapshot_not_in_fun_call(self, fun_call_id):
+        snapshot = self.cursor.execute(
+            "select * from Snapshot where fun_call_id != ? limit 1", 
+            (fun_call_id,)
+        ).fetchone()
+        self.cache.put_snapshot(snapshot)
+        return snapshot
 
     def step_over(self, snapshot):
         fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])

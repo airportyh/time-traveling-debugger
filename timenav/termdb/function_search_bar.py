@@ -39,7 +39,7 @@ class FunctionSearchBar:
                 matches = []
                 for fun_code in self.fun_codes:
                     name = fun_code["name"]
-                    if fuzzy_match_simple(name, query):
+                    if fuzzy_contain(name, query):
                         result = fuzzy_match_5(name, query)
                         matches.append((fun_code, result))
             else:
@@ -94,5 +94,6 @@ class FunctionSearchBar:
         return code_file["file_path"].split("/")[-1]
     
     def close(self):
-        remove_child(self.parent, self)
+        if self.parent:
+            remove_child(self.parent, self)
         

@@ -1,5 +1,7 @@
 # Todo
 
+# auto size the 2 windows initially
+
 # when switching active window, it tries to focus on
 #   an element within the window
 # indicate which window is active
@@ -16,6 +18,7 @@
 # re-usable choice bar? (quick-pick)
 # code improvement: make heavy use of event bubbling???
 
+# skip first fun call if it's file loader (done)
 # show all hits for a line in a file (done)
 # jump to line in current file
 # search within a file
@@ -24,7 +27,6 @@
 # bug: variables, if amount of used space dramatically reduces, the offset should be adjusted so the user
 #    can see stuff (scroll_view in general?)
 # variables panel display set objects broken (fix sets in recreate)
-
 # clicking away should close a dropdown menu (done)
 # clicking away should close search bar (done)
 # smart launch bar
@@ -106,6 +108,7 @@ from .function_search_bar import FunctionSearchBar
 from .goto_step_bar import GotoStepBar
 from .hits_pane import HitsPane
 from .code_file import get_filename
+import os
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -127,9 +130,15 @@ class DebuggerGUI:
             if self.first_error:
                 begin_snapshot_id = self.first_error["snapshot_id"]
             else:
-                begin_snapshot_id = 1
+                snapshot = self.cache.get_snapshot(1)
+                fun_call = self.cache.get_fun_call(snapshot["fun_call_id"])
+                fun_code = self.cache.get_fun_code(fun_call["fun_code_id"])
+                code_file = self.cache.get_code_file(fun_code["code_file_id"])
+                if code_file["file_path"] == "<frozen importlib._bootstrap_external>":
+                    snapshot = self.nav.get_next_snapshot_not_in_fun_call(fun_call["id"])
+        else:
+            snapshot = self.cache.get_snapshot(begin_snapshot_id)
         
-        snapshot = self.cache.get_snapshot(begin_snapshot_id)
         self.goto_snapshot(snapshot)
     
     def init_errors(self):
@@ -158,8 +167,10 @@ class DebuggerGUI:
         
         self.win_manager = WindowManager()
         add_child(self.content, self.win_manager, stretch="both")
-        self.init_code_pane()
-        self.init_stack_pane()
+        
+        termsize = os.get_terminal_size()
+        self.init_code_pane(termsize)
+        self.init_stack_pane(termsize)
         self.init_timeline()
         add_listener(self.win_manager, "add_window", self.on_add_window)
         add_listener(self.win_manager, "close_window", self.on_close_window)
@@ -211,21 +222,21 @@ class DebuggerGUI:
                 abs_size=(40, 20)
             )
     
-    def init_code_pane(self):
+    def init_code_pane(self, termsize):
         self.code_pane = CodePane(self.cache, self.nav, self.content)
         self.code_win = Window("Code", self.code_pane)
         add_listener(self.code_pane, "hits_request", self.on_hits_request)
         self.win_manager.add_window(self.code_win,
             abs_pos=(0, 0),
-            abs_size=(60, 25)
+            abs_size=(termsize.columns // 2, termsize.lines - 2)
         )
     
-    def init_stack_pane(self):
+    def init_stack_pane(self, termsize):
         self.stack_pane = StackPane(self.cache, self.value_cache)
         self.stack_win = Window("Variables", self.stack_pane)
         self.win_manager.add_window(self.stack_win,
-            abs_pos=(60, 0),
-            abs_size=(40, 25)
+            abs_pos=(termsize.columns // 2, 0),
+            abs_size=(termsize.columns - (termsize.columns // 2), termsize.lines - 2)
         )
     
     def init_timeline(self):
