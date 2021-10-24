@@ -59,6 +59,15 @@ BOLD = "1m"
 UNDERLINE = "4m"
 REVERSED = "7m"
 
+empty_unicode_chars = set([
+    u"\ufe0e", u"\ufeff", u"\ufe00", u"\ufe01", u"\ufe02", u"\ufe03", u"\ufe04",
+    u"\ufe05", u"\u2060", u"\u200D", u"\u2060", u"\ufe06", u"\ufe07", u"\ufe08",
+    u"\ufe09", u"\ufe0A", u"\ufe0B", u"\ufe0C", u"\ufe0D", u"\ufe0E", u"\ufe0F",
+])
+
+def filter_empty_chars(string):
+    return "".join(filter(lambda c: c not in empty_unicode_chars, list(string)))
+
 def color256(color_code):
     return "38;5;%dm" % color_code
 
@@ -72,7 +81,7 @@ def sstring(string, codes=[], strike_through=False):
             # save a level of nesting if the input doesn't have a code
             return SStringGroup(string.children, codes, strike_through)
     elif isinstance(string, str):
-        return SStringSingle(string, codes, strike_through)
+        return SStringSingle(filter_empty_chars(string), codes, strike_through)
     else:
         raise Exception("Invalid arguments for sstring")
 
