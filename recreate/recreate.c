@@ -1948,22 +1948,22 @@ int main(int argc, char *argv[]) {
             break;
         }
         if (verbose) {
-            printf("\nLine: %s", line);
+            printf("\nLine %d: %s", logLineNo, line);
         }
         if (processEvent(line, logLineNo) != 0) {
             break;
         }
         logLineNo++;
 
-        // if (line_no % 600 == 0) {
+        // if (logLineNo % 600 == 0) {
         //     if (verbose) {
-        //         printf("Line: %d\n", line_no);
+        //         printf("Line: %d\n", logLineNo);
         //     }
-        //     SQLITE(exec(db, "end transaction", NULL, 0, NULL));
-        //     SQLITE(exec(db, "begin transaction", NULL, 0, NULL));
+        //     // SQLITE(exec(db, "end transaction", NULL, 0, NULL));
+        //     // SQLITE(exec(db, "begin transaction", NULL, 0, NULL));
         // }
     }
-
+    
     SQLITE(exec(db, "end transaction", NULL, 0, NULL));
 
     if (line) {

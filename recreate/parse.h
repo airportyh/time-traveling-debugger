@@ -102,10 +102,13 @@ static inline int parseDoubleArg(int *i, double *value) {
     int pos;
     if (strncmp(line + (*i), "inf", 3) == 0) {
         *value = INFINITY;
+        (*i) += 3;
     } else if (strncmp(line + (*i), "-inf", 4) == 0) {
         *value = -INFINITY;
+        (*i) += 4;
     } else if (strncmp(line + (*i), "nan", 3) == 0) {
         *value = NAN;
+        (*i) += 3;
     } else if (sscanf(line + (*i), "%lf%n", value, &pos) == 1) {
         (*i) += pos;
     } else {
