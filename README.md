@@ -107,3 +107,5 @@ This project is dependent on the following technologies:
 * HTML5 Canvas
 * Webpack
 * gcc / automake
+
+Change
