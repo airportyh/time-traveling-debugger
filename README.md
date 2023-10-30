@@ -70,7 +70,7 @@ the HTML5 canvas-based debugger executes.
 ## Videos about the Time Traveling Debugger
 
 I have been documenting work on the time-traveling debugger in video format. You can find all the videos
-in [this playlist](https://www.youtube.com/playlist?list=PLSq9OFrD2Q3Cpyk2LD1vE0161Jg82HJ7d). Notable videos are:
+in [this playlist](https://tobyho.com/video-series/Time-Traveling-Debugger.html). Notable videos are:
 
 * [Time Travel Debugging (in Python)](https://www.youtube.com/watch?v=HlndMuAguEk)
 * [Dream of the Time Machine](https://www.youtube.com/watch?v=xwhm7g9GjuY)
