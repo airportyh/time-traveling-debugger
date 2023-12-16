@@ -4,7 +4,7 @@ Problems Encountered While Building OUI
     
 * the lower layer (done)
 * building out UI tree (stole DOM) (done)
-* layout (vbox/hbox simplified flex)
+* layout (vbox/hbox simplified flex) (done)
 * scroll view (regions) (Flutter's layout)
 * flickering (double buffering)
 * events / event loop

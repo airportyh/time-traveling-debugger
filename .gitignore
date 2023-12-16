@@ -6,3 +6,5 @@ node_modules
 __pycache__
 *.pickle
 .vscode
+timenav/media
+videos
