@@ -1,0 +1,54 @@
+digraph BinTreeWithStackFrame {
+    graph [ordering="out"];
+    rankdir=TB
+    nodesep=0.5
+    ranksep=0.5
+    
+    One
+    Two
+    Three
+    Four
+    Five
+    Six
+    One -> Two -> Three -> Four -> Five -> Six
+    
+    subgraph frame {
+        node [ shape=plaintext ]
+        
+        index [ label="index = 3" ]
+        level [ label="level = 2" ]
+        root
+        current
+    }
+    
+    { rank=same One index }
+    { rank=same Two level }
+    { rank=same Three root }
+    { rank=same Four current B }
+    { rank=same Five  C A }
+    { rank=same Six E D }
+    
+    subgraph tree {
+        rankdir=TB
+        A [ shape=Mrecord label="{Tommy|440-392-2342}" ]
+        B [ shape=Mrecord label="{Jesse|942-342-3456}" ]
+        C [ shape=Mrecord label="{Anderson|770-345-2345}" ]
+        D [ shape=Mrecord label="{Donny|832-345-2345}" ]
+        E [ shape=Mrecord label="{Sue|834-234-345}" ]
+        
+        null1 [shape=point];
+        null2 [shape=point];
+        
+        B -> C
+        B -> A
+        C -> null2
+        C -> D
+        A -> null1
+        A -> E
+    }
+    
+    root -> B [ constraint=false ]
+    current -> D [ constraint=false ]
+    
+    
+}

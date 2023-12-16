@@ -1,0 +1,13 @@
+digraph MyGraph {
+    graph [ordering="out"];
+    A [ shape=Mrecord label="{Tommy|440-392-2342}" ]
+    B [ shape=Mrecord label="{Jesse|942-342-3456}" ]
+    C [ shape=Mrecord label="{Anderson|770-345-2345}" ]
+    D [ shape=Mrecord label="{Donny|832-345-2345}" ]
+    null1 [shape=point];
+    
+    B -> C
+    B -> A
+    A -> D
+    A -> null1
+}
