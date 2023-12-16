@@ -11,21 +11,21 @@ investigate the cause of bugs.
 ## Subprojects
 
 * [cpython](https://github.com/airportyh/cpython) - a modified version of Python (Code-named: Python Rewind) that generates a log file as a program is executed. That log contains info that is needed to recreate the past
-states of the program, which is handled by the `recreate.py` program. `recreate.py` generates
-a SQLite-based history file.
-* [history-api](./history-api) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
-off this API.
-* [term-debugger](./term-debugger) - a terminal-based step debugger frontend written in Node.js
-and EcmaScript modules.
-* [zoom-debugger](./zoom-debugger) - a HTML5 Canvas-based ZUI debugger frontend written in TypeScript with Webpack as the bundler.
-* [json-like](./json-like) - a parser for a JSON-like data format with features specific to
-the time-traveling debugger, written in JavaScript.
-* [play-lang](./play-lang) - a small programming language with built-in time-travel support.
-A program executed written in Play automatically generates a SQLite-based history file.
-* [timenav](./timenav) - a terminal-based debugger frontend built-in Python. This aims to
-be the next iteration of the debugger frontend. It also aims to be a use case for the debugger
+states of the program.
+* [recreate](./recreate) - a C-based program (replacement for recreate.py) that reads the log file created by Python Rewind and generates the history of the program in a
+SQLite-based history file.
+* [timenav](./timenav) - a Python-based terminal UI debugger based on the SQLite-based history file. It also aims to be a use case for the debugger
 itself as the debugger will be developed with the help of the debugger itself - a case of
 dog-fooding.
+* [history-api](./history-api) (deprecated) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
+off this API.
+* [term-debugger](./term-debugger) (deprecated) - a terminal-based step debugger frontend written in Node.js
+and EcmaScript modules.
+* [zoom-debugger](./zoom-debugger)(deprecated)  - a HTML5 Canvas-based ZUI debugger frontend written in TypeScript with Webpack as the bundler.
+* [json-like](./json-like) (deprecated) - a parser for a JSON-like data format with features specific to
+the time-traveling debugger, written in JavaScript.
+* [play-lang](./play-lang) (deprecated) - a small programming language with built-in time-travel support.
+A program executed written in Play automatically generates a SQLite-based history file.
 
 ## Setup
 
@@ -35,15 +35,6 @@ platform and is interested in testing this out, let us know by submitting an iss
 
 1. Clone this repo and cd into the project directory.
 2. `. add-path` - this will add the project's `bin` directory to your path.
-3. `npm-install` - this will install the dependencies (via npm) for each of the JavaScript-based
-subprojects.
-4. To build the modified version of CPython:
-    1. Install `gcc` if you haven't. For OSX, you can install either the Apple Command Line Developer Tools or XCode (XCode takes up much more disk space).
-    2. `get-python` - this will use git's submodule feature to fetch the code for cpython. (~10 minutes)
-    3. `cd cpython`
-    4. `./configure` - configured the build environment based on your system's libraries, compiler, and other tools available. (~2 minutes)
-    5. `make` - build the Python (~5 minutes)
-    6. `cd ..`
 
 ## Command-Line Tools
 
