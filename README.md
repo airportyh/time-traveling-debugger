@@ -17,6 +17,7 @@ SQLite-based history file.
 * [timenav](./timenav) - a Python-based terminal UI debugger based on the SQLite-based history file. It also aims to be a use case for the debugger
 itself as the debugger will be developed with the help of the debugger itself - a case of
 dog-fooding.
+* [oui](./timenav/oui) - a terminal UI toolkit in Python
 * [history-api](./history-api) (deprecated) - a Node.js/Express-based REST API endpoint which returns a program's past states based on its SQLite-based history file. Debugger frontends are driven
 off this API.
 * [term-debugger](./term-debugger) (deprecated) - a terminal-based step debugger frontend written in Node.js
