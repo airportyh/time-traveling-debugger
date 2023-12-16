@@ -26,6 +26,8 @@ and EcmaScript modules.
 the time-traveling debugger, written in JavaScript.
 * [play-lang](./play-lang) (deprecated) - a small programming language with built-in time-travel support.
 A program executed written in Play automatically generates a SQLite-based history file.
+* [rrui](./rrui) (deprecated) - a wrapper debugger around rr
+* [det-replay](./det-replay) - a simple demonstrate of deterministic replay
 
 ## Setup
 
@@ -98,5 +100,3 @@ This project is dependent on the following technologies:
 * HTML5 Canvas
 * Webpack
 * gcc / automake
-
-Change
