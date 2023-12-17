@@ -38,6 +38,12 @@ platform and is interested in testing this out, let us know by submitting an iss
 
 1. Clone this repo and cd into the project directory.
 2. `. add-path` - this will add the project's `bin` directory to your path.
+3. Get Python Rewind via git submodule: `get-python`
+4. Build Python Rewind:
+    * `cd cpython`
+    * `./configure`
+    * `./make`
+5. Now the command line tools below should be available.
 
 ## Command-Line Tools
 
@@ -57,7 +63,7 @@ If the input is a `.rewind` log file, it will call the `recreate` command to con
 a `.sqlite` file before launching the debugger. This debugger has a ncurses-style GUI 
 and is controlled using one-stroke keyboard commands similar less and nano. 
 It also supports mouse and scroll-wheel interactions for terminals that support it.
-4. `zoom` - starts the zoom debugger. This command also takes a history file as input. For
+4. `zoom` - starts the zoom debugger (deprecated). This command also takes a history file as input. For
 example: `zoom fib.sqlite`. Running this command spawns a browser window within which
 the HTML5 canvas-based debugger executes.
 
@@ -74,20 +80,6 @@ in [this playlist](https://tobyho.com/video-series/Time-Traveling-Debugger.html)
 * [Time Traveling Debugger for Python](https://www.youtube.com/watch?v=h80C9zzyf7k)
 * [rr and Record Replay Debuggers](https://www.youtube.com/watch?v=cCf7hiZvJrY)
 
-## Other Projects, Products and Papers on Time Travel Debugging
-
-* [Replay.io](https://replay.io/) - time-travel debugger for JavaScript webapps based on Firefox. [[Talk](https://www.youtube.com/watch?v=rDq1AN1kSn4)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)].
-* [rr](https://rr-project.org/) - time-travel debugger for C and C++. [[Talk](https://www.youtube.com/watch?v=H4iNuufAe_8)], [[Paper](https://arxiv.org/pdf/1705.05937.pdf)].
-* [Timelapse](https://github.com/burg/replay-staging) - a time-travel debugger for JavaScript webapps based on Safari. [[Video](https://www.youtube.com/watch?v=ugHAzyQ6H00)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)], [[Paper](https://homes.cs.washington.edu/~mernst/pubs/record-replay-uist2013.pdf)].
-* [ozcode](https://oz-code.com/) - a replay debugger for .NET
-* [ODB (Omniscient Debugger)](https://github.com/OmniscientDebugger/LewisOmniscientDebugger) - an omniscient debugger for Java. [[Talk](https://youtu.be/xpI8hIgOyko)], [[Paper](https://arxiv.org/abs/cs/0310016)].
-* [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [[Paper](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)]
-* [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420)
-* [Sayid](https://github.com/clojure-emacs/sayid) - Omniscient debugger for Clojure. [[Video](https://youtu.be/ipDhvd1NsmE)].
-* [Time Traveling in Microsoft WinDBG (Windows Debugger)](https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/time-travel-debugging-overview). [[Video](https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-185-Time-Travel-Debugging-Introduction)], [[Talk](https://www.youtube.com/watch?v=l1YJTg_A914)].
-* Time Traveling Debugger in Microsoft's Chakra JS Engine. [[Talk](https://channel9.msdn.com/blogs/Marron/Time-Travel-Debugging-for-JavaScriptHTML)], [[Docs](https://github.com/nodejs/node-chakracore/blob/master/TTD-README.md)].
-* [Paper: Repeatable Reverse Engineering for the Greater Good with PANDA](https://www.ll.mit.edu/sites/default/files/publication/doc/2018-04/2014_10_01_Dolan-Gavitt_B_TechReport_FP.pdf)
-
 ## Dependencies
 
 This project is dependent on the following technologies:
@@ -101,3 +93,17 @@ This project is dependent on the following technologies:
 * HTML5 Canvas
 * Webpack
 * gcc / automake
+
+## Other Projects, Products and Papers on Time Travel Debugging
+
+* [Replay.io](https://replay.io/) - time-travel debugger for JavaScript webapps based on Firefox. [[Talk](https://www.youtube.com/watch?v=rDq1AN1kSn4)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)].
+* [rr](https://rr-project.org/) - time-travel debugger for C and C++. [[Talk](https://www.youtube.com/watch?v=H4iNuufAe_8)], [[Paper](https://arxiv.org/pdf/1705.05937.pdf)].
+* [Timelapse](https://github.com/burg/replay-staging) - a time-travel debugger for JavaScript webapps based on Safari. [[Video](https://www.youtube.com/watch?v=ugHAzyQ6H00)], [[Reading](https://trac.webkit.org/wiki/WebReplayMechanics)], [[Paper](https://homes.cs.washington.edu/~mernst/pubs/record-replay-uist2013.pdf)].
+* [ozcode](https://oz-code.com/) - a replay debugger for .NET
+* [ODB (Omniscient Debugger)](https://github.com/OmniscientDebugger/LewisOmniscientDebugger) - an omniscient debugger for Java. [[Talk](https://youtu.be/xpI8hIgOyko)], [[Paper](https://arxiv.org/abs/cs/0310016)].
+* [Arnold](https://github.com/endplay/omniplay) an eidetic Linux-based system. [[Paper](https://www.cc.gatech.edu/~ddevecsery6/papers/devecsery14.pdf)]
+* [Paper: A Review of Reverse Debugging](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.338.3420)
+* [Sayid](https://github.com/clojure-emacs/sayid) - Omniscient debugger for Clojure. [[Video](https://youtu.be/ipDhvd1NsmE)].
+* [Time Traveling in Microsoft WinDBG (Windows Debugger)](https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/time-travel-debugging-overview). [[Video](https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-185-Time-Travel-Debugging-Introduction)], [[Talk](https://www.youtube.com/watch?v=l1YJTg_A914)].
+* Time Traveling Debugger in Microsoft's Chakra JS Engine. [[Talk](https://channel9.msdn.com/blogs/Marron/Time-Travel-Debugging-for-JavaScriptHTML)], [[Docs](https://github.com/nodejs/node-chakracore/blob/master/TTD-README.md)].
+* [Paper: Repeatable Reverse Engineering for the Greater Good with PANDA](https://www.ll.mit.edu/sites/default/files/publication/doc/2018-04/2014_10_01_Dolan-Gavitt_B_TechReport_FP.pdf)

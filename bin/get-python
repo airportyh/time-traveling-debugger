@@ -2,6 +2,4 @@ echo "git submodule init"
 git submodule init
 echo "git submodule update"
 git submodule update
-cd cpython
-git checkout tho/time-traveling
 cd ..
