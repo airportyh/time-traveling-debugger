@@ -10,7 +10,7 @@ investigate the cause of bugs.
 
 ## Subprojects
 
-* [cpython](https://github.com/airportyh/cpython) - a modified version of Python (Code-named: Python Rewind) that generates a log file as a program is executed. That log contains info that is needed to recreate the past
+* [Python Rewind](https://github.com/airportyh/cpython) - a modified version of Python (fork) that generates a log file as a program is executed. That log contains info that is needed to recreate the past
 states of the program.
 * [recreate](./recreate) - a C-based program (replacement for recreate.py) that reads the log file created by Python Rewind and generates the history of the program in a
 SQLite-based history file.
