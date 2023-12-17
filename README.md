@@ -33,7 +33,7 @@ A program executed written in Play automatically generates a SQLite-based histor
 ## Setup
 
 This section is for developers who want to test out or modify the code.
-This has only been tested on OSX, apologies to Windows users. If you are on an unsupported
+This has only been tested on OSX and Linux, apologies to Windows users. If you are on an unsupported
 platform and is interested in testing this out, let us know by submitting an issue.
 
 1. Clone this repo and cd into the project directory.
