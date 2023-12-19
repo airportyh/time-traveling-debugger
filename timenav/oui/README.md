@@ -48,7 +48,7 @@ a method of the same name as the event as the event handler. For example, to pro
 for the `click` event, an element may implement the `click(event)` method, and that method will
 be called each time the element is clicked, which an event object as the argument. It is also
 possible to attach multiple event handlers to the same event for an element, to do this, you
-use the `add_handler(element, event_name, handler, front=False)` function from `oui`. When you
+use the `add_listener(element, event_name, handler, front=False)` function from `oui`. When you
 do this, it turns the attribute of the event name (say `click`) into a list, rather than a method,
 and appends the new handler to the list. If there previously exists a method for that event, the
 method object will be appended to the new list of handlers. Here,
