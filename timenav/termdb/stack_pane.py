@@ -92,8 +92,7 @@ class StackPane:
         members = self.cache.get_members(dict_id)
         member_key_values = map(self.key_value_for_member(version), members)
         for key, value in sorted(member_key_values, key=lambda p: p[0]):
-            value_display = self.render_value(value, version)    
-            expandable = self.is_value_expandable(value, version)
+            value_display, expandable = self.render_value(value, version)    
             label = "%s = %s" % (key, value_display)
             sub_tree = Tree(label, expandable=expandable)
             if expandable:
@@ -126,13 +125,12 @@ class StackPane:
             key_id = member["key"]
             if member["key_type"] == 0: # ref
                 key_value = self.value_cache.get_value(key_id, version)
-                key_display = self.render_value(key_value, version)
+                key_display, _ = self.render_value(key_value, version)
             else:
                 key_display = repr(member["key"])
             value_id = member["value"]
             value = self.value_cache.get_value(value_id, version)
-            value_display = self.render_value(value, version)
-            expandable = self.is_value_expandable(value, version)
+            value_display, expandable = self.render_value(value, version)
             label = "%s: %s" % (key_display, value_display)
             sub_tree = Tree(label, expandable=expandable)
             if expandable:
@@ -148,12 +146,27 @@ class StackPane:
             type_id, dict_id = data
         else:
             raise Exception("Object value has more than 2 values %r" % value)
-        type_name = self.get_custom_type_name(type_id, version)
         if dict_id:
-            dict_value = self.value_cache.get_value(dict_id, version)
-            if dict_value:
-                self.fetch_dict(tree, dict_value, version)
-    
+            value = self.value_cache.get_value(dict_id, version)
+            if not value:
+                return
+        members = self.cache.get_members(value["id"])
+        for member in members:
+            key_id = member["key"]
+            if member["key_type"] == 0: # ref
+                key_value = self.value_cache.get_value(key_id, version)
+                key_display = key_value["value"]
+            else:
+                key_display = repr(member["key"])
+            value_id = member["value"]
+            value = self.value_cache.get_value(value_id, version)
+            value_display, expandable = self.render_value(value, version)
+            label = "%s = %s" % (key_display, value_display)
+            sub_tree = Tree(label, expandable=expandable)
+            if expandable:
+                add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
+            add_child(tree, sub_tree)
+
     def fetch_list_or_tuple(self, tree, value, version):
         members = self.cache.get_members(value["id"])
         for member in members:
@@ -162,8 +175,7 @@ class StackPane:
             value = self.value_cache.get_value(value_id, version)
             if value is None or value["type_name"] == "<deleted>":
                 continue
-            value_display = self.render_value(value, version)
-            expandable = self.is_value_expandable(value, version)
+            value_display, expandable = self.render_value(value, version)
             sub_tree = Tree(value_display, expandable=expandable)
             if expandable:
                 add_listener_once(sub_tree, "expand", self.fetch_children(value, version))
@@ -175,8 +187,7 @@ class StackPane:
             key = member["key"]
             if member["key_type"] == 0: #ref
                 key_value = self.value_cache.get_value(key, version)
-                expandable = self.is_value_expandable(key_value, version)
-                key_display = self.render_value(key_value, version)
+                key_display, expandable = self.render_value(key_value, version)
             else:
                 key_display = repr(key)
                 expandable = False
@@ -187,31 +198,27 @@ class StackPane:
     
     def render_value(self, value, version):
         if value is None:
-            return "None"
+            return ("None", False)
         tp = value["type_name"]
         if tp == "none":
-            return "None"
+            return ("None", False)
         elif tp == "<deleted>":
             raise Exception("<deleted> value should have been handled")
         elif tp == "str":
-            return "%r" % value["value"]
+            return ("%r" % value["value"], False)
         elif tp == "int":
-            return value["value"]
+            return (value["value"], False)
         elif tp == "float":
             if value["value"] is None:
                 value["value"] = float("nan")
-            return value["value"]
+            return (value["value"], False)
         elif tp == "bool":
             bool_value = value["value"] == "1"
-            return "%r" % bool_value
+            return ("%r" % bool_value, False)
         elif tp == "dict":
-            return "{…}"
-        elif tp == "list":
-            return "[…]"
-        elif tp == "tuple":
-            return "(…)"
-        elif tp == "set":
-            return "set(…)"
+            return ("{…}", True)
+        elif tp in ["list", "tuple", "set"]:
+            return self.render_list_tuple_or_set(value, version, tp)
         elif tp == "object":
             data = value["value"].split(" ")
             if len(data) == 1:
@@ -222,7 +229,7 @@ class StackPane:
             else:
                 raise Exception("Object value has more than 2 values %r" % value)
             type_name = self.get_custom_type_name(type_id, version)
-            return "<%s>{…}" % type_name
+            return ("<%s>{…}" % type_name, True)
         elif tp == "<ref>":
             ref_id = int(value["id"])
             value_id = int(value["value"])
@@ -231,29 +238,44 @@ class StackPane:
         elif tp == "function":
             fun_code_id = int(value["value"])
             fun_code = self.cache.get_fun_code(fun_code_id)
-            return "%s()" % fun_code["name"]
+            return ("%s()" % fun_code["name"], False)
         elif tp == "module":
-            return "<module>"
+            return ("<module>", False)
         elif tp == "<type>":
             type_name = value["value"]
-            return "<class %s>" % type_name
+            return ("<class %s>" % type_name, False)
         else:
-            return "[%s] %r" % (tp, value)
-    
-    def is_value_expandable(self, value, version):
-        if value is None:
-            return False
-        tp = value["type_name"]
-        if tp in ["none", "str", "<deleted>", "int", "float", "bool", "function", "module", "<type>"]:
-            return False
-        elif tp == "<ref>":
-            ref_id = int(value["id"])
-            value_id = int(value["value"])
-            real_value = self.value_cache.get_value(value_id, version)
-            return self.is_value_expandable(real_value, version)
-        else:
-            return True
+            return ("[%s] %r" % (tp, value), False)
         
+    def render_list_tuple_or_set(self, value, version, tp):
+        members = self.cache.get_members(value["id"])
+        display_values = []
+        if len(members) <= 5:
+            auto_expand = True
+            for member in members:
+                value_id = member["value"]
+                value = self.value_cache.get_value(value_id, version)
+                display_value, expand = self.render_value(value, version)
+                display_values.append(display_value)
+                auto_expand = auto_expand and not expand
+            if auto_expand:
+                if tp == "tuple":
+                    return ("(%s)" % ", ".join(display_values), False)
+                elif tp == "list":
+                    return ("[%s]" % ", ".join(display_values), False)
+                elif tp == "set":
+                    return ("set(%s)" % ", ".join(display_values), False)
+                else:
+                    raise Exception("Unhandled type: %s" % tp)
+        if tp == "tuple":
+            return ("(…)", True)
+        elif tp == "list":
+            return ("[…]", True)
+        elif tp == "set":
+            return ("set(…)", True)
+        else:
+            raise Exception("Unhandled type: %s" % tp)
+
     def get_custom_type_name(self, type_id, version):
         value = self.value_cache.get_value(type_id, version)
         return value["value"]
