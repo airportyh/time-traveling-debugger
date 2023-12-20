@@ -1,16 +1,16 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if test -f "$DIR/../cpython/python"; then
-	PYTHONPATH="$DIR/../cpython/python"
+	PYTHONBINPATH="$DIR/../cpython/python"
 fi
 
 if test -f "$DIR/../cpython/python.exe"; then
-	PYTHONPATH="$DIR/../cpython/python.exe"
+	PYTHONBINPATH="$DIR/../cpython/python.exe"
 fi
 
-if test -f $PYTHONPATH; then
-	echo "$PYTHONPATH $@"
-	$PYTHONPATH $@
+if test -f $PYTHONBINPATH; then
+	echo "$PYTHONBINPATH $@"
+	$PYTHONBINPATH $@
 else
 	echo "Python not found."
 fi
