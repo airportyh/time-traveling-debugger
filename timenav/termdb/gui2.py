@@ -102,6 +102,7 @@ from .value_cache import ValueCache
 import sqlite3
 from .code_pane import CodePane
 from .stack_pane import StackPane
+from .call_stack_pane import CallStackPane
 from .timeline import Timeline
 from .search_bar import SearchBar
 from .function_search_bar import FunctionSearchBar
@@ -109,6 +110,7 @@ from .goto_step_bar import GotoStepBar
 from .hits_pane import HitsPane
 from .code_file import get_filename
 import os
+import math
 
 class DebuggerGUI:
     def __init__(self, hist_filename, begin_snapshot_id=None):
@@ -171,6 +173,7 @@ class DebuggerGUI:
         termsize = os.get_terminal_size()
         self.init_code_pane(termsize)
         self.init_stack_pane(termsize)
+        self.init_call_stack(termsize)
         self.init_timeline()
         add_listener(self.win_manager, "add_window", self.on_add_window)
         add_listener(self.win_manager, "close_window", self.on_close_window)
@@ -234,9 +237,20 @@ class DebuggerGUI:
     def init_stack_pane(self, termsize):
         self.stack_pane = StackPane(self.cache, self.value_cache)
         self.stack_win = Window("Variables", self.stack_pane)
+        height = math.floor((termsize.lines - 2) / 2)
         self.win_manager.add_window(self.stack_win,
             abs_pos=(termsize.columns // 2, 0),
-            abs_size=(termsize.columns - (termsize.columns // 2), termsize.lines - 2)
+            abs_size=(termsize.columns - (termsize.columns // 2), height)
+        )
+
+    def init_call_stack(self, termsize):
+        self.call_stack = CallStackPane(self.cache, self.value_cache)
+        self.call_stack_win = Window("Call stack", self.call_stack)
+        stack_pane_height = math.floor((termsize.lines - 2) / 2)
+        height = termsize.lines - stack_pane_height - 3
+        self.win_manager.add_window(self.call_stack_win,
+            abs_pos=(termsize.columns // 2, stack_pane_height),
+            abs_size=(termsize.columns - (termsize.columns // 2), height)                      
         )
     
     def init_timeline(self):
@@ -266,6 +280,7 @@ class DebuggerGUI:
         self.update_code_pane()
         self.update_status()
         self.update_stack_pane()
+        self.update_call_stack()
         self.update_timeline()
         self.update_term_file()
         self.update_hits_panes()
@@ -294,6 +309,9 @@ class DebuggerGUI:
     
     def update_stack_pane(self):
         self.stack_pane.update(self.snapshot)
+    
+    def update_call_stack(self):
+        self.call_stack.update(self.snapshot)
     
     def update_status(self):
         message = "Step %d of %d: %s() line %d" % (

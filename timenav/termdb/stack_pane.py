@@ -20,7 +20,6 @@ class StackPane:
         add_listener(self.globals_tree, "expand", self.on_expand)
         add_listener(self.globals_tree, "collapse", self.on_expand)
 
-        # add_child(self, self.vbox)
         self.scroll_view = ScrollView(self.vbox)
         add_child(self, self.scroll_view)
     
